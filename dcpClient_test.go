@@ -4,22 +4,38 @@ import (
 	"fmt"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/stretchr/testify/assert"
+	"go-dcp-client/config"
 	"testing"
 	"time"
 )
 
-func TestInit(t *testing.T) {
+func TestInitFromYml(t *testing.T) {
 	// todo run in test container
-	agents := Init("config/test.yml", func(mutation gocbcore.DcpMutation) {
+	InitFromYml("config/test.yml", func(mutation Mutation) {
+		println("mutated %s", mutation.Key)
 		assert.Equal(t, mutation.Key, "my_key")
-	}, func(deletion gocbcore.DcpDeletion) {
+	}, func(deletion Deletion) {
 		println("Deleted %s", deletion.Key)
-	})
+	}, nil)
 
-	CBSet(agents.opAgent)
+	cbSet(agents.opAgent)
 }
 
-func CBSet(agent *gocbcore.Agent) error {
+func TestInit(t *testing.T) {
+	// todo run in test container
+	Init(config.CouchbaseDCPConfig{
+		// todo config
+	}, func(mutation Mutation) {
+		println("mutated %s", mutation.Key)
+		assert.Equal(t, mutation.Key, "my_key")
+	}, func(deletion Deletion) {
+		println("Deleted %s", deletion.Key)
+	}, nil)
+
+	cbSet(agents.opAgent)
+}
+
+func cbSet(agent *gocbcore.Agent) error {
 
 	key := "my_key"
 	value := "Some value"

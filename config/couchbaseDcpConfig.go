@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/gookit/config/v2"
 	"github.com/gookit/config/v2/yamlv3"
+	"strings"
 )
 
 type CouchbaseDCPConfig struct {
@@ -28,9 +29,18 @@ func LoadConfig(filePath string) CouchbaseDCPConfig {
 	}
 	couchbaseDCPConfig := CouchbaseDCPConfig{}
 	err = config.BindStruct("couchbase", &couchbaseDCPConfig)
+
 	if err != nil {
 		panic(err)
 	}
+
+	hosts := config.String("couchbase.hosts")
+
+	var hostItems []string
+	for _, element := range strings.Split(hosts, ",") {
+		hostItems = append(hostItems, element)
+	}
+	couchbaseDCPConfig.Hosts = hostItems
 
 	return couchbaseDCPConfig
 }

@@ -17,20 +17,25 @@ type Agents struct {
 	dcpAgent *gocbcore.DCPAgent
 }
 
-var agnt Agents
+var agents Agents
 
+// todo we are keeping it for testing purpose after clarifying state management we can removee
 // Note that using the infinite DCP stream is limited to a 60s run below, this can be changed
 var infinite bool = true //T: Run one infinite DCP stream, or F: run repeated DCP streams (i.e. will not stream events that we've seen before)
 
-func Init(configYmlPath string, onMutation func(gocbcore.DcpMutation), onDeletion func(gocbcore.DcpDeletion)) Agents {
-
+func InitFromYml(configYmlPath string, onMutation func(Mutation), onDeletion func(Deletion), onExpiration func(Deletion)) {
 	configYml := config.LoadConfig(configYmlPath)
+	Init(configYml, onMutation, onDeletion, onExpiration)
+}
 
-	hostnameOrIp := "your-cluster-here"
+func Init(configYml config.CouchbaseDCPConfig, onMutation func(Mutation), onDeletion func(Deletion), onExpiration func(Deletion)) {
 	port := 8091
 
 	var httpHosts []string
-	httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", hostnameOrIp, port))
+
+	for _, host := range configYml.Hosts {
+		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", host, port))
+	}
 
 	var authProvider = gocbcore.PasswordAuthProvider{
 		Username: configYml.Username,
@@ -56,8 +61,6 @@ func Init(configYmlPath string, onMutation func(gocbcore.DcpMutation), onDeletio
 		panic(err)
 	}
 	defer agent.Close()
-
-	flags := memd.DcpOpenFlagProducer
 
 	//All options written out, most using the default values
 	dcpConfig := gocbcore.DCPAgentConfig{
@@ -126,38 +129,30 @@ func Init(configYmlPath string, onMutation func(gocbcore.DcpMutation), onDeletio
 		},
 	}
 
-	dcpAgent, err := initDcpAgent(dcpConfig, flags)
+	dcpAgent, err := initDcpAgent(dcpConfig, memd.DcpOpenFlagProducer)
 	if err != nil {
 		panic(err)
 	}
 	defer dcpAgent.Close()
 
-	agnt = Agents{
+	agents = Agents{
 		opAgent:  agent,
 		dcpAgent: dcpAgent,
 	}
 
-	time.Sleep(10 * time.Second)
-
-	//Do a document set operation to have an event to see in DCP
-	//A better option is to use a sample bucket to get a bunch of events
-	// if err = CBSet(agent); err != nil {
-	//	fmt.Println("Got set error")
-	//	panic(err)
-	//}
-
 	so := &dcpStreamObserver{
-		lock:        sync.Mutex{},
-		mutations:   make(map[string]Mutation),
-		deletions:   make(map[string]Deletion),
-		expirations: make(map[string]Deletion),
-		dataRange:   make(map[uint16]SeqnoMarker),
-		lastSeqno:   make(map[uint16]uint64),
-		snapshots:   make(map[uint16]SnapshotMarker),
-		endWg:       sync.WaitGroup{},
+		lock: sync.Mutex{},
+		// mutations:   make(map[string]Mutation),
+		// deletions:   make(map[string]Deletion),
+		// expirations: make(map[string]Deletion),
+		dataRange: make(map[uint16]SeqNoMarker),
+		lastSeqNo: make(map[uint16]uint64),
+		snapshots: make(map[uint16]SnapshotMarker),
+		endWg:     sync.WaitGroup{},
 
-		OnMutation: onMutation,
-		OnDeletion: onDeletion,
+		OnMutation:   onMutation,
+		OnDeletion:   onDeletion,
+		OnExpiration: onExpiration,
 	}
 
 	//Run once or run repeatedly
@@ -169,8 +164,6 @@ func Init(configYmlPath string, onMutation func(gocbcore.DcpMutation), onDeletio
 			time.Sleep(10 * time.Second)
 		}
 	}
-
-	return agnt
 }
 
 func initAgent(config gocbcore.AgentConfig) (*gocbcore.Agent, error) {
@@ -224,7 +217,7 @@ func initDcpAgent(config gocbcore.DCPAgentConfig, openFlags memd.DcpOpenFlag) (*
 func setupDcpEventHandler(so *dcpStreamObserver) {
 
 	var seqNos []gocbcore.VbSeqNoEntry
-	snapshot, err := agnt.dcpAgent.ConfigSnapshot()
+	snapshot, err := agents.dcpAgent.ConfigSnapshot()
 	if err != nil {
 		fmt.Printf("Config SS failed")
 		return
@@ -238,7 +231,7 @@ func setupDcpEventHandler(so *dcpStreamObserver) {
 	fmt.Printf("Getting VBs. Got %d servers\n", numNodes)
 
 	for i := 1; i < numNodes+1; i++ {
-		_, err := agnt.dcpAgent.GetVbucketSeqnos(i, memd.VbucketStateActive, gocbcore.GetVbucketSeqnoOptions{},
+		_, err := agents.dcpAgent.GetVbucketSeqnos(i, memd.VbucketStateActive, gocbcore.GetVbucketSeqnoOptions{},
 			func(entries []gocbcore.VbSeqNoEntry, err error) {
 				fmt.Printf("In cb\n")
 				if err != nil {
@@ -273,23 +266,45 @@ func setupDcpEventHandler(so *dcpStreamObserver) {
 			ch := make(chan error)
 
 			fmt.Printf("(DCP) (%s) (vb %d) Creating DCP stream with start seqno %d, end seqno %d, vbuuid %d, snap start seqno %d, snap end seqno %d\n",
-				"default", en.VbID, gocbcore.SeqNo(so.lastSeqno[en.VbID]), en.SeqNo, fo[int(en.VbID)].VbUUID, so.snapshots[en.VbID].lastSnapStart, so.snapshots[en.VbID].lastSnapEnd)
+				"default", en.VbID, gocbcore.SeqNo(so.lastSeqNo[en.VbID]), en.SeqNo, fo[int(en.VbID)].VbUUID, so.snapshots[en.VbID].lastSnapStart, so.snapshots[en.VbID].lastSnapEnd)
 
 			var err error
 			var op gocbcore.PendingOp
 
 			if infinite {
+				// todo we are keeping it for testing purpose after clarifying state management we can removee
+
 				//Infinite streamer - streams from the beginning to Seq number MaxInt. So it will *never* complete
 				//Use this if you want to stream events for a long time and see everything
-				op, err = agnt.dcpAgent.OpenStream(en.VbID, memd.DcpStreamAddFlagActiveOnly, fo[int(en.VbID)].VbUUID, gocbcore.SeqNo(so.lastSeqno[en.VbID]), math.MaxInt64,
-					0, 0, so, gocbcore.OpenStreamOptions{}, func(entries []gocbcore.FailoverEntry, err error) {
+				op, err = agents.dcpAgent.OpenStream(
+					en.VbID,
+					memd.DcpStreamAddFlagActiveOnly,
+					fo[int(en.VbID)].VbUUID,
+					gocbcore.SeqNo(so.lastSeqNo[en.VbID]),
+					math.MaxInt64,
+					0,
+					0,
+					so,
+					gocbcore.OpenStreamOptions{},
+					func(entries []gocbcore.FailoverEntry, err error) {
 						ch <- err
 					},
 				)
 			} else {
+				// todo state should come from a durable storage not in-mem
+
 				//Incremental streamer - only receives new events that didn't occur in the last DCP streamer run (the 'memory' is in the DCPStreamObserver)
-				op, err = agnt.dcpAgent.OpenStream(en.VbID, memd.DcpStreamAddFlagActiveOnly, fo[int(en.VbID)].VbUUID, gocbcore.SeqNo(so.snapshots[en.VbID].lastSnapEnd), en.SeqNo,
-					gocbcore.SeqNo(so.snapshots[en.VbID].lastSnapStart), gocbcore.SeqNo(so.snapshots[en.VbID].lastSnapEnd), so, gocbcore.OpenStreamOptions{}, func(entries []gocbcore.FailoverEntry, err error) {
+				op, err = agents.dcpAgent.OpenStream(
+					en.VbID,
+					memd.DcpStreamAddFlagActiveOnly,
+					fo[int(en.VbID)].VbUUID,
+					gocbcore.SeqNo(so.snapshots[en.VbID].lastSnapEnd),
+					en.SeqNo,
+					gocbcore.SeqNo(so.snapshots[en.VbID].lastSnapStart),
+					gocbcore.SeqNo(so.snapshots[en.VbID].lastSnapEnd),
+					so,
+					gocbcore.OpenStreamOptions{},
+					func(entries []gocbcore.FailoverEntry, err error) {
 						ch <- err
 					},
 				)
@@ -362,7 +377,7 @@ func getFailOverLogs() (map[int]gocbcore.FailoverEntry, error) {
 
 	for i := 0; i < 1024; i++ {
 		go func(vbId uint16) {
-			op, err := agnt.dcpAgent.GetFailoverLog(vbId, func(entries []gocbcore.FailoverEntry, err error) {
+			op, err := agents.dcpAgent.GetFailoverLog(vbId, func(entries []gocbcore.FailoverEntry, err error) {
 				for _, en := range entries {
 					lock.Lock()
 					failOverEntries[int(vbId)] = en

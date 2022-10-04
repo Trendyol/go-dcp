@@ -1,0 +1,27 @@
+couchbase:
+  hosts: 10.10.36.120,10.10.36.121,10.10.36.122
+  bucketName: MyBucket
+  username: username
+  password: password
+  connection:
+    connectTimeout: 15s
+    socketTimeout: 15s
+    kvTimeout: 250ms
+    queryTimeout: 30s
+  dcp:
+    metadataBucket: MyMetaBucket
+    compression: true
+    flowControlBuffer: 16MB
+    persistencePollingInterval: 100ms
+    group:
+      name: groupName
+      membership:
+        memberNumber: ${MEMBER_NUMBER:1}
+        totalMembers: ${TOTAL_NUMBERS:1}
+      limit:
+        bytes: 5MB
+        actions: 100
+        timeout: 1m
+        concurrency: 4
+      version: 1
+      ignoreDelete: true

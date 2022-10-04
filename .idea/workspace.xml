@@ -5,16 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ff166a9d-07b9-40e8-96b9-2e7a9f5137b1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/couchbaseDcpConfig.go" beforeDir="false" afterPath="$PROJECT_DIR$/config/couchbaseDcpConfig.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/config/couchbaseDcpConfig_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/config/couchbaseDcpConfig_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dcpClient.go" beforeDir="false" afterPath="$PROJECT_DIR$/dcpClient.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dcpClient_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/dcpClient_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dcpobserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/dcpobserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

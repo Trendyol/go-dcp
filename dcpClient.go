@@ -32,8 +32,7 @@ func InitFromYml(configYmlPath string, onMutation func(Mutation), onDeletion fun
 const port int = 8091
 
 func Init(couchbaseDCPConfig config.CouchbaseDCPConfig, onMutation func(Mutation), onDeletion func(Deletion), onExpiration func(Deletion)) {
-	var httpHosts []string
-
+	httpHosts := make([]string, 0, len(couchbaseDCPConfig.Hosts))
 	for _, host := range couchbaseDCPConfig.Hosts {
 		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", host, port))
 	}

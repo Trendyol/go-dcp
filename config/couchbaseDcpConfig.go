@@ -41,12 +41,7 @@ func LoadConfig(filePath string) CouchbaseDCPConfig {
 	}
 
 	hosts := config.String("couchbase.hosts")
-
-	var hostItems []string
-	for _, element := range strings.Split(hosts, ",") {
-		hostItems = append(hostItems, element)
-	}
-	couchbaseDCPConfig.Hosts = hostItems
+	couchbaseDCPConfig.Hosts = strings.Split(hosts, ",")
 
 	return couchbaseDCPConfig
 }

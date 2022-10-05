@@ -24,12 +24,12 @@ type Deletion struct {
 	StreamID     uint16
 }
 
-type SnapshotMarker struct {
+type snapshotMarker struct {
 	lastSnapStart uint64
 	lastSnapEnd   uint64
 }
 
-type SeqNoMarker struct {
+type seqNoMarker struct {
 	startSeqNo uint64
 	endSeqNo   uint64
 }
@@ -45,9 +45,9 @@ type dcpStreamObserver struct {
 	//collDels       uint32
 	//scopeDels      uint32
 
-	dataRange map[uint16]SeqNoMarker    // todo make it durable
+	dataRange map[uint16]seqNoMarker    // todo make it durable
 	lastSeqNo map[uint16]uint64         // todo make it durable
-	snapshots map[uint16]SnapshotMarker // todo make it durable
+	snapshots map[uint16]snapshotMarker // todo make it durable
 	endWg     sync.WaitGroup
 
 	OnMutation   func(mutation Mutation)
@@ -57,7 +57,7 @@ type dcpStreamObserver struct {
 
 func (so *dcpStreamObserver) SnapshotMarker(marker gocbcore.DcpSnapshotMarker) {
 	so.lock.Lock()
-	so.snapshots[marker.VbID] = SnapshotMarker{marker.StartSeqNo, marker.EndSeqNo}
+	so.snapshots[marker.VbID] = snapshotMarker{marker.StartSeqNo, marker.EndSeqNo}
 	if so.lastSeqNo[marker.VbID] < marker.StartSeqNo || so.lastSeqNo[marker.VbID] > marker.EndSeqNo {
 		so.lastSeqNo[marker.VbID] = marker.StartSeqNo
 	}

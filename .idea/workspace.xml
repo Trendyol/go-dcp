@@ -5,7 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ff166a9d-07b9-40e8-96b9-2e7a9f5137b1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dcpClient.go" beforeDir="false" afterPath="$PROJECT_DIR$/dcpClient.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,7 +55,7 @@
       <recent name="$PROJECT_DIR$/config" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestInit in go-dcp-client">
+  <component name="RunManager" selected="Go Test.TestLoadConfig in go-dcp-client/config">
     <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
       <module name="go-dcp-client" />
       <working_directory value="$PROJECT_DIR$" />
@@ -116,9 +117,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Go Test.TestLoadConfig in go-dcp-client/config" />
         <item itemvalue="Go Test.TestInit in go-dcp-client" />
         <item itemvalue="Go Build.go build go-dcp-client" />
-        <item itemvalue="Go Test.TestLoadConfig in go-dcp-client/config" />
         <item itemvalue="Go Build.go build GoDcpPoC" />
       </list>
     </recent_temporary>

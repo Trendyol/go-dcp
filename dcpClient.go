@@ -7,6 +7,7 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"go-dcp-client/config"
+	"log"
 	"math"
 	"sync"
 	"time"
@@ -21,46 +22,107 @@ var agents Agents
 
 // todo we are keeping it for testing purpose after clarifying state management we can removee
 // Note that using the infinite DCP stream is limited to a 60s run below, this can be changed
-var infinite bool = true //T: Run one infinite DCP stream, or F: run repeated DCP streams (i.e. will not stream events that we've seen before)
+var infinite = true //T: Run one infinite DCP stream, or F: run repeated DCP streams (i.e. will not stream events that we've seen before)
 
 func InitFromYml(configYmlPath string, onMutation func(Mutation), onDeletion func(Deletion), onExpiration func(Deletion)) {
-	configYml := config.LoadConfig(configYmlPath)
-	Init(configYml, onMutation, onDeletion, onExpiration)
+	couchbaseDCPConfig := config.LoadConfig(configYmlPath)
+	Init(couchbaseDCPConfig, onMutation, onDeletion, onExpiration)
 }
 
-func Init(configYml config.CouchbaseDCPConfig, onMutation func(Mutation), onDeletion func(Deletion), onExpiration func(Deletion)) {
-	port := 8091
+const port int = 8091
 
+func Init(couchbaseDCPConfig config.CouchbaseDCPConfig, onMutation func(Mutation), onDeletion func(Deletion), onExpiration func(Deletion)) {
 	var httpHosts []string
 
-	for _, host := range configYml.Hosts {
+	for _, host := range couchbaseDCPConfig.Hosts {
 		httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", host, port))
 	}
 
-	var authProvider = gocbcore.PasswordAuthProvider{
-		Username: configYml.Username,
-		Password: configYml.Password,
+	authProvider := gocbcore.PasswordAuthProvider{
+		Username: couchbaseDCPConfig.Username,
+		Password: couchbaseDCPConfig.Password,
 	}
 
+	agent, err := initAgent(&couchbaseDCPConfig, &httpHosts, &authProvider)
+	if err != nil {
+		panic(err)
+	}
+	defer agent.Close()
+
+	dcpAgent, err := initDcpAgent(&couchbaseDCPConfig, &httpHosts, &authProvider)
+	if err != nil {
+		panic(err)
+	}
+	defer dcpAgent.Close()
+
+	agents = Agents{
+		opAgent:  agent,
+		dcpAgent: dcpAgent,
+	}
+
+	so := &dcpStreamObserver{
+		lock: sync.Mutex{},
+		// mutations:   make(map[string]Mutation),
+		// deletions:   make(map[string]Deletion),
+		// expirations: make(map[string]Deletion),
+		dataRange: make(map[uint16]seqNoMarker),
+		lastSeqNo: make(map[uint16]uint64),
+		snapshots: make(map[uint16]snapshotMarker),
+		endWg:     sync.WaitGroup{},
+
+		OnMutation:   onMutation,
+		OnDeletion:   onDeletion,
+		OnExpiration: onExpiration,
+	}
+
+	//Run once or run repeatedly
+	if infinite {
+		setupDcpEventHandler(so)
+	} else {
+		for {
+			setupDcpEventHandler(so)
+			time.Sleep(10 * time.Second)
+		}
+	}
+}
+
+func initAgent(config *config.CouchbaseDCPConfig, httpHosts *[]string, authProvider *gocbcore.PasswordAuthProvider) (*gocbcore.Agent, error) {
 	agentConfig := gocbcore.AgentConfig{
 		UserAgent:  "go-dcp-client",
-		BucketName: configYml.Dcp.MetadataBucket,
+		BucketName: config.Dcp.MetadataBucket,
 		SeedConfig: gocbcore.SeedConfig{
-			HTTPAddrs: httpHosts,
+			HTTPAddrs: *httpHosts,
 		},
 		SecurityConfig: gocbcore.SecurityConfig{
-			Auth: &authProvider,
+			Auth: authProvider,
 		},
 		HTTPConfig: gocbcore.HTTPConfig{
 			ConnectTimeout: 20 * time.Second,
 		},
 	}
 
-	agent, err := initAgent(agentConfig)
+	client, err := gocbcore.CreateAgent(&agentConfig)
+
+	ch := make(chan error)
+	_, err = client.WaitUntilReady(
+		time.Now().Add(10*time.Second),
+		gocbcore.WaitUntilReadyOptions{},
+		func(result *gocbcore.WaitUntilReadyResult, err error) {
+			ch <- err
+		},
+	)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	defer agent.Close()
+
+	err = <-ch
+	if err != nil {
+		return nil, err
+	}
+	return client, nil
+}
+
+func initDcpAgent(configYml *config.CouchbaseDCPConfig, httpHosts *[]string, authProvider *gocbcore.PasswordAuthProvider) (*gocbcore.DCPAgent, error) {
 
 	//All options written out, most using the default values
 	dcpConfig := gocbcore.DCPAgentConfig{
@@ -68,14 +130,14 @@ func Init(configYml config.CouchbaseDCPConfig, onMutation func(Mutation), onDele
 		BucketName: configYml.BucketName,
 		SeedConfig: gocbcore.SeedConfig{
 			MemdAddrs: nil,
-			HTTPAddrs: httpHosts,
+			HTTPAddrs: *httpHosts,
 		},
 
 		SecurityConfig: gocbcore.SecurityConfig{
 			UseTLS:            false,
 			TLSRootCAProvider: nil,
 			NoTLSSeedNode:     false,
-			Auth:              &authProvider,
+			Auth:              authProvider,
 			AuthMechanisms:    nil,
 		},
 
@@ -112,12 +174,14 @@ func Init(configYml config.CouchbaseDCPConfig, onMutation func(Mutation), onDele
 			MaxQueueSize:         0,
 			ConnectionBufferSize: 0,
 		},
+
 		HTTPConfig: gocbcore.HTTPConfig{
 			MaxIdleConns:          0,
 			MaxIdleConnsPerHost:   0,
 			ConnectTimeout:        0,
 			IdleConnectionTimeout: 0,
 		},
+
 		DCPConfig: gocbcore.DCPConfig{
 			AgentPriority:                0,
 			UseExpiryOpcode:              false,
@@ -129,67 +193,8 @@ func Init(configYml config.CouchbaseDCPConfig, onMutation func(Mutation), onDele
 		},
 	}
 
-	dcpAgent, err := initDcpAgent(dcpConfig, memd.DcpOpenFlagProducer)
-	if err != nil {
-		panic(err)
-	}
-	defer dcpAgent.Close()
-
-	agents = Agents{
-		opAgent:  agent,
-		dcpAgent: dcpAgent,
-	}
-
-	so := &dcpStreamObserver{
-		lock: sync.Mutex{},
-		// mutations:   make(map[string]Mutation),
-		// deletions:   make(map[string]Deletion),
-		// expirations: make(map[string]Deletion),
-		dataRange: make(map[uint16]SeqNoMarker),
-		lastSeqNo: make(map[uint16]uint64),
-		snapshots: make(map[uint16]SnapshotMarker),
-		endWg:     sync.WaitGroup{},
-
-		OnMutation:   onMutation,
-		OnDeletion:   onDeletion,
-		OnExpiration: onExpiration,
-	}
-
-	//Run once or run repeatedly
-	if infinite {
-		setupDcpEventHandler(so)
-	} else {
-		for {
-			setupDcpEventHandler(so)
-			time.Sleep(10 * time.Second)
-		}
-	}
-}
-
-func initAgent(config gocbcore.AgentConfig) (*gocbcore.Agent, error) {
-	client, err := gocbcore.CreateAgent(&config)
-
-	ch := make(chan error)
-	_, err = client.WaitUntilReady(
-		time.Now().Add(10*time.Second),
-		gocbcore.WaitUntilReadyOptions{},
-		func(result *gocbcore.WaitUntilReadyResult, err error) {
-			ch <- err
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	err = <-ch
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
-func initDcpAgent(config gocbcore.DCPAgentConfig, openFlags memd.DcpOpenFlag) (*gocbcore.DCPAgent, error) {
-	agent, err := gocbcore.CreateDcpAgent(&config, "wills-super-secret-stream", openFlags)
+	var dcpStreamName = configYml.Dcp.Group.Name
+	agent, err := gocbcore.CreateDcpAgent(&dcpConfig, dcpStreamName, memd.DcpOpenFlagProducer)
 	if err != nil {
 		return nil, err
 	}
@@ -216,37 +221,9 @@ func initDcpAgent(config gocbcore.DCPAgentConfig, openFlags memd.DcpOpenFlag) (*
 
 func setupDcpEventHandler(so *dcpStreamObserver) {
 
-	var seqNos []gocbcore.VbSeqNoEntry
-	snapshot, err := agents.dcpAgent.ConfigSnapshot()
-	if err != nil {
-		fmt.Printf("Config SS failed")
-		return
-	}
+	seqNos := getSeqNos()
 
-	numNodes, err := snapshot.NumServers()
-	if err != nil {
-		fmt.Printf("Num servers failed")
-		return
-	}
-	fmt.Printf("Getting VBs. Got %d servers\n", numNodes)
-
-	for i := 1; i < numNodes+1; i++ {
-		_, err := agents.dcpAgent.GetVbucketSeqnos(i, memd.VbucketStateActive, gocbcore.GetVbucketSeqnoOptions{},
-			func(entries []gocbcore.VbSeqNoEntry, err error) {
-				fmt.Printf("In cb\n")
-				if err != nil {
-					fmt.Errorf("GetVbucketSeqnos operation failed: %v", err)
-					return
-				}
-				seqNos = append(seqNos, entries...)
-			})
-		if err != nil {
-			fmt.Errorf("got an error doing an op")
-		}
-	}
-	time.Sleep(500 * time.Millisecond)
-
-	fmt.Printf("Running with seqno map: %v\n", seqNos)
+	log.Printf("Running with seqno map: %v\n", seqNos)
 
 	so.endWg.Add(len(seqNos))
 
@@ -257,15 +234,16 @@ func setupDcpEventHandler(so *dcpStreamObserver) {
 	openWg.Add(len(seqNos))
 	fo, err := getFailOverLogs()
 	if err != nil {
-		fmt.Printf("Failed to get the failover logs: %v", err)
+		log.Printf("Failed to get the failover logs: %v", err)
 	}
 
-	//Open stream per vbucket
+	// todo build membership over vBuckets
+	//Open stream per vBucket
 	for _, entry := range seqNos {
 		go func(en gocbcore.VbSeqNoEntry) {
 			ch := make(chan error)
 
-			fmt.Printf("(DCP) (%s) (vb %d) Creating DCP stream with start seqno %d, end seqno %d, vbuuid %d, snap start seqno %d, snap end seqno %d\n",
+			log.Printf("(DCP) (%s) (vb %d) Creating DCP stream with start seqno %d, end seqno %d, vbuuid %d, snap start seqno %d, snap end seqno %d\n",
 				"default", en.VbID, gocbcore.SeqNo(so.lastSeqNo[en.VbID]), en.SeqNo, fo[int(en.VbID)].VbUUID, so.snapshots[en.VbID].lastSnapStart, so.snapshots[en.VbID].lastSnapEnd)
 
 			var err error
@@ -318,7 +296,7 @@ func setupDcpEventHandler(so *dcpStreamObserver) {
 			select {
 			case err := <-ch:
 				if err != nil {
-					fmt.Printf("Error received from open stream: %v", err)
+					log.Printf("Error received from open stream: %v", err)
 					cancel()
 					return
 				}
@@ -339,14 +317,14 @@ func setupDcpEventHandler(so *dcpStreamObserver) {
 
 	select {
 	case <-ctx.Done():
-		fmt.Printf("Failed to open streams")
+		log.Printf("Failed to open streams")
 	case <-wgCh:
 		cancel()
 		// Let any expirations do their thing
 		time.Sleep(5 * time.Second)
 	}
 
-	fmt.Printf("All streams open, waiting for streams to complete")
+	log.Printf("All streams open, waiting for streams to complete")
 
 	waitCh := make(chan struct{})
 	go func() {
@@ -356,15 +334,48 @@ func setupDcpEventHandler(so *dcpStreamObserver) {
 
 	select {
 	case <-time.After(60 * time.Second):
-		fmt.Printf("Timed out waiting for streams to complete")
+		log.Printf("Timed out waiting for streams to complete")
 	case <-waitCh:
 	}
 
-	fmt.Printf("All streams complete")
+	log.Printf("All streams complete")
 
 }
 
-// Get the failover entries for all vBuckets (used for getting the VBUUIDs)
+func getSeqNos() []gocbcore.VbSeqNoEntry {
+	var seqNos []gocbcore.VbSeqNoEntry
+	snapshot, err := agents.dcpAgent.ConfigSnapshot()
+	if err != nil {
+		log.Printf("Config SS failed %v", err)
+		panic(err)
+	}
+
+	numNodes, err := snapshot.NumServers()
+	if err != nil {
+		log.Printf("Num servers failed %v", err)
+		panic(err)
+	}
+	log.Printf("Getting VBs. Got %d servers\n", numNodes)
+
+	for i := 1; i < numNodes+1; i++ {
+		_, err := agents.dcpAgent.GetVbucketSeqnos(i, memd.VbucketStateActive, gocbcore.GetVbucketSeqnoOptions{},
+			func(entries []gocbcore.VbSeqNoEntry, err error) {
+				log.Printf("In cb\n")
+				if err != nil {
+					log.Printf("GetVbucketSeqnos operation failed: %v", err)
+					return
+				}
+				seqNos = append(seqNos, entries...)
+			})
+		if err != nil {
+			log.Printf("got an error doing an op %v", err)
+		}
+	}
+	time.Sleep(500 * time.Millisecond)
+	return seqNos
+}
+
+// Get the failOver entries for all vBuckets (used for getting the VBUUIDs)
 func getFailOverLogs() (map[int]gocbcore.FailoverEntry, error) {
 	ch := make(chan error)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -394,7 +405,7 @@ func getFailOverLogs() (map[int]gocbcore.FailoverEntry, error) {
 			select {
 			case err := <-ch:
 				if err != nil {
-					fmt.Printf("Error received from get failover logs: %v", err)
+					log.Printf("Error received from get failover logs: %v", err)
 					cancel()
 					return
 				}

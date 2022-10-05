@@ -86,10 +86,10 @@ func Init(couchbaseDCPConfig config.CouchbaseDCPConfig, onMutation func(Mutation
 	}
 }
 
-func initAgent(config *config.CouchbaseDCPConfig, httpHosts *[]string, authProvider *gocbcore.PasswordAuthProvider) (*gocbcore.Agent, error) {
+func initAgent(couchbaseDCPConfig *config.CouchbaseDCPConfig, httpHosts *[]string, authProvider *gocbcore.PasswordAuthProvider) (*gocbcore.Agent, error) {
 	agentConfig := gocbcore.AgentConfig{
 		UserAgent:  "go-dcp-client",
-		BucketName: config.Dcp.MetadataBucket,
+		BucketName: couchbaseDCPConfig.Dcp.MetadataBucket,
 		SeedConfig: gocbcore.SeedConfig{
 			HTTPAddrs: *httpHosts,
 		},
@@ -122,12 +122,12 @@ func initAgent(config *config.CouchbaseDCPConfig, httpHosts *[]string, authProvi
 	return client, nil
 }
 
-func initDcpAgent(configYml *config.CouchbaseDCPConfig, httpHosts *[]string, authProvider *gocbcore.PasswordAuthProvider) (*gocbcore.DCPAgent, error) {
+func initDcpAgent(couchbaseDCPConfig *config.CouchbaseDCPConfig, httpHosts *[]string, authProvider *gocbcore.PasswordAuthProvider) (*gocbcore.DCPAgent, error) {
 
 	//All options written out, most using the default values
 	dcpConfig := gocbcore.DCPAgentConfig{
 		UserAgent:  "go-dcp-client",
-		BucketName: configYml.BucketName,
+		BucketName: couchbaseDCPConfig.BucketName,
 		SeedConfig: gocbcore.SeedConfig{
 			MemdAddrs: nil,
 			HTTPAddrs: *httpHosts,
@@ -142,7 +142,7 @@ func initDcpAgent(configYml *config.CouchbaseDCPConfig, httpHosts *[]string, aut
 		},
 
 		CompressionConfig: gocbcore.CompressionConfig{
-			Enabled:              false,
+			Enabled:              couchbaseDCPConfig.Dcp.Compression,
 			DisableDecompression: false,
 			MinSize:              0,
 			MinRatio:             0,
@@ -188,12 +188,12 @@ func initDcpAgent(configYml *config.CouchbaseDCPConfig, httpHosts *[]string, aut
 			UseStreamID:                  false,
 			UseOSOBackfill:               false,
 			BackfillOrder:                0,
-			BufferSize:                   0,
+			BufferSize:                   couchbaseDCPConfig.Dcp.FlowControlBuffer,
 			DisableBufferAcknowledgement: false,
 		},
 	}
 
-	var dcpStreamName = configYml.Dcp.Group.Name
+	var dcpStreamName = couchbaseDCPConfig.Dcp.Group.Name
 	agent, err := gocbcore.CreateDcpAgent(&dcpConfig, dcpStreamName, memd.DcpOpenFlagProducer)
 	if err != nil {
 		return nil, err

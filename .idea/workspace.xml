@@ -6,7 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="ff166a9d-07b9-40e8-96b9-2e7a9f5137b1" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/couchbaseDcpConfig.go" beforeDir="false" afterPath="$PROJECT_DIR$/config/couchbaseDcpConfig.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/couchbaseDcpConfig_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/config/couchbaseDcpConfig_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/test.yml" beforeDir="false" afterPath="$PROJECT_DIR$/config/test.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dcpClient.go" beforeDir="false" afterPath="$PROJECT_DIR$/dcpClient.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dcpClient_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/dcpClient_test.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,7 +61,7 @@
       <recent name="$PROJECT_DIR$/config" />
     </key>
   </component>
-  <component name="RunManager" selected="Go Test.TestLoadConfig in go-dcp-client/config">
+  <component name="RunManager" selected="Go Test.TestInit in go-dcp-client">
     <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
       <module name="go-dcp-client" />
       <working_directory value="$PROJECT_DIR$" />
@@ -93,6 +99,17 @@
       <pattern value="^\QTestInit\E$" />
       <method v="2" />
     </configuration>
+    <configuration name="TestInitFromYml in go-dcp-client" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
+      <module name="go-dcp-client" />
+      <working_directory value="$PROJECT_DIR$" />
+      <kind value="PACKAGE" />
+      <package value="go-dcp-client" />
+      <directory value="$PROJECT_DIR$" />
+      <filePath value="$PROJECT_DIR$" />
+      <framework value="gotest" />
+      <pattern value="^\QTestInitFromYml\E$" />
+      <method v="2" />
+    </configuration>
     <configuration name="TestLoadConfig in go-dcp-client/config" type="GoTestRunConfiguration" factoryName="Go Test" temporary="true" nameIsGenerated="true">
       <module name="go-dcp-client" />
       <working_directory value="$PROJECT_DIR$/config" />
@@ -117,8 +134,9 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Go Test.TestLoadConfig in go-dcp-client/config" />
         <item itemvalue="Go Test.TestInit in go-dcp-client" />
+        <item itemvalue="Go Test.TestLoadConfig in go-dcp-client/config" />
+        <item itemvalue="Go Test.TestInitFromYml in go-dcp-client" />
         <item itemvalue="Go Build.go build go-dcp-client" />
         <item itemvalue="Go Build.go build GoDcpPoC" />
       </list>
@@ -141,21 +159,5 @@
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/config/couchbaseDcpConfig_test.go</url>
-          <line>11</line>
-          <option name="timeStamp" value="1" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DlvLineBreakpoint">
-          <url>file://$PROJECT_DIR$/dcpClient_test.go</url>
-          <line>11</line>
-          <option name="timeStamp" value="2" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>

@@ -1,7 +1,7 @@
 couchbase:
   hosts: 10.10.36.120,10.10.36.121,10.10.36.122
-  bucketName: MyBucket
-  username: username
+  bucketName: Sample
+  username: Administrator
   password: password
   connection:
     connectTimeout: 15s
@@ -9,10 +9,10 @@ couchbase:
     kvTimeout: 250ms
     queryTimeout: 30s
   dcp:
-    metadataBucket: MyMetaBucket
+    metadataBucket: Sample
     compression: true
-    flowControlBuffer: 16MB
-    persistencePollingInterval: 100ms
+    flowControlBuffer: 16 #in mb
+    persistencePollingInterval: 100 # in ms
     group:
       name: groupName
       membership:

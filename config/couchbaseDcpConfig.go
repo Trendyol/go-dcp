@@ -6,18 +6,24 @@ import (
 	"strings"
 )
 
+type CouchbaseDCPConfigDCPGroup struct {
+	Name string `mapstructure:"name"`
+}
+
+type CouchbaseDCPConfigDCP struct {
+	MetadataBucket             string                     `mapstructure:"metadataBucket"`
+	Compression                bool                       `mapstructure:"compression"`
+	Group                      CouchbaseDCPConfigDCPGroup `mapstructure:"group"`
+	FlowControlBuffer          int                        `mapstructure:"flowControlBuffer"`
+	PersistencePollingInterval int                        `mapstructure:"persistencePollingInterval"`
+}
+
 type CouchbaseDCPConfig struct {
-	Hosts      []string `mapstructure:"hosts"`
-	Username   string   `mapstructure:"username"`
-	Password   string   `mapstructure:"password"`
-	BucketName string   `mapstructure:"bucketName"`
-	Dcp        struct {
-		MetadataBucket string `mapstructure:"metadataBucket"`
-		Compression    bool   `mapstructure:"compression"`
-		Group          struct {
-			Name string `mapstructure:"name"`
-		} `mapstructure:"group"`
-	} `mapstructure:"dcp"`
+	Hosts      []string              `mapstructure:"hosts"`
+	Username   string                `mapstructure:"username"`
+	Password   string                `mapstructure:"password"`
+	BucketName string                `mapstructure:"bucketName"`
+	Dcp        CouchbaseDCPConfigDCP `mapstructure:"dcp"`
 }
 
 func LoadConfig(filePath string) CouchbaseDCPConfig {

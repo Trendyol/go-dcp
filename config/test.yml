@@ -1,15 +1,15 @@
 couchbase:
-  hosts: 10.10.36.120,10.10.36.121,10.10.36.122
-  bucketName: Sample
-  username: Administrator
-  password: password
+  hosts: localhost:8091
+  bucketName: dcp-test
+  username: user
+  password: 123456
   connection:
     connectTimeout: 15s
     socketTimeout: 15s
     kvTimeout: 250ms
     queryTimeout: 30s
   dcp:
-    metadataBucket: Sample
+    metadataBucket: dcp-test
     compression: true
     flowControlBuffer: 16 #in mb
     persistencePollingInterval: 100 # in ms

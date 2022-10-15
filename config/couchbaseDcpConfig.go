@@ -29,10 +29,13 @@ type CouchbaseDCPConfig struct {
 func LoadConfig(filePath string) CouchbaseDCPConfig {
 	config.WithOptions(config.ParseEnv)
 	config.AddDriver(yamlv3.Driver)
+
 	err := config.LoadFiles(filePath)
+
 	if err != nil {
 		panic(err)
 	}
+
 	couchbaseDCPConfig := CouchbaseDCPConfig{}
 	err = config.BindStruct("couchbase", &couchbaseDCPConfig)
 

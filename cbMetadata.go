@@ -49,7 +49,7 @@ func (s *cbMetadata) deleteDocument(id string) {
 	_ = opm.Wait(op, err)
 }
 
-func (s *cbMetadata) getXattrs(id string, path string) (CheckpointDocument, error) {
+func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (CheckpointDocument, error) {
 	opm := newAsyncOp(nil)
 
 	errorCh := make(chan error)
@@ -72,10 +72,10 @@ func (s *cbMetadata) getXattrs(id string, path string) (CheckpointDocument, erro
 			if err == nil {
 				documentCh <- document
 			} else {
-				documentCh <- NewCheckpointDocument()
+				documentCh <- NewCheckpointDocument(bucketUuid)
 			}
 		} else {
-			documentCh <- NewCheckpointDocument()
+			documentCh <- NewCheckpointDocument(bucketUuid)
 		}
 
 		errorCh <- err
@@ -104,7 +104,7 @@ func (s *cbMetadata) createEmptyDocument(id string) error {
 	return opm.Wait(op, err)
 }
 
-func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, groupName string) {
+func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, groupName string, _ string) {
 	for vbId, checkpointDocument := range state {
 		id := GetCheckpointId(vbId, groupName)
 
@@ -117,13 +117,13 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, groupName string)
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, groupName string) map[uint16]CheckpointDocument {
+func (s *cbMetadata) Load(vbIds []uint16, groupName string, bucketUuid string) map[uint16]CheckpointDocument {
 	state := map[uint16]CheckpointDocument{}
 
 	for _, vbId := range vbIds {
 		id := GetCheckpointId(vbId, groupName)
 
-		data, err := s.getXattrs(id, Name)
+		data, err := s.getXattrs(id, Name, bucketUuid)
 
 		var kvErr *gocbcore.KeyValueError
 		if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {

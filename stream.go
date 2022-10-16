@@ -58,7 +58,7 @@ func (s *stream) Start() {
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(observer, vbIds, failoverLogs, s.Metadata)
+	s.checkpoint = NewCheckpoint(observer, vbIds, failoverLogs, s.client.GetBucketUuid(), s.Metadata)
 	observerState := s.checkpoint.Load(s.client.GetGroupName())
 
 	for _, vbId := range vbIds {

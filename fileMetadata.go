@@ -10,12 +10,12 @@ type fileMetadata struct {
 	fileName string
 }
 
-func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
+func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string, _ string) {
 	file, _ := json.MarshalIndent(state, "", "  ")
 	_ = os.WriteFile(s.fileName, file, 0644)
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, _ string) map[uint16]CheckpointDocument {
+func (s *fileMetadata) Load(vbIds []uint16, _ string, bucketUuid string) map[uint16]CheckpointDocument {
 	file, err := os.ReadFile(s.fileName)
 
 	state := map[uint16]CheckpointDocument{}
@@ -23,7 +23,7 @@ func (s *fileMetadata) Load(vbIds []uint16, _ string) map[uint16]CheckpointDocum
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			for _, vbId := range vbIds {
-				state[vbId] = NewCheckpointDocument()
+				state[vbId] = NewCheckpointDocument(bucketUuid)
 			}
 		} else {
 			panic(err)

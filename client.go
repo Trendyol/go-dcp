@@ -16,6 +16,7 @@ type Client interface {
 	Close() error
 	DcpConnect(deadline time.Time) error
 	DcpClose() error
+	GetBucketUuid() string
 	GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error)
 	GetNumVBuckets() (int, error)
 	GetFailoverLogs(vbIds []uint16) (map[uint16]gocbcore.FailoverEntry, error)
@@ -163,6 +164,16 @@ func (s *client) DcpClose() error {
 	err := s.dcpAgent.Close()
 	s.dcpAgent = nil
 	return err
+}
+
+func (s *client) GetBucketUuid() string {
+	snapshot, err := s.dcpAgent.ConfigSnapshot()
+
+	if err == nil {
+		return snapshot.BucketUUID()
+	}
+
+	return ""
 }
 
 func (s *client) GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error) {

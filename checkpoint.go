@@ -23,7 +23,7 @@ type CheckpointDocument struct {
 	BucketUuid string                       `json:"bucketUuid"`
 }
 
-func NewCheckpointDocument() CheckpointDocument {
+func NewCheckpointDocument(bucketUuid string) CheckpointDocument {
 	return CheckpointDocument{
 		Checkpoint: checkpointDocumentCheckpoint{
 			VbUuid: 0,
@@ -33,7 +33,7 @@ func NewCheckpointDocument() CheckpointDocument {
 				EndSeqNo:   0,
 			},
 		},
-		BucketUuid: "",
+		BucketUuid: bucketUuid,
 	}
 }
 
@@ -42,6 +42,7 @@ type checkpoint struct {
 	vbIds        []uint16
 	failoverLogs map[uint16]gocbcore.FailoverEntry
 	metadata     Metadata
+	bucketUuid   string
 }
 
 func (s *checkpoint) Save(groupName string) {
@@ -59,15 +60,15 @@ func (s *checkpoint) Save(groupName string) {
 					EndSeqNo:   observerState.LastSnapEnd,
 				},
 			},
-			BucketUuid: "",
+			BucketUuid: s.bucketUuid,
 		}
 	}
 
-	s.metadata.Save(dump, groupName)
+	s.metadata.Save(dump, groupName, s.bucketUuid)
 }
 
 func (s *checkpoint) Load(groupName string) map[uint16]ObserverState {
-	dump := s.metadata.Load(s.vbIds, groupName)
+	dump := s.metadata.Load(s.vbIds, groupName, s.bucketUuid)
 
 	var observerState = map[uint16]ObserverState{}
 
@@ -84,11 +85,12 @@ func (s *checkpoint) Load(groupName string) map[uint16]ObserverState {
 	return observerState
 }
 
-func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, metadata Metadata) Checkpoint {
+func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, bucketUuid string, metadata Metadata) Checkpoint {
 	return &checkpoint{
 		observer:     observer,
 		vbIds:        vbIds,
 		failoverLogs: failoverLogs,
+		bucketUuid:   bucketUuid,
 		metadata:     metadata,
 	}
 }

@@ -1,7 +1,7 @@
 package main
 
 type Metadata interface {
-	Save(map[int]checkpointDocument, string)
-	Load(int, string) map[int]checkpointDocument
-	Clear()
+	Save(map[uint16]checkpointDocument, string)
+	Load([]uint16, string) map[uint16]checkpointDocument
+	Clear([]uint16, string)
 }

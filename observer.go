@@ -19,16 +19,17 @@ type Observer interface {
 	ModifyCollection(modification gocbcore.DcpCollectionModification)
 	OSOSnapshot(snapshot gocbcore.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
-	GetState() map[int]ObserverState
-	SetState(map[int]ObserverState)
+	GetState() map[uint16]ObserverState
+	SetState(map[uint16]ObserverState)
 }
 
 type observer struct {
 	lock          sync.Mutex
-	lastSeqNo     []uint64
-	lastSnapStart []uint64
-	lastSnapEnd   []uint64
+	lastSeqNo     map[uint16]uint64
+	lastSnapStart map[uint16]uint64
+	lastSnapEnd   map[uint16]uint64
 	listener      Listener
+	vbIds         []uint16
 }
 
 type ObserverState struct {
@@ -145,49 +146,51 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 	}
 }
 
-func (so *observer) GetState() map[int]ObserverState {
+func (so *observer) GetState() map[uint16]ObserverState {
 	so.lock.Lock()
 	defer so.lock.Unlock()
 
-	observerState := make(map[int]ObserverState)
+	observerState := make(map[uint16]ObserverState)
 
-	for i := 0; i < len(so.lastSeqNo); i++ {
-		observerState[i] = ObserverState{
-			LastSeqNo:     so.lastSeqNo[i],
-			LastSnapStart: so.lastSnapStart[i],
-			LastSnapEnd:   so.lastSnapEnd[i],
+	for _, vbId := range so.vbIds {
+		observerState[vbId] = ObserverState{
+			LastSeqNo:     so.lastSeqNo[vbId],
+			LastSnapStart: so.lastSnapStart[vbId],
+			LastSnapEnd:   so.lastSnapEnd[vbId],
 		}
 	}
 
 	return observerState
 }
 
-func (so *observer) SetState(state map[int]ObserverState) {
+func (so *observer) SetState(state map[uint16]ObserverState) {
 	so.lock.Lock()
 	defer so.lock.Unlock()
 
-	for i := 0; i < len(so.lastSeqNo); i++ {
-		so.lastSeqNo[i] = state[i].LastSeqNo
-		so.lastSnapStart[i] = state[i].LastSnapStart
-		so.lastSnapEnd[i] = state[i].LastSnapEnd
+	for _, vbId := range so.vbIds {
+		so.lastSeqNo[vbId] = state[vbId].LastSeqNo
+		so.lastSnapStart[vbId] = state[vbId].LastSnapStart
+		so.lastSnapEnd[vbId] = state[vbId].LastSnapEnd
 	}
 }
 
-func NewObserver(vBucketNumber int) Observer {
+func NewObserver(vbIds []uint16) Observer {
 	return &observer{
 		lock:          sync.Mutex{},
-		lastSeqNo:     make([]uint64, vBucketNumber),
-		lastSnapStart: make([]uint64, vBucketNumber),
-		lastSnapEnd:   make([]uint64, vBucketNumber),
+		lastSeqNo:     map[uint16]uint64{},
+		lastSnapStart: map[uint16]uint64{},
+		lastSnapEnd:   map[uint16]uint64{},
+		vbIds:         vbIds,
 	}
 }
 
-func NewObserverWithListener(vBucketNumber int, listener Listener) Observer {
+func NewObserverWithListener(vbIds []uint16, listener Listener) Observer {
 	return &observer{
 		lock:          sync.Mutex{},
-		lastSeqNo:     make([]uint64, vBucketNumber),
-		lastSnapStart: make([]uint64, vBucketNumber),
-		lastSnapEnd:   make([]uint64, vBucketNumber),
+		lastSeqNo:     map[uint16]uint64{},
+		lastSnapStart: map[uint16]uint64{},
+		lastSnapEnd:   map[uint16]uint64{},
 		listener:      listener,
+		vbIds:         vbIds,
 	}
 }

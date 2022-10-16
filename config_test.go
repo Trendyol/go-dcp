@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	config := LoadConfig("test.yml")
+	config := NewConfig("test.yml")
 
 	assert.Equal(t, 3, len(config.Hosts))
 	assert.Contains(t, config.Hosts, "10.10.36.120")

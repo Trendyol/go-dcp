@@ -12,21 +12,24 @@ type Client interface {
 	GetAgent() *gocbcore.Agent
 	GetDcpAgent() *gocbcore.DCPAgent
 	GetGroupName() string
+	GetMembership() Membership
 	Connect(hosts []string, username string, password string, userAgent string, bucket string, deadline time.Time, compression bool) error
 	Close() error
 	DcpConnect(hosts []string, username string, password string, groupName string, userAgent string, bucket string, deadline time.Time, compression bool, bufferSize int) error
 	DcpClose() error
 	GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error)
 	GetNumVBuckets() (int, error)
-	GetFailoverLogs(vBucketNumber int) (map[int]gocbcore.FailoverEntry, error)
+	GetFailoverLogs(vbIds []uint16) (map[uint16]gocbcore.FailoverEntry, error)
 	OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState ObserverState, observer Observer, callback gocbcore.OpenStreamCallback) error
 	CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback) error
 }
 
 type client struct {
-	agent     *gocbcore.Agent
-	dcpAgent  *gocbcore.DCPAgent
-	groupName string
+	agent      *gocbcore.Agent
+	dcpAgent   *gocbcore.DCPAgent
+	config     Config
+	membership Membership
+	groupName  string
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {
@@ -39,6 +42,10 @@ func (s *client) GetDcpAgent() *gocbcore.DCPAgent {
 
 func (s *client) GetGroupName() string {
 	return s.groupName
+}
+
+func (s *client) GetMembership() Membership {
+	return s.membership
 }
 
 func (s *client) Connect(hosts []string, username string, password string, userAgent string, bucket string, deadline time.Time, compression bool) error {
@@ -137,8 +144,20 @@ func (s *client) DcpConnect(hosts []string, username string, password string, gr
 		return err
 	}
 
+	if err != nil {
+		return err
+	}
+
 	s.groupName = groupName
 	s.dcpAgent = client
+
+	vBucketNumber, err := s.GetNumVBuckets()
+
+	s.membership = NewMembership(
+		s.config.Dcp.Group.Membership.MemberNumber,
+		s.config.Dcp.Group.Membership.TotalMembers,
+		vBucketNumber,
+	)
 
 	return nil
 }
@@ -204,14 +223,14 @@ func (s *client) GetNumVBuckets() (int, error) {
 	return 0, err
 }
 
-func (s *client) GetFailoverLogs(vBucketNumber int) (map[int]gocbcore.FailoverEntry, error) {
-	failoverLogs := make(map[int]gocbcore.FailoverEntry)
+func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16]gocbcore.FailoverEntry, error) {
+	failoverLogs := make(map[uint16]gocbcore.FailoverEntry)
 
-	for vbId := 0; vbId < vBucketNumber; vbId++ {
+	for _, vbId := range vbIds {
 		opm := newAsyncOp(nil)
 
 		op, err := s.dcpAgent.GetFailoverLog(
-			uint16(vbId),
+			vbId,
 			func(entries []gocbcore.FailoverEntry, err error) {
 				for _, en := range entries {
 					failoverLogs[vbId] = en
@@ -263,9 +282,10 @@ func (s *client) CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback)
 	return opm.Wait(op, err)
 }
 
-func NewClient() Client {
+func NewClient(config Config) Client {
 	return &client{
 		agent:    nil,
 		dcpAgent: nil,
+		config:   config,
 	}
 }

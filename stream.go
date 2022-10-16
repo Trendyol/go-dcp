@@ -19,8 +19,6 @@ type stream struct {
 	listeners       []Listener
 	streamsLock     sync.Mutex
 	streams         []uint16
-	vbUuidMapLock   sync.Mutex
-	vbUuidMap       map[uint16]uint64
 	checkpoint      Checkpoint
 	Metadata        Metadata
 }
@@ -44,42 +42,33 @@ func (s *stream) Listener(event int, data interface{}, err error) {
 }
 
 func (s *stream) Start() {
-	vBucketNumber, err := s.client.GetNumVBuckets()
+	vbIds := s.client.GetMembership().GetVBuckets()
+	vBucketNumber := len(vbIds)
+
+	observer := NewObserverWithListener(vbIds, s.Listener)
+
+	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
 
 	if err != nil {
 		panic(err)
 	}
 
-	observer := NewObserverWithListener(vBucketNumber, s.Listener)
-
-	seqNos, err := s.client.GetVBucketSeqNos()
-
-	if err != nil {
-		panic(err)
-	}
-
-	failoverLogs, err := s.client.GetFailoverLogs(vBucketNumber)
-
-	s.finishedStreams.Add(len(seqNos))
+	s.finishedStreams.Add(vBucketNumber)
 
 	var openWg sync.WaitGroup
-	openWg.Add(len(seqNos))
+	openWg.Add(vBucketNumber)
 
-	if err != nil {
-		panic(err)
-	}
-
-	s.checkpoint = NewCheckpoint(observer, vBucketNumber, failoverLogs, s.Metadata)
+	s.checkpoint = NewCheckpoint(observer, vbIds, failoverLogs, s.Metadata)
 	observerState := s.checkpoint.Load(s.client.GetGroupName())
 
-	for _, entry := range seqNos {
-		go func(innerEntry gocbcore.VbSeqNoEntry) {
+	for _, vbId := range vbIds {
+		go func(innerVbId uint16) {
 			ch := make(chan error)
 
 			err := s.client.OpenStream(
-				innerEntry.VbID,
-				failoverLogs[int(innerEntry.VbID)].VbUUID,
-				observerState[int(innerEntry.VbID)],
+				innerVbId,
+				failoverLogs[innerVbId].VbUUID,
+				observerState[innerVbId],
 				observer,
 				func(entries []gocbcore.FailoverEntry, err error) {
 					ch <- err
@@ -95,10 +84,10 @@ func (s *stream) Start() {
 			s.streamsLock.Lock()
 			defer s.streamsLock.Unlock()
 
-			s.streams = append(s.streams, innerEntry.VbID)
+			s.streams = append(s.streams, innerVbId)
 
 			openWg.Done()
-		}(entry)
+		}(vbId)
 	}
 
 	openWg.Wait()

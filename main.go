@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"go-dcp-client/config"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,20 +19,20 @@ func listener(event int, data interface{}, err error) {
 }
 
 func main() {
-	cbConfig := config.LoadConfig("config/test.yml")
+	config := NewConfig("configs/main.yml")
 
-	client := NewClient()
+	client := NewClient(config)
 
 	err := client.DcpConnect(
-		cbConfig.Hosts,
-		cbConfig.Username,
-		cbConfig.Password,
-		cbConfig.Dcp.Group.Name,
+		config.Hosts,
+		config.Username,
+		config.Password,
+		config.Dcp.Group.Name,
 		"go-dcp-client",
-		cbConfig.BucketName,
+		config.BucketName,
 		time.Now().Add(10*time.Second),
-		cbConfig.Dcp.Compression,
-		cbConfig.Dcp.FlowControlBuffer,
+		config.Dcp.Compression,
+		config.Dcp.FlowControlBuffer,
 	)
 
 	defer client.DcpClose()
@@ -43,13 +42,13 @@ func main() {
 	}
 
 	err = client.Connect(
-		cbConfig.Hosts,
-		cbConfig.Username,
-		cbConfig.Password,
+		config.Hosts,
+		config.Username,
+		config.Password,
 		"go-dcp-client",
-		cbConfig.BucketName,
+		config.BucketName,
 		time.Now().Add(10*time.Second),
-		cbConfig.Dcp.Compression,
+		config.Dcp.Compression,
 	)
 
 	defer client.Close()

@@ -4,7 +4,7 @@ import "github.com/couchbase/gocbcore/v10"
 
 type Checkpoint interface {
 	Save(groupName string)
-	Load(groupName string) map[int]ObserverState
+	Load(groupName string) map[uint16]ObserverState
 }
 
 type checkpointDocumentSnapshot struct {
@@ -38,16 +38,16 @@ func NewCheckpointDocument() checkpointDocument {
 }
 
 type checkpoint struct {
-	observer      Observer
-	vBucketNumber int
-	failoverLogs  map[int]gocbcore.FailoverEntry
-	metadata      Metadata
+	observer     Observer
+	vbIds        []uint16
+	failoverLogs map[uint16]gocbcore.FailoverEntry
+	metadata     Metadata
 }
 
 func (s *checkpoint) Save(groupName string) {
 	state := s.observer.GetState()
 
-	dump := map[int]checkpointDocument{}
+	dump := map[uint16]checkpointDocument{}
 
 	for vbId, observerState := range state {
 		dump[vbId] = checkpointDocument{
@@ -66,10 +66,10 @@ func (s *checkpoint) Save(groupName string) {
 	s.metadata.Save(dump, groupName)
 }
 
-func (s *checkpoint) Load(groupName string) map[int]ObserverState {
-	dump := s.metadata.Load(s.vBucketNumber, groupName)
+func (s *checkpoint) Load(groupName string) map[uint16]ObserverState {
+	dump := s.metadata.Load(s.vbIds, groupName)
 
-	var observerState = map[int]ObserverState{}
+	var observerState = map[uint16]ObserverState{}
 
 	for vbId, doc := range dump {
 		observerState[vbId] = ObserverState{
@@ -84,11 +84,11 @@ func (s *checkpoint) Load(groupName string) map[int]ObserverState {
 	return observerState
 }
 
-func NewCheckpoint(observer Observer, vBucketNumber int, failoverLogs map[int]gocbcore.FailoverEntry, metadata Metadata) Checkpoint {
+func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, metadata Metadata) Checkpoint {
 	return &checkpoint{
-		observer:      observer,
-		vBucketNumber: vBucketNumber,
-		failoverLogs:  failoverLogs,
-		metadata:      metadata,
+		observer:     observer,
+		vbIds:        vbIds,
+		failoverLogs: failoverLogs,
+		metadata:     metadata,
 	}
 }

@@ -1,0 +1,14 @@
+couchbase:
+  hosts: localhost:8091
+  username: Administrator
+  password: password
+  bucketName: sample
+  dcp:
+    metadataBucket: sample
+    compression: true
+    flowControlBuffer: 16
+    group:
+      name: groupName
+      membership:
+        memberNumber: 1
+        totalMembers: 1

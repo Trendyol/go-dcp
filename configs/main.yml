@@ -1,0 +1,14 @@
+couchbase:
+  hosts: localhost:8091
+  username: user
+  password: 123456
+  bucketName: dcp-test
+  dcp:
+    metadataBucket: dcp-test
+    compression: true
+    flowControlBuffer: 16
+    group:
+      name: groupName
+      membership:
+        memberNumber: 1
+        totalMembers: 1

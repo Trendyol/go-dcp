@@ -11,11 +11,7 @@ import (
 	"time"
 )
 
-const defaultUser = "Administrator"
-const defaultPassword = "password"
-const defaultBucket = "Sample"
-
-func setupSuite(tb testing.TB) func(tb testing.TB) {
+func setupSuite(tb testing.TB, config Config) func(tb testing.TB) {
 	ctx := context.Background()
 
 	couchbaseContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -23,7 +19,7 @@ func setupSuite(tb testing.TB) func(tb testing.TB) {
 			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
 			ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
 			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
-			Env:          map[string]string{"USERNAME": defaultUser, "PASSWORD": defaultPassword, "BUCKET_NAME": defaultBucket},
+			Env:          map[string]string{"USERNAME": config.Username, "PASSWORD": config.Password, "BUCKET_NAME": config.BucketName},
 		},
 		Started: true,
 	})
@@ -53,33 +49,35 @@ func mutationListenerFactory(t *testing.T, expectedKey string, stream Stream) Li
 }
 
 func TestInit(t *testing.T) {
-	teardownSuite := setupSuite(t)
+	config := NewConfig("configs/test.yml")
+
+	teardownSuite := setupSuite(t, config)
 	defer teardownSuite(t)
 
-	client := NewClient()
+	client := NewClient(config)
 
 	_ = client.DcpConnect(
-		[]string{"localhost:8091"},
-		defaultUser,
-		defaultPassword,
-		"test-group",
+		config.Hosts,
+		config.Username,
+		config.Password,
+		config.Dcp.Group.Name,
 		"go-dcp-client",
-		defaultBucket,
+		config.BucketName,
 		time.Now().Add(10*time.Second),
-		true,
-		0,
+		config.Dcp.Compression,
+		config.Dcp.FlowControlBuffer,
 	)
 
 	defer client.DcpClose()
 
 	_ = client.Connect(
-		[]string{"localhost:8091"},
-		defaultUser,
-		defaultPassword,
+		config.Hosts,
+		config.Username,
+		config.Password,
 		"go-dcp-client",
-		defaultBucket,
+		config.BucketName,
 		time.Now().Add(10*time.Second),
-		true,
+		config.Dcp.Compression,
 	)
 
 	defer client.Close()

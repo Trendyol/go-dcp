@@ -93,6 +93,10 @@ func (s *client) Connect(deadline time.Time) error {
 }
 
 func (s *client) Close() error {
+	if s.agent == nil {
+		return nil
+	}
+
 	err := s.agent.Close()
 	s.agent = nil
 	return err
@@ -161,6 +165,10 @@ func (s *client) DcpConnect(deadline time.Time) error {
 }
 
 func (s *client) DcpClose() error {
+	if s.dcpAgent == nil {
+		return nil
+	}
+
 	err := s.dcpAgent.Close()
 	s.dcpAgent = nil
 	return err

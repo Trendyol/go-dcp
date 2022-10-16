@@ -1,5 +1,7 @@
 package main
 
+import "log"
+
 type Membership interface {
 	GetVBuckets() []uint16
 }
@@ -17,7 +19,10 @@ func (s *membership) GetVBuckets() []uint16 {
 		vBuckets = append(vBuckets, uint16(i))
 	}
 
-	return ChunkSlice(vBuckets, s.totalMembers)[s.memberNumber-1]
+	readyToStreamVBuckets := ChunkSlice(vBuckets, s.totalMembers)[s.memberNumber-1]
+	log.Printf("Ready to stream VBuckets range: %v-%v", readyToStreamVBuckets[0], readyToStreamVBuckets[len(readyToStreamVBuckets)-1])
+
+	return readyToStreamVBuckets
 }
 
 func NewMembership(memberNumber int, totalMember int, vBucketNumber int) Membership {

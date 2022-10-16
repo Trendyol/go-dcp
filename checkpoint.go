@@ -1,10 +1,18 @@
 package main
 
-import "github.com/couchbase/gocbcore/v10"
+import (
+	"github.com/couchbase/gocbcore/v10"
+	"log"
+	"sync"
+	"time"
+)
 
 type Checkpoint interface {
 	Save(groupName string)
 	Load(groupName string) map[uint16]ObserverState
+	Clear(groupName string)
+	StartSchedule(groupName string)
+	StopSchedule()
 }
 
 type checkpointDocumentSnapshot struct {
@@ -43,9 +51,15 @@ type checkpoint struct {
 	failoverLogs map[uint16]gocbcore.FailoverEntry
 	metadata     Metadata
 	bucketUuid   string
+	saveLock     sync.Mutex
+	loadLock     sync.Mutex
+	schedule     *time.Ticker
 }
 
 func (s *checkpoint) Save(groupName string) {
+	s.saveLock.Lock()
+	defer s.saveLock.Unlock()
+
 	state := s.observer.GetState()
 
 	dump := map[uint16]CheckpointDocument{}
@@ -65,9 +79,13 @@ func (s *checkpoint) Save(groupName string) {
 	}
 
 	s.metadata.Save(dump, groupName, s.bucketUuid)
+	log.Printf("Saved checkpoint")
 }
 
 func (s *checkpoint) Load(groupName string) map[uint16]ObserverState {
+	s.loadLock.Lock()
+	defer s.loadLock.Unlock()
+
 	dump := s.metadata.Load(s.vbIds, groupName, s.bucketUuid)
 
 	var observerState = map[uint16]ObserverState{}
@@ -81,8 +99,35 @@ func (s *checkpoint) Load(groupName string) map[uint16]ObserverState {
 	}
 
 	s.observer.SetState(observerState)
+	log.Printf("Loaded checkpoint")
 
 	return observerState
+}
+
+func (s *checkpoint) Clear(groupName string) {
+	s.metadata.Clear(s.vbIds, groupName)
+	log.Printf("Cleared checkpoint")
+}
+
+func (s *checkpoint) StartSchedule(groupName string) {
+	go func() {
+		time.Sleep(10 * time.Second)
+		s.schedule = time.NewTicker(10 * time.Second)
+		go func() {
+			for range s.schedule.C {
+				s.Save(groupName)
+			}
+		}()
+	}()
+	log.Printf("Started checkpoint schedule")
+}
+
+func (s *checkpoint) StopSchedule() {
+	if s.schedule != nil {
+		s.schedule.Stop()
+		s.schedule = nil
+	}
+	log.Printf("Stopped checkpoint schedule")
 }
 
 func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, bucketUuid string, metadata Metadata) Checkpoint {

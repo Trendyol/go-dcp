@@ -2,11 +2,15 @@ package main
 
 import (
 	"github.com/couchbase/gocbcore/v10"
+	"log"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 type Stream interface {
-	Start()
+	Start() Stream
 	Wait()
 	SaveCheckpoint()
 	Stop()
@@ -41,7 +45,7 @@ func (s *stream) Listener(event int, data interface{}, err error) {
 	}
 }
 
-func (s *stream) Start() {
+func (s *stream) Start() Stream {
 	vbIds := s.client.GetMembership().GetVBuckets()
 	vBucketNumber := len(vbIds)
 
@@ -91,10 +95,22 @@ func (s *stream) Start() {
 	}
 
 	openWg.Wait()
+	s.checkpoint.StartSchedule(s.client.GetGroupName())
+	log.Printf("All streams are opened")
+
+	return s
 }
 
 func (s *stream) Wait() {
-	s.finishedStreams.Wait()
+	cancelCh := make(chan os.Signal, 1)
+	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		s.finishedStreams.Wait()
+		close(cancelCh)
+	}()
+	<-cancelCh
+	s.Stop()
+	s.checkpoint.StopSchedule()
 	s.SaveCheckpoint()
 }
 
@@ -103,6 +119,10 @@ func (s *stream) SaveCheckpoint() {
 }
 
 func (s *stream) Stop() {
+	if len(s.streams) == 0 {
+		return
+	}
+
 	for _, stream := range s.streams {
 		ch := make(chan error)
 
@@ -118,26 +138,19 @@ func (s *stream) Stop() {
 
 		s.finishedStreams.Done()
 	}
+	s.streams = nil
+	log.Printf("All streams are closed")
 }
 
 func (s *stream) AddListener(listener Listener) {
 	s.listeners = append(s.listeners, listener)
 }
 
-func NewStream(client Client, metadata Metadata) Stream {
+func NewStream(client Client, metadata Metadata, listeners ...Listener) Stream {
 	return &stream{
 		client:          client,
 		finishedStreams: sync.WaitGroup{},
-		listeners:       []Listener{},
-		Metadata:        metadata,
-	}
-}
-
-func NewStreamWithListener(client Client, metadata Metadata, listener Listener) Stream {
-	return &stream{
-		client:          client,
-		finishedStreams: sync.WaitGroup{},
-		listeners:       []Listener{listener},
+		listeners:       listeners,
 		Metadata:        metadata,
 	}
 }

@@ -56,11 +56,9 @@ func TestInit(t *testing.T) {
 	client := NewClient(config)
 
 	_ = client.DcpConnect(time.Now().Add(10 * time.Second))
-
 	defer client.DcpClose()
 
 	_ = client.Connect(time.Now().Add(10 * time.Second))
-
 	defer client.Close()
 
 	agent := client.GetAgent()
@@ -69,8 +67,7 @@ func TestInit(t *testing.T) {
 
 	metadata := NewFileMetadata("checkpoints.json")
 
-	stream := NewStream(client, metadata)
-	stream.Start()
+	stream := NewStream(client, metadata).Start()
 	stream.AddListener(mutationListenerFactory(t, "my_key", stream))
 	stream.Wait()
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/couchbase/gocbcore/v10"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,8 +14,15 @@ func listener(event int, data interface{}, err error) {
 		return
 	}
 
-	if event == MutationName || event == DeletionName || event == ExpirationName {
-		fmt.Printf("event: %d, data: %v, err: %v\n", event, data, err)
+	if event == MutationName {
+		mutation := data.(gocbcore.DcpMutation)
+		fmt.Printf("mutated | id: %v, value: %v\n", string(mutation.Key), string(mutation.Value))
+	} else if event == DeletionName {
+		deletion := data.(gocbcore.DcpDeletion)
+		fmt.Printf("deleted | id: %v, value: %v\n", string(deletion.Key), string(deletion.Value))
+	} else if event == ExpirationName {
+		expiration := data.(gocbcore.DcpExpiration)
+		fmt.Printf("expired | id: %v", string(expiration.Key))
 	}
 }
 

@@ -17,19 +17,19 @@ type ConfigDCPGroup struct {
 }
 
 type ConfigDCP struct {
-	MetadataBucket    string         `mapstructure:"metadataBucket"`
 	FlowControlBuffer int            `mapstructure:"flowControlBuffer"`
 	Group             ConfigDCPGroup `mapstructure:"group"`
 }
 
 type Config struct {
-	Hosts       []string  `mapstructure:"hosts"`
-	Username    string    `mapstructure:"username"`
-	Password    string    `mapstructure:"password"`
-	BucketName  string    `mapstructure:"bucketName"`
-	UserAgent   string    `mapstructure:"userAgent"`
-	Compression bool      `mapstructure:"compression"`
-	Dcp         ConfigDCP `mapstructure:"dcp"`
+	Hosts          []string  `mapstructure:"hosts"`
+	Username       string    `mapstructure:"username"`
+	Password       string    `mapstructure:"password"`
+	BucketName     string    `mapstructure:"bucketName"`
+	UserAgent      string    `mapstructure:"userAgent"`
+	Compression    bool      `mapstructure:"compression"`
+	MetadataBucket string    `mapstructure:"metadataBucket"`
+	Dcp            ConfigDCP `mapstructure:"dcp"`
 }
 
 func NewConfig(filePath string) Config {

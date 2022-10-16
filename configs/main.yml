@@ -1,12 +1,12 @@
 couchbase:
   hosts: localhost:8091
   username: user
-  password: 123456
+  password: password
   bucketName: dcp-test
   userAgent: go-dcp-client
   compression: true
+  metadataBucket: dcp-test-meta
   dcp:
-    metadataBucket: dcp-test
     flowControlBuffer: 16
     group:
       name: groupName

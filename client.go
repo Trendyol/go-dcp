@@ -51,7 +51,7 @@ func (s *client) Connect(deadline time.Time) error {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
 			UserAgent:  s.config.UserAgent,
-			BucketName: s.config.BucketName,
+			BucketName: s.config.MetadataBucket,
 			SeedConfig: gocbcore.SeedConfig{
 				HTTPAddrs: s.config.Hosts,
 			},

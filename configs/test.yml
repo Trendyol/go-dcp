@@ -5,9 +5,8 @@ couchbase:
   bucketName: sample
   userAgent: go-dcp-client
   compression: true
+  metadataBucket: sample
   dcp:
-    metadataBucket: sample
-  
     flowControlBuffer: 16
     group:
       name: groupName

@@ -23,17 +23,7 @@ func main() {
 
 	client := NewClient(config)
 
-	err := client.DcpConnect(
-		config.Hosts,
-		config.Username,
-		config.Password,
-		config.Dcp.Group.Name,
-		"go-dcp-client",
-		config.BucketName,
-		time.Now().Add(10*time.Second),
-		config.Dcp.Compression,
-		config.Dcp.FlowControlBuffer,
-	)
+	err := client.DcpConnect(time.Now().Add(10 * time.Second))
 
 	defer client.DcpClose()
 
@@ -41,15 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	err = client.Connect(
-		config.Hosts,
-		config.Username,
-		config.Password,
-		"go-dcp-client",
-		config.BucketName,
-		time.Now().Add(10*time.Second),
-		config.Dcp.Compression,
-	)
+	err = client.Connect(time.Now().Add(10 * time.Second))
 
 	defer client.Close()
 

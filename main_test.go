@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"log"
 	"testing"
 	"time"
 )
@@ -30,7 +29,6 @@ func setupSuite(tb testing.TB, config Config) func(tb testing.TB) {
 
 	return func(tb testing.TB) {
 		defer couchbaseContainer.Terminate(ctx)
-		log.Println("teardown suite")
 	}
 }
 
@@ -56,29 +54,11 @@ func TestInit(t *testing.T) {
 
 	client := NewClient(config)
 
-	_ = client.DcpConnect(
-		config.Hosts,
-		config.Username,
-		config.Password,
-		config.Dcp.Group.Name,
-		"go-dcp-client",
-		config.BucketName,
-		time.Now().Add(10*time.Second),
-		config.Dcp.Compression,
-		config.Dcp.FlowControlBuffer,
-	)
+	_ = client.DcpConnect(time.Now().Add(10 * time.Second))
 
 	defer client.DcpClose()
 
-	_ = client.Connect(
-		config.Hosts,
-		config.Username,
-		config.Password,
-		"go-dcp-client",
-		config.BucketName,
-		time.Now().Add(10*time.Second),
-		config.Dcp.Compression,
-	)
+	_ = client.Connect(time.Now().Add(10 * time.Second))
 
 	defer client.Close()
 
@@ -98,12 +78,6 @@ func insertData(agent *gocbcore.Agent) {
 		Key:   []byte("my_key"),
 		Value: []byte("Some value"),
 	}, func(result *gocbcore.StoreResult, err error) {
-		if err != nil {
-			log.Printf("insert data got error %v", err)
-		} else {
-			log.Printf("insert data success %v\n", result)
-		}
-
 		opm.Resolve()
 	})
 

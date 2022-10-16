@@ -13,9 +13,9 @@ type Client interface {
 	GetDcpAgent() *gocbcore.DCPAgent
 	GetGroupName() string
 	GetMembership() Membership
-	Connect(hosts []string, username string, password string, userAgent string, bucket string, deadline time.Time, compression bool) error
+	Connect(deadline time.Time) error
 	Close() error
-	DcpConnect(hosts []string, username string, password string, groupName string, userAgent string, bucket string, deadline time.Time, compression bool, bufferSize int) error
+	DcpConnect(deadline time.Time) error
 	DcpClose() error
 	GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error)
 	GetNumVBuckets() (int, error)
@@ -29,7 +29,6 @@ type client struct {
 	dcpAgent   *gocbcore.DCPAgent
 	config     Config
 	membership Membership
-	groupName  string
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {
@@ -41,29 +40,29 @@ func (s *client) GetDcpAgent() *gocbcore.DCPAgent {
 }
 
 func (s *client) GetGroupName() string {
-	return s.groupName
+	return s.config.Dcp.Group.Name
 }
 
 func (s *client) GetMembership() Membership {
 	return s.membership
 }
 
-func (s *client) Connect(hosts []string, username string, password string, userAgent string, bucket string, deadline time.Time, compression bool) error {
+func (s *client) Connect(deadline time.Time) error {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
-			UserAgent:  userAgent,
-			BucketName: bucket,
+			UserAgent:  s.config.UserAgent,
+			BucketName: s.config.BucketName,
 			SeedConfig: gocbcore.SeedConfig{
-				HTTPAddrs: hosts,
+				HTTPAddrs: s.config.Hosts,
 			},
 			SecurityConfig: gocbcore.SecurityConfig{
 				Auth: gocbcore.PasswordAuthProvider{
-					Username: username,
-					Password: password,
+					Username: s.config.Username,
+					Password: s.config.Password,
 				},
 			},
 			CompressionConfig: gocbcore.CompressionConfig{
-				Enabled: compression,
+				Enabled: s.config.Compression,
 			},
 		},
 	)
@@ -99,28 +98,28 @@ func (s *client) Close() error {
 	return err
 }
 
-func (s *client) DcpConnect(hosts []string, username string, password string, groupName string, userAgent string, bucket string, deadline time.Time, compression bool, bufferSize int) error {
+func (s *client) DcpConnect(deadline time.Time) error {
 	client, err := gocbcore.CreateDcpAgent(
 		&gocbcore.DCPAgentConfig{
-			UserAgent:  userAgent,
-			BucketName: bucket,
+			UserAgent:  s.config.UserAgent,
+			BucketName: s.config.BucketName,
 			SeedConfig: gocbcore.SeedConfig{
-				HTTPAddrs: hosts,
+				HTTPAddrs: s.config.Hosts,
 			},
 			SecurityConfig: gocbcore.SecurityConfig{
 				Auth: gocbcore.PasswordAuthProvider{
-					Username: username,
-					Password: password,
+					Username: s.config.Username,
+					Password: s.config.Password,
 				},
 			},
 			CompressionConfig: gocbcore.CompressionConfig{
-				Enabled: compression,
+				Enabled: s.config.Compression,
 			},
 			DCPConfig: gocbcore.DCPConfig{
-				BufferSize: bufferSize,
+				BufferSize: s.config.Dcp.FlowControlBuffer,
 			},
 		},
-		groupName,
+		s.config.Dcp.Group.Name,
 		memd.DcpOpenFlagProducer,
 	)
 
@@ -148,7 +147,6 @@ func (s *client) DcpConnect(hosts []string, username string, password string, gr
 		return err
 	}
 
-	s.groupName = groupName
 	s.dcpAgent = client
 
 	vBucketNumber, err := s.GetNumVBuckets()

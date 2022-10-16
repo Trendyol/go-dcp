@@ -3,9 +3,10 @@ couchbase:
   username: user
   password: 123456
   bucketName: dcp-test
+  userAgent: go-dcp-client
+  compression: true
   dcp:
     metadataBucket: dcp-test
-    compression: true
     flowControlBuffer: 16
     group:
       name: groupName

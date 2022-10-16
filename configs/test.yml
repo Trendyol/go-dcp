@@ -3,9 +3,11 @@ couchbase:
   username: Administrator
   password: password
   bucketName: sample
+  userAgent: go-dcp-client
+  compression: true
   dcp:
     metadataBucket: sample
-    compression: true
+  
     flowControlBuffer: 16
     group:
       name: groupName

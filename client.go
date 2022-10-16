@@ -11,6 +11,7 @@ import (
 type Client interface {
 	GetAgent() *gocbcore.Agent
 	GetDcpAgent() *gocbcore.DCPAgent
+	GetGroupName() string
 	Connect(hosts []string, username string, password string, userAgent string, bucket string, deadline time.Time, compression bool) error
 	Close() error
 	DcpConnect(hosts []string, username string, password string, groupName string, userAgent string, bucket string, deadline time.Time, compression bool, bufferSize int) error
@@ -23,8 +24,9 @@ type Client interface {
 }
 
 type client struct {
-	agent    *gocbcore.Agent
-	dcpAgent *gocbcore.DCPAgent
+	agent     *gocbcore.Agent
+	dcpAgent  *gocbcore.DCPAgent
+	groupName string
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {
@@ -35,23 +37,29 @@ func (s *client) GetDcpAgent() *gocbcore.DCPAgent {
 	return s.dcpAgent
 }
 
+func (s *client) GetGroupName() string {
+	return s.groupName
+}
+
 func (s *client) Connect(hosts []string, username string, password string, userAgent string, bucket string, deadline time.Time, compression bool) error {
-	client, err := gocbcore.CreateAgent(&gocbcore.AgentConfig{
-		UserAgent:  userAgent,
-		BucketName: bucket,
-		SeedConfig: gocbcore.SeedConfig{
-			HTTPAddrs: hosts,
-		},
-		SecurityConfig: gocbcore.SecurityConfig{
-			Auth: gocbcore.PasswordAuthProvider{
-				Username: username,
-				Password: password,
+	client, err := gocbcore.CreateAgent(
+		&gocbcore.AgentConfig{
+			UserAgent:  userAgent,
+			BucketName: bucket,
+			SeedConfig: gocbcore.SeedConfig{
+				HTTPAddrs: hosts,
+			},
+			SecurityConfig: gocbcore.SecurityConfig{
+				Auth: gocbcore.PasswordAuthProvider{
+					Username: username,
+					Password: password,
+				},
+			},
+			CompressionConfig: gocbcore.CompressionConfig{
+				Enabled: compression,
 			},
 		},
-		CompressionConfig: gocbcore.CompressionConfig{
-			Enabled: compression,
-		},
-	})
+	)
 
 	if err != nil {
 		return err
@@ -85,25 +93,29 @@ func (s *client) Close() error {
 }
 
 func (s *client) DcpConnect(hosts []string, username string, password string, groupName string, userAgent string, bucket string, deadline time.Time, compression bool, bufferSize int) error {
-	client, err := gocbcore.CreateDcpAgent(&gocbcore.DCPAgentConfig{
-		UserAgent:  userAgent,
-		BucketName: bucket,
-		SeedConfig: gocbcore.SeedConfig{
-			HTTPAddrs: hosts,
-		},
-		SecurityConfig: gocbcore.SecurityConfig{
-			Auth: gocbcore.PasswordAuthProvider{
-				Username: username,
-				Password: password,
+	client, err := gocbcore.CreateDcpAgent(
+		&gocbcore.DCPAgentConfig{
+			UserAgent:  userAgent,
+			BucketName: bucket,
+			SeedConfig: gocbcore.SeedConfig{
+				HTTPAddrs: hosts,
+			},
+			SecurityConfig: gocbcore.SecurityConfig{
+				Auth: gocbcore.PasswordAuthProvider{
+					Username: username,
+					Password: password,
+				},
+			},
+			CompressionConfig: gocbcore.CompressionConfig{
+				Enabled: compression,
+			},
+			DCPConfig: gocbcore.DCPConfig{
+				BufferSize: bufferSize,
 			},
 		},
-		CompressionConfig: gocbcore.CompressionConfig{
-			Enabled: compression,
-		},
-		DCPConfig: gocbcore.DCPConfig{
-			BufferSize: bufferSize,
-		},
-	}, groupName, memd.DcpOpenFlagProducer)
+		groupName,
+		memd.DcpOpenFlagProducer,
+	)
 
 	if err != nil {
 		return err
@@ -125,6 +137,7 @@ func (s *client) DcpConnect(hosts []string, username string, password string, gr
 		return err
 	}
 
+	s.groupName = groupName
 	s.dcpAgent = client
 
 	return nil

@@ -56,8 +56,6 @@ func TestInit(t *testing.T) {
 	teardownSuite := setupSuite(t)
 	defer teardownSuite(t)
 
-	insertData()
-
 	client := NewClient()
 
 	_ = client.DcpConnect(
@@ -74,15 +72,6 @@ func TestInit(t *testing.T) {
 
 	defer client.DcpClose()
 
-	stream := NewStream(client)
-	stream.Start()
-	stream.AddListener(mutationListenerFactory(t, "my_key", stream))
-	stream.Wait()
-}
-
-func insertData() {
-	client := NewClient()
-
 	_ = client.Connect(
 		[]string{"localhost:8091"},
 		defaultUser,
@@ -95,13 +84,21 @@ func insertData() {
 
 	defer client.Close()
 
-	opm := newAsyncOp(nil)
+	agent := client.GetAgent()
 
-	op, err := client.GetAgent().Set(gocbcore.SetOptions{
-		Key:      []byte("my_key"),
-		Value:    []byte("Some value"),
-		Flags:    0,
-		Datatype: 0,
+	insertData(agent)
+
+	stream := NewStream(client, &cbMetadata{agent: *agent})
+	stream.Start()
+	stream.AddListener(mutationListenerFactory(t, "my_key", stream))
+	stream.Wait()
+}
+
+func insertData(agent *gocbcore.Agent) {
+	opm := newAsyncOp(nil)
+	op, err := agent.Set(gocbcore.SetOptions{
+		Key:   []byte("my_key"),
+		Value: []byte("Some value"),
 	}, func(result *gocbcore.StoreResult, err error) {
 		if err != nil {
 			log.Printf("insert data got error %v", err)

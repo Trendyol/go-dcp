@@ -22,6 +22,7 @@ type stream struct {
 	vbUuidMapLock   sync.Mutex
 	vbUuidMap       map[uint16]uint64
 	checkpoint      Checkpoint
+	Metadata        Metadata
 }
 
 func (s *stream) Listener(event int, data interface{}, err error) {
@@ -31,6 +32,10 @@ func (s *stream) Listener(event int, data interface{}, err error) {
 
 	if event == EndName {
 		s.finishedStreams.Done()
+	}
+
+	if IsMetadata(data) {
+		return
 	}
 
 	for _, listener := range s.listeners {
@@ -64,8 +69,8 @@ func (s *stream) Start() {
 		panic(err)
 	}
 
-	s.checkpoint = NewCheckpoint(observer, vBucketNumber, failoverLogs)
-	observerState := s.checkpoint.Load()
+	s.checkpoint = NewCheckpoint(observer, vBucketNumber, failoverLogs, s.Metadata)
+	observerState := s.checkpoint.Load(s.client.GetGroupName())
 
 	for _, entry := range seqNos {
 		go func(innerEntry gocbcore.VbSeqNoEntry) {
@@ -105,7 +110,7 @@ func (s *stream) Wait() {
 }
 
 func (s *stream) SaveCheckpoint() {
-	s.checkpoint.Save()
+	s.checkpoint.Save(s.client.GetGroupName())
 }
 
 func (s *stream) Stop() {
@@ -130,18 +135,20 @@ func (s *stream) AddListener(listener Listener) {
 	s.listeners = append(s.listeners, listener)
 }
 
-func NewStream(client Client) Stream {
+func NewStream(client Client, metadata Metadata) Stream {
 	return &stream{
 		client:          client,
 		finishedStreams: sync.WaitGroup{},
 		listeners:       []Listener{},
+		Metadata:        metadata,
 	}
 }
 
-func NewStreamWithListener(client Client, listener Listener) Stream {
+func NewStreamWithListener(client Client, metadata Metadata, listener Listener) Stream {
 	return &stream{
 		client:          client,
 		finishedStreams: sync.WaitGroup{},
 		listeners:       []Listener{listener},
+		Metadata:        metadata,
 	}
 }

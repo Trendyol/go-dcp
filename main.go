@@ -14,7 +14,9 @@ func listener(event int, data interface{}, err error) {
 		return
 	}
 
-	fmt.Printf("event: %d, data: %v, err: %v\n", event, data, err)
+	if event == MutationName || event == DeletionName || event == ExpirationName {
+		fmt.Printf("event: %d, data: %v, err: %v\n", event, data, err)
+	}
 }
 
 func main() {
@@ -40,7 +42,23 @@ func main() {
 		panic(err)
 	}
 
-	stream := NewStreamWithListener(client, listener)
+	err = client.Connect(
+		cbConfig.Hosts,
+		cbConfig.Username,
+		cbConfig.Password,
+		"go-dcp-client",
+		cbConfig.BucketName,
+		time.Now().Add(10*time.Second),
+		cbConfig.Dcp.Compression,
+	)
+
+	defer client.Close()
+
+	if err != nil {
+		panic(err)
+	}
+
+	stream := NewStreamWithListener(client, &cbMetadata{agent: *client.GetAgent()}, listener)
 	stream.Start()
 
 	cancelChan := make(chan os.Signal, 1)

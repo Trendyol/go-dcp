@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/couchbase/gocbcore/v10"
 	"log"
-	"time"
 )
 
 func listener(event int, data interface{}, err error) {
@@ -24,25 +23,12 @@ func listener(event int, data interface{}, err error) {
 }
 
 func main() {
-	config := NewConfig("configs/main.yml")
-
-	client := NewClient(config)
-
-	err := client.DcpConnect(time.Now().Add(10 * time.Second))
-	defer client.DcpClose()
+	dcp, err := NewDcp("configs/main.yml", listener)
+	defer dcp.Close()
 
 	if err != nil {
 		panic(err)
 	}
 
-	err = client.Connect(time.Now().Add(10 * time.Second))
-	defer client.Close()
-
-	if err != nil {
-		panic(err)
-	}
-
-	metadata := NewCBMetadata(client.GetAgent())
-	stream := NewStream(client, metadata, listener).Start()
-	stream.Wait()
+	dcp.StartAndWait()
 }

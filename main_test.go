@@ -55,10 +55,10 @@ func TestInit(t *testing.T) {
 
 	client := NewClient(config)
 
-	_ = client.DcpConnect(time.Now().Add(10 * time.Second))
+	_ = client.DcpConnect()
 	defer client.DcpClose()
 
-	_ = client.Connect(time.Now().Add(10 * time.Second))
+	_ = client.Connect()
 	defer client.Close()
 
 	agent := client.GetAgent()

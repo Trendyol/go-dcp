@@ -12,9 +12,9 @@ type Client interface {
 	GetDcpAgent() *gocbcore.DCPAgent
 	GetGroupName() string
 	GetMembership() Membership
-	Connect(deadline time.Time) error
+	Connect() error
 	Close() error
-	DcpConnect(deadline time.Time) error
+	DcpConnect() error
 	DcpClose() error
 	GetBucketUuid() string
 	GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error)
@@ -47,7 +47,7 @@ func (s *client) GetMembership() Membership {
 	return s.membership
 }
 
-func (s *client) Connect(deadline time.Time) error {
+func (s *client) Connect() error {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
 			UserAgent:  s.config.UserAgent,
@@ -74,7 +74,7 @@ func (s *client) Connect(deadline time.Time) error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		deadline,
+		time.Now().Add(s.config.ConnectTimeout*time.Millisecond),
 		gocbcore.WaitUntilReadyOptions{},
 		func(result *gocbcore.WaitUntilReadyResult, err error) {
 			ch <- err
@@ -102,7 +102,7 @@ func (s *client) Close() error {
 	return err
 }
 
-func (s *client) DcpConnect(deadline time.Time) error {
+func (s *client) DcpConnect() error {
 	client, err := gocbcore.CreateDcpAgent(
 		&gocbcore.DCPAgentConfig{
 			UserAgent:  s.config.UserAgent,
@@ -134,7 +134,7 @@ func (s *client) DcpConnect(deadline time.Time) error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		deadline,
+		time.Now().Add(s.config.Dcp.ConnectTimeout*time.Millisecond),
 		gocbcore.WaitUntilReadyOptions{},
 		func(result *gocbcore.WaitUntilReadyResult, err error) {
 			ch <- err

@@ -6,7 +6,9 @@ couchbase:
   userAgent: go-dcp-client
   compression: true
   metadataBucket: sample
+  connectTimeout: 10000
   dcp:
+    connectTimeout: 10000
     flowControlBuffer: 16
     group:
       name: groupName

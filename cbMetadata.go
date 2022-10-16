@@ -49,11 +49,11 @@ func (s *cbMetadata) deleteDocument(id string) {
 	_ = opm.Wait(op, err)
 }
 
-func (s *cbMetadata) getXattrs(id string, path string) (checkpointDocument, error) {
+func (s *cbMetadata) getXattrs(id string, path string) (CheckpointDocument, error) {
 	opm := newAsyncOp(nil)
 
 	errorCh := make(chan error)
-	documentCh := make(chan checkpointDocument)
+	documentCh := make(chan CheckpointDocument)
 
 	op, err := s.agent.LookupIn(gocbcore.LookupInOptions{
 		Key: []byte(id),
@@ -66,7 +66,7 @@ func (s *cbMetadata) getXattrs(id string, path string) (checkpointDocument, erro
 		},
 	}, func(result *gocbcore.LookupInResult, err error) {
 		if err == nil {
-			document := checkpointDocument{}
+			document := CheckpointDocument{}
 			err = json.Unmarshal(result.Ops[0].Value, &document)
 
 			if err == nil {
@@ -96,7 +96,7 @@ func (s *cbMetadata) createEmptyDocument(id string) error {
 	op, err := s.agent.Set(gocbcore.SetOptions{
 		Key:   []byte(id),
 		Value: []byte{},
-		Flags: 50333696, // todo what does it mean?
+		Flags: 50333696,
 	}, func(result *gocbcore.StoreResult, err error) {
 		opm.Resolve()
 	})
@@ -104,7 +104,7 @@ func (s *cbMetadata) createEmptyDocument(id string) error {
 	return opm.Wait(op, err)
 }
 
-func (s *cbMetadata) Save(state map[uint16]checkpointDocument, groupName string) {
+func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, groupName string) {
 	for vbId, checkpointDocument := range state {
 		id := GetCheckpointId(vbId, groupName)
 
@@ -117,8 +117,8 @@ func (s *cbMetadata) Save(state map[uint16]checkpointDocument, groupName string)
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, groupName string) map[uint16]checkpointDocument {
-	state := map[uint16]checkpointDocument{}
+func (s *cbMetadata) Load(vbIds []uint16, groupName string) map[uint16]CheckpointDocument {
+	state := map[uint16]CheckpointDocument{}
 
 	for _, vbId := range vbIds {
 		id := GetCheckpointId(vbId, groupName)

@@ -18,13 +18,13 @@ type checkpointDocumentCheckpoint struct {
 	Snapshot checkpointDocumentSnapshot `json:"snapshot"`
 }
 
-type checkpointDocument struct {
+type CheckpointDocument struct {
 	Checkpoint checkpointDocumentCheckpoint `json:"checkpoint"`
 	BucketUuid string                       `json:"bucketUuid"`
 }
 
-func NewCheckpointDocument() checkpointDocument {
-	return checkpointDocument{
+func NewCheckpointDocument() CheckpointDocument {
+	return CheckpointDocument{
 		Checkpoint: checkpointDocumentCheckpoint{
 			VbUuid: 0,
 			SeqNo:  0,
@@ -47,10 +47,10 @@ type checkpoint struct {
 func (s *checkpoint) Save(groupName string) {
 	state := s.observer.GetState()
 
-	dump := map[uint16]checkpointDocument{}
+	dump := map[uint16]CheckpointDocument{}
 
 	for vbId, observerState := range state {
-		dump[vbId] = checkpointDocument{
+		dump[vbId] = CheckpointDocument{
 			Checkpoint: checkpointDocumentCheckpoint{
 				VbUuid: uint64(s.failoverLogs[vbId].VbUUID),
 				SeqNo:  observerState.LastSeqNo,

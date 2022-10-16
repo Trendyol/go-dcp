@@ -73,7 +73,12 @@ func TestInit(t *testing.T) {
 	stream.Start()
 	stream.AddListener(mutationListenerFactory(t, "my_key", stream))
 	stream.Wait()
-	os.Remove("checkpoints.json")
+
+	err := os.Remove("checkpoints.json")
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 func insertData(agent *gocbcore.Agent) {

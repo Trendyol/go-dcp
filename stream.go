@@ -45,7 +45,7 @@ func (s *stream) Start() {
 	vbIds := s.client.GetMembership().GetVBuckets()
 	vBucketNumber := len(vbIds)
 
-	observer := NewObserverWithListener(vbIds, s.Listener)
+	observer := NewObserver(vbIds, s.Listener)
 
 	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
 

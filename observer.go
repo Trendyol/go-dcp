@@ -174,17 +174,7 @@ func (so *observer) SetState(state map[uint16]ObserverState) {
 	}
 }
 
-func NewObserver(vbIds []uint16) Observer {
-	return &observer{
-		lock:          sync.Mutex{},
-		lastSeqNo:     map[uint16]uint64{},
-		lastSnapStart: map[uint16]uint64{},
-		lastSnapEnd:   map[uint16]uint64{},
-		vbIds:         vbIds,
-	}
-}
-
-func NewObserverWithListener(vbIds []uint16, listener Listener) Observer {
+func NewObserver(vbIds []uint16, listener Listener) Observer {
 	return &observer{
 		lock:          sync.Mutex{},
 		lastSeqNo:     map[uint16]uint64{},

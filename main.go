@@ -47,7 +47,9 @@ func main() {
 		panic(err)
 	}
 
-	stream := NewStreamWithListener(client, &cbMetadata{agent: *client.GetAgent()}, listener)
+	metadata := NewCBMetadata(client.GetAgent())
+
+	stream := NewStreamWithListener(client, metadata, listener)
 	stream.Start()
 
 	cancelChan := make(chan os.Signal, 1)

@@ -8,7 +8,7 @@ import (
 )
 
 type cbMetadata struct {
-	agent gocbcore.Agent
+	agent *gocbcore.Agent
 }
 
 func (s *cbMetadata) upsertXattrs(id string, path string, xattrs interface{}) error {
@@ -141,5 +141,11 @@ func (s *cbMetadata) Clear(vbIds []uint16, groupName string) {
 		id := GetCheckpointId(vbId, groupName)
 
 		s.deleteDocument(id)
+	}
+}
+
+func NewCBMetadata(agent *gocbcore.Agent) Metadata {
+	return &cbMetadata{
+		agent: agent,
 	}
 }

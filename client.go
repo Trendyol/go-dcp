@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-	"math"
 	"time"
 )
 
@@ -251,7 +250,7 @@ func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState O
 		memd.DcpStreamAddFlagActiveOnly,
 		vbUuid,
 		gocbcore.SeqNo(observerState.LastSeqNo),
-		math.MaxInt64,
+		0xffffffffffffffff,
 		gocbcore.SeqNo(observerState.LastSnapStart),
 		gocbcore.SeqNo(observerState.LastSnapEnd),
 		observer,

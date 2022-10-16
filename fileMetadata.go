@@ -23,17 +23,7 @@ func (s *fileMetadata) Load(vbIds []uint16, groupName string) map[uint16]checkpo
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			for _, vbId := range vbIds {
-				state[vbId] = checkpointDocument{
-					Checkpoint: checkpointDocumentCheckpoint{
-						VbUuid: 0,
-						SeqNo:  0,
-						Snapshot: checkpointDocumentSnapshot{
-							StartSeqNo: 0,
-							EndSeqNo:   0,
-						},
-					},
-					BucketUuid: "",
-				}
+				state[vbId] = NewCheckpointDocument()
 			}
 		} else {
 			panic(err)
@@ -47,4 +37,10 @@ func (s *fileMetadata) Load(vbIds []uint16, groupName string) map[uint16]checkpo
 
 func (s *fileMetadata) Clear(vbIds []uint16, groupName string) {
 	_ = os.Remove(s.fileName)
+}
+
+func NewFileMetadata(fileName string) Metadata {
+	return &fileMetadata{
+		fileName: fileName,
+	}
 }

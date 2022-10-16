@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"os"
 	"testing"
 	"time"
 )
@@ -66,10 +67,13 @@ func TestInit(t *testing.T) {
 
 	insertData(agent)
 
-	stream := NewStream(client, &cbMetadata{agent: *agent})
+	metadata := NewFileMetadata("checkpoints.json")
+
+	stream := NewStream(client, metadata)
 	stream.Start()
 	stream.AddListener(mutationListenerFactory(t, "my_key", stream))
 	stream.Wait()
+	os.Remove("checkpoints.json")
 }
 
 func insertData(agent *gocbcore.Agent) {

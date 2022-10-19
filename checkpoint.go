@@ -9,7 +9,7 @@ import (
 
 type Checkpoint interface {
 	Save(groupName string)
-	Load(groupName string) map[uint16]ObserverState
+	Load(groupName string) map[uint16]*ObserverState
 	Clear(groupName string)
 	StartSchedule(groupName string)
 	StopSchedule()
@@ -68,10 +68,10 @@ func (s *checkpoint) Save(groupName string) {
 		dump[vbId] = CheckpointDocument{
 			Checkpoint: checkpointDocumentCheckpoint{
 				VbUuid: uint64(s.failoverLogs[vbId].VbUUID),
-				SeqNo:  observerState.LastSeqNo,
+				SeqNo:  observerState.SeqNo,
 				Snapshot: checkpointDocumentSnapshot{
-					StartSeqNo: observerState.LastSnapStart,
-					EndSeqNo:   observerState.LastSnapEnd,
+					StartSeqNo: observerState.StartSeqNo,
+					EndSeqNo:   observerState.EndSeqNo,
 				},
 			},
 			BucketUuid: s.bucketUuid,
@@ -82,19 +82,19 @@ func (s *checkpoint) Save(groupName string) {
 	log.Printf("Saved checkpoint")
 }
 
-func (s *checkpoint) Load(groupName string) map[uint16]ObserverState {
+func (s *checkpoint) Load(groupName string) map[uint16]*ObserverState {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
 	dump := s.metadata.Load(s.vbIds, groupName, s.bucketUuid)
 
-	var observerState = map[uint16]ObserverState{}
+	var observerState = map[uint16]*ObserverState{}
 
 	for vbId, doc := range dump {
-		observerState[vbId] = ObserverState{
-			LastSeqNo:     doc.Checkpoint.SeqNo,
-			LastSnapStart: doc.Checkpoint.Snapshot.StartSeqNo,
-			LastSnapEnd:   doc.Checkpoint.Snapshot.EndSeqNo,
+		observerState[vbId] = &ObserverState{
+			SeqNo:      doc.Checkpoint.SeqNo,
+			StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
+			EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
 		}
 	}
 
@@ -111,9 +111,9 @@ func (s *checkpoint) Clear(groupName string) {
 
 func (s *checkpoint) StartSchedule(groupName string) {
 	go func() {
-		time.Sleep(10 * time.Second)
 		s.schedule = time.NewTicker(10 * time.Second)
 		go func() {
+			time.Sleep(10 * time.Second)
 			for range s.schedule.C {
 				s.Save(groupName)
 			}
@@ -123,10 +123,7 @@ func (s *checkpoint) StartSchedule(groupName string) {
 }
 
 func (s *checkpoint) StopSchedule() {
-	if s.schedule != nil {
-		s.schedule.Stop()
-		s.schedule = nil
-	}
+	s.schedule.Stop()
 	log.Printf("Stopped checkpoint schedule")
 }
 

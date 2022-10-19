@@ -3,28 +3,27 @@ package main
 import (
 	"github.com/couchbase/gocbcore/v10"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 )
 
 type Stream interface {
-	Start() Stream
+	Start()
 	Wait()
-	SaveCheckpoint()
+	Save()
 	Stop()
-	AddListener(listener Listener)
 }
 
 type stream struct {
-	client          Client
+	client     Client
+	Metadata   Metadata
+	checkpoint Checkpoint
+
 	finishedStreams sync.WaitGroup
-	listeners       []Listener
-	streamsLock     sync.Mutex
-	streams         []uint16
-	checkpoint      Checkpoint
-	Metadata        Metadata
+
+	listeners []Listener
+
+	streamsLock sync.Mutex
+	streams     []uint16
 }
 
 func (s *stream) Listener(event int, data interface{}, err error) {
@@ -45,7 +44,7 @@ func (s *stream) Listener(event int, data interface{}, err error) {
 	}
 }
 
-func (s *stream) Start() Stream {
+func (s *stream) Start() {
 	vbIds := s.client.GetMembership().GetVBuckets()
 	vBucketNumber := len(vbIds)
 
@@ -95,33 +94,21 @@ func (s *stream) Start() Stream {
 	}
 
 	openWg.Wait()
-	s.checkpoint.StartSchedule(s.client.GetGroupName())
 	log.Printf("All streams are opened")
 
-	return s
+	s.checkpoint.StartSchedule(s.client.GetGroupName())
 }
 
 func (s *stream) Wait() {
-	cancelCh := make(chan os.Signal, 1)
-	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
-	go func() {
-		s.finishedStreams.Wait()
-		close(cancelCh)
-	}()
-	<-cancelCh
-	s.Stop()
-	s.checkpoint.StopSchedule()
-	s.SaveCheckpoint()
+	s.finishedStreams.Wait()
 }
 
-func (s *stream) SaveCheckpoint() {
+func (s *stream) Save() {
 	s.checkpoint.Save(s.client.GetGroupName())
 }
 
 func (s *stream) Stop() {
-	if len(s.streams) == 0 {
-		return
-	}
+	s.checkpoint.StopSchedule()
 
 	for _, stream := range s.streams {
 		ch := make(chan error)
@@ -138,19 +125,18 @@ func (s *stream) Stop() {
 
 		s.finishedStreams.Done()
 	}
-	s.streams = nil
-	log.Printf("All streams are closed")
-}
 
-func (s *stream) AddListener(listener Listener) {
-	s.listeners = append(s.listeners, listener)
+	s.streams = []uint16{}
+	log.Printf("All streams are closed")
 }
 
 func NewStream(client Client, metadata Metadata, listeners ...Listener) Stream {
 	return &stream{
-		client:          client,
+		client:   client,
+		Metadata: metadata,
+
 		finishedStreams: sync.WaitGroup{},
-		listeners:       listeners,
-		Metadata:        metadata,
+
+		listeners: listeners,
 	}
 }

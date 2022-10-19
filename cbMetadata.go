@@ -33,6 +33,10 @@ func (s *cbMetadata) upsertXattrs(id string, path string, xattrs interface{}) er
 		opm.Resolve()
 	})
 
+	if err != nil {
+		return err
+	}
+
 	err = <-ch
 
 	return opm.Wait(op, err)
@@ -45,6 +49,10 @@ func (s *cbMetadata) deleteDocument(id string) {
 	}, func(result *gocbcore.DeleteResult, err error) {
 		opm.Resolve()
 	})
+
+	if err != nil {
+		return
+	}
 
 	_ = opm.Wait(op, err)
 }
@@ -83,6 +91,10 @@ func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (Check
 		opm.Resolve()
 	})
 
+	if err != nil {
+		return NewCheckpointDocument(bucketUuid), err
+	}
+
 	document := <-documentCh
 
 	err = <-errorCh
@@ -100,6 +112,10 @@ func (s *cbMetadata) createEmptyDocument(id string) error {
 	}, func(result *gocbcore.StoreResult, err error) {
 		opm.Resolve()
 	})
+
+	if err != nil {
+		return err
+	}
 
 	return opm.Wait(op, err)
 }

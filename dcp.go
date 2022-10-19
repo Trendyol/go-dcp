@@ -1,5 +1,11 @@
 package main
 
+import (
+	"os"
+	"os/signal"
+	"syscall"
+)
+
 type Dcp interface {
 	StartAndWait()
 	Close()
@@ -9,14 +15,27 @@ type dcp struct {
 	client   Client
 	metadata Metadata
 	listener Listener
+	stream   Stream
 }
 
 func (s *dcp) StartAndWait() {
-	stream := NewStream(s.client, s.metadata, s.listener).Start()
-	stream.Wait()
+	s.stream = NewStream(s.client, s.metadata, s.listener)
+	s.stream.Start()
+
+	cancelCh := make(chan os.Signal, 1)
+	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
+
+	go func() {
+		s.stream.Wait()
+		close(cancelCh)
+	}()
+
+	<-cancelCh
 }
 
 func (s *dcp) Close() {
+	s.stream.Save()
+	s.stream.Stop()
 	s.client.Close()
 	s.client.DcpClose()
 }

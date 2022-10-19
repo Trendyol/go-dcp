@@ -19,35 +19,36 @@ type Observer interface {
 	ModifyCollection(modification gocbcore.DcpCollectionModification)
 	OSOSnapshot(snapshot gocbcore.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
-	GetState() map[uint16]ObserverState
-	SetState(map[uint16]ObserverState)
-}
-
-type observer struct {
-	lock          sync.Mutex
-	lastSeqNo     map[uint16]uint64
-	lastSnapStart map[uint16]uint64
-	lastSnapEnd   map[uint16]uint64
-	listener      Listener
-	vbIds         []uint16
+	GetState() map[uint16]*ObserverState
+	SetState(map[uint16]*ObserverState)
 }
 
 type ObserverState struct {
-	LastSeqNo     uint64
-	LastSnapStart uint64
-	LastSnapEnd   uint64
+	SeqNo      uint64
+	StartSeqNo uint64
+	EndSeqNo   uint64
+}
+
+type observer struct {
+	stateLock sync.Mutex
+	state     map[uint16]*ObserverState
+
+	listener Listener
+
+	vbIds []uint16
 }
 
 func (so *observer) SnapshotMarker(marker gocbcore.DcpSnapshotMarker) {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+	so.stateLock.Lock()
 
-	so.lastSnapStart[marker.VbID] = marker.StartSeqNo
-	so.lastSnapEnd[marker.VbID] = marker.EndSeqNo
+	so.state[marker.VbID].StartSeqNo = marker.StartSeqNo
+	so.state[marker.VbID].EndSeqNo = marker.EndSeqNo
 
-	if so.lastSeqNo[marker.VbID] < marker.StartSeqNo || so.lastSeqNo[marker.VbID] > marker.EndSeqNo {
-		so.lastSeqNo[marker.VbID] = marker.StartSeqNo
+	if so.state[marker.VbID].SeqNo < marker.StartSeqNo || so.state[marker.VbID].SeqNo > marker.EndSeqNo {
+		so.state[marker.VbID].SeqNo = marker.StartSeqNo
 	}
+
+	so.stateLock.Unlock()
 
 	if so.listener != nil {
 		so.listener(SnapshotMarkerName, marker, nil)
@@ -55,10 +56,11 @@ func (so *observer) SnapshotMarker(marker gocbcore.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+	so.stateLock.Lock()
 
-	so.lastSeqNo[mutation.VbID] = mutation.SeqNo
+	so.state[mutation.VbID].SeqNo = mutation.SeqNo
+
+	so.stateLock.Unlock()
 
 	if so.listener != nil {
 		so.listener(MutationName, mutation, nil)
@@ -66,10 +68,11 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+	so.stateLock.Lock()
 
-	so.lastSeqNo[deletion.VbID] = deletion.SeqNo
+	so.state[deletion.VbID].SeqNo = deletion.SeqNo
+
+	so.stateLock.Unlock()
 
 	if so.listener != nil {
 		so.listener(DeletionName, deletion, nil)
@@ -77,10 +80,11 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 }
 
 func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+	so.stateLock.Lock()
 
-	so.lastSeqNo[expiration.VbID] = expiration.SeqNo
+	so.state[expiration.VbID].SeqNo = expiration.SeqNo
+
+	so.stateLock.Unlock()
 
 	if so.listener != nil {
 		so.listener(ExpirationName, expiration, nil)
@@ -136,51 +140,36 @@ func (so *observer) OSOSnapshot(snapshot gocbcore.DcpOSOSnapshot) {
 }
 
 func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+	so.stateLock.Lock()
 
-	so.lastSeqNo[advanced.VbID] = advanced.SeqNo
+	so.state[advanced.VbID].SeqNo = advanced.SeqNo
+
+	so.stateLock.Unlock()
 
 	if so.listener != nil {
 		so.listener(SeqNoAdvancedName, advanced, nil)
 	}
 }
 
-func (so *observer) GetState() map[uint16]ObserverState {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+func (so *observer) GetState() map[uint16]*ObserverState {
+	so.stateLock.Lock()
+	defer so.stateLock.Unlock()
 
-	observerState := make(map[uint16]ObserverState)
-
-	for _, vbId := range so.vbIds {
-		observerState[vbId] = ObserverState{
-			LastSeqNo:     so.lastSeqNo[vbId],
-			LastSnapStart: so.lastSnapStart[vbId],
-			LastSnapEnd:   so.lastSnapEnd[vbId],
-		}
-	}
-
-	return observerState
+	return so.state
 }
 
-func (so *observer) SetState(state map[uint16]ObserverState) {
-	so.lock.Lock()
-	defer so.lock.Unlock()
+func (so *observer) SetState(state map[uint16]*ObserverState) {
+	so.stateLock.Lock()
+	defer so.stateLock.Unlock()
 
-	for _, vbId := range so.vbIds {
-		so.lastSeqNo[vbId] = state[vbId].LastSeqNo
-		so.lastSnapStart[vbId] = state[vbId].LastSnapStart
-		so.lastSnapEnd[vbId] = state[vbId].LastSnapEnd
-	}
+	so.state = state
 }
 
 func NewObserver(vbIds []uint16, listener Listener) Observer {
 	return &observer{
-		lock:          sync.Mutex{},
-		lastSeqNo:     map[uint16]uint64{},
-		lastSnapStart: map[uint16]uint64{},
-		lastSnapEnd:   map[uint16]uint64{},
-		listener:      listener,
-		vbIds:         vbIds,
+		stateLock: sync.Mutex{},
+		state:     map[uint16]*ObserverState{},
+		listener:  listener,
+		vbIds:     vbIds,
 	}
 }

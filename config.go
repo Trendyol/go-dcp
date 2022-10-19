@@ -9,35 +9,34 @@ import (
 )
 
 type ConfigDCPGroupMembership struct {
-	MemberNumber int `mapstructure:"memberNumber"`
-	TotalMembers int `mapstructure:"totalMembers"`
+	MemberNumber int `yaml:"memberNumber"`
+	TotalMembers int `yaml:"totalMembers"`
 }
 
 type ConfigDCPGroup struct {
-	Name       string                   `mapstructure:"name"`
-	Membership ConfigDCPGroupMembership `mapstructure:"membership"`
+	Name       string                   `yaml:"name"`
+	Membership ConfigDCPGroupMembership `yaml:"membership"`
 }
 
 type ConfigDCP struct {
-	ConnectTimeout    time.Duration  `mapstructure:"connectTimeout"`
-	FlowControlBuffer int            `mapstructure:"flowControlBuffer"`
-	Group             ConfigDCPGroup `mapstructure:"group"`
+	ConnectTimeout    time.Duration  `yaml:"connectTimeout"`
+	FlowControlBuffer int            `yaml:"flowControlBuffer"`
+	Group             ConfigDCPGroup `yaml:"group"`
 }
 
 type Config struct {
-	Hosts          []string      `mapstructure:"hosts"`
-	Username       string        `mapstructure:"username"`
-	Password       string        `mapstructure:"password"`
-	BucketName     string        `mapstructure:"bucketName"`
-	UserAgent      string        `mapstructure:"userAgent"`
-	Compression    bool          `mapstructure:"compression"`
-	MetadataBucket string        `mapstructure:"metadataBucket"`
-	ConnectTimeout time.Duration `mapstructure:"connectTimeout"`
-	Dcp            ConfigDCP     `mapstructure:"dcp"`
+	Hosts          []string      `yaml:"hosts"`
+	Username       string        `yaml:"username"`
+	Password       string        `yaml:"password"`
+	BucketName     string        `yaml:"bucketName"`
+	UserAgent      string        `yaml:"userAgent"`
+	Compression    bool          `yaml:"compression"`
+	MetadataBucket string        `yaml:"metadataBucket"`
+	ConnectTimeout time.Duration `yaml:"connectTimeout"`
+	Dcp            ConfigDCP     `yaml:"dcp"`
 }
 
 func NewConfig(filePath string) Config {
-	config.WithOptions(config.ParseEnv)
 	config.AddDriver(yamlv3.Driver)
 
 	err := config.LoadFiles(filePath)

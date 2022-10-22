@@ -1,4 +1,4 @@
-package main
+package godcpclient
 
 import (
 	"github.com/couchbase/gocbcore/v10"

@@ -1,10 +1,9 @@
-package main
+package godcpclient
 
 import (
 	"github.com/gookit/config/v2"
 	"github.com/gookit/config/v2/yamlv3"
 	"log"
-	"strings"
 	"time"
 )
 
@@ -52,8 +51,6 @@ func NewConfig(filePath string) Config {
 		panic(err)
 	}
 
-	hosts := config.String("couchbase.hosts")
-	_config.Hosts = strings.Split(hosts, ",")
 	log.Printf("Config loaded from file: %v", filePath)
 
 	return _config

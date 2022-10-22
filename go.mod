@@ -1,4 +1,4 @@
-module go-dcp-client
+module github.com/Trendyol/go-dcp-client
 
 go 1.19
 

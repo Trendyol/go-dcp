@@ -1,4 +1,4 @@
-package main
+package godcpclient
 
 type Metadata interface {
 	Save(map[uint16]CheckpointDocument, string, string)

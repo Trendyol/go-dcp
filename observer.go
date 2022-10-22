@@ -1,24 +1,23 @@
-package main
+package godcpclient
 
 import (
-	"github.com/couchbase/gocbcore/v10"
 	"sync"
 )
 
 type Observer interface {
-	SnapshotMarker(marker gocbcore.DcpSnapshotMarker)
-	Mutation(mutation gocbcore.DcpMutation)
-	Deletion(deletion gocbcore.DcpDeletion)
-	Expiration(expiration gocbcore.DcpExpiration)
-	End(dcpEnd gocbcore.DcpStreamEnd, err error)
-	CreateCollection(creation gocbcore.DcpCollectionCreation)
-	DeleteCollection(deletion gocbcore.DcpCollectionDeletion)
-	FlushCollection(flush gocbcore.DcpCollectionFlush)
-	CreateScope(creation gocbcore.DcpScopeCreation)
-	DeleteScope(deletion gocbcore.DcpScopeDeletion)
-	ModifyCollection(modification gocbcore.DcpCollectionModification)
-	OSOSnapshot(snapshot gocbcore.DcpOSOSnapshot)
-	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
+	SnapshotMarker(marker DcpSnapshotMarker)
+	Mutation(mutation DcpMutation)
+	Deletion(deletion DcpDeletion)
+	Expiration(expiration DcpExpiration)
+	End(dcpEnd DcpStreamEnd, err error)
+	CreateCollection(creation DcpCollectionCreation)
+	DeleteCollection(deletion DcpCollectionDeletion)
+	FlushCollection(flush DcpCollectionFlush)
+	CreateScope(creation DcpScopeCreation)
+	DeleteScope(deletion DcpScopeDeletion)
+	ModifyCollection(modification DcpCollectionModification)
+	OSOSnapshot(snapshot DcpOSOSnapshot)
+	SeqNoAdvanced(advanced DcpSeqNoAdvanced)
 	GetState() map[uint16]*ObserverState
 	SetState(map[uint16]*ObserverState)
 }
@@ -38,7 +37,7 @@ type observer struct {
 	vbIds []uint16
 }
 
-func (so *observer) SnapshotMarker(marker gocbcore.DcpSnapshotMarker) {
+func (so *observer) SnapshotMarker(marker DcpSnapshotMarker) {
 	so.stateLock.Lock()
 
 	so.state[marker.VbID].StartSeqNo = marker.StartSeqNo
@@ -51,11 +50,11 @@ func (so *observer) SnapshotMarker(marker gocbcore.DcpSnapshotMarker) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(SnapshotMarkerName, marker, nil)
+		so.listener(marker, nil)
 	}
 }
 
-func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
+func (so *observer) Mutation(mutation DcpMutation) {
 	so.stateLock.Lock()
 
 	so.state[mutation.VbID].SeqNo = mutation.SeqNo
@@ -63,11 +62,11 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(MutationName, mutation, nil)
+		so.listener(mutation, nil)
 	}
 }
 
-func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
+func (so *observer) Deletion(deletion DcpDeletion) {
 	so.stateLock.Lock()
 
 	so.state[deletion.VbID].SeqNo = deletion.SeqNo
@@ -75,11 +74,11 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(DeletionName, deletion, nil)
+		so.listener(deletion, nil)
 	}
 }
 
-func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
+func (so *observer) Expiration(expiration DcpExpiration) {
 	so.stateLock.Lock()
 
 	so.state[expiration.VbID].SeqNo = expiration.SeqNo
@@ -87,59 +86,59 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(ExpirationName, expiration, nil)
+		so.listener(expiration, nil)
 	}
 }
 
-func (so *observer) End(dcpEnd gocbcore.DcpStreamEnd, err error) {
+func (so *observer) End(dcpEnd DcpStreamEnd, err error) {
 	if so.listener != nil {
-		so.listener(EndName, dcpEnd, err)
+		so.listener(dcpEnd, err)
 	}
 }
 
-func (so *observer) CreateCollection(creation gocbcore.DcpCollectionCreation) {
+func (so *observer) CreateCollection(creation DcpCollectionCreation) {
 	if so.listener != nil {
-		so.listener(CreateCollectionName, creation, nil)
+		so.listener(creation, nil)
 	}
 }
 
-func (so *observer) DeleteCollection(deletion gocbcore.DcpCollectionDeletion) {
+func (so *observer) DeleteCollection(deletion DcpCollectionDeletion) {
 	if so.listener != nil {
-		so.listener(DeleteCollectionName, deletion, nil)
+		so.listener(deletion, nil)
 	}
 }
 
-func (so *observer) FlushCollection(flush gocbcore.DcpCollectionFlush) {
+func (so *observer) FlushCollection(flush DcpCollectionFlush) {
 	if so.listener != nil {
-		so.listener(FlushCollectionName, flush, nil)
+		so.listener(flush, nil)
 	}
 }
 
-func (so *observer) CreateScope(creation gocbcore.DcpScopeCreation) {
+func (so *observer) CreateScope(creation DcpScopeCreation) {
 	if so.listener != nil {
-		so.listener(CreateScopeName, creation, nil)
+		so.listener(creation, nil)
 	}
 }
 
-func (so *observer) DeleteScope(deletion gocbcore.DcpScopeDeletion) {
+func (so *observer) DeleteScope(deletion DcpScopeDeletion) {
 	if so.listener != nil {
-		so.listener(DeleteScopeName, deletion, nil)
+		so.listener(deletion, nil)
 	}
 }
 
-func (so *observer) ModifyCollection(modification gocbcore.DcpCollectionModification) {
+func (so *observer) ModifyCollection(modification DcpCollectionModification) {
 	if so.listener != nil {
-		so.listener(ModifyCollectionName, modification, nil)
+		so.listener(modification, nil)
 	}
 }
 
-func (so *observer) OSOSnapshot(snapshot gocbcore.DcpOSOSnapshot) {
+func (so *observer) OSOSnapshot(snapshot DcpOSOSnapshot) {
 	if so.listener != nil {
-		so.listener(OSOSnapshotName, snapshot, nil)
+		so.listener(snapshot, nil)
 	}
 }
 
-func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
+func (so *observer) SeqNoAdvanced(advanced DcpSeqNoAdvanced) {
 	so.stateLock.Lock()
 
 	so.state[advanced.VbID].SeqNo = advanced.SeqNo
@@ -147,7 +146,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(SeqNoAdvancedName, advanced, nil)
+		so.listener(advanced, nil)
 	}
 }
 

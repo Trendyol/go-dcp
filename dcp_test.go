@@ -1,4 +1,4 @@
-package main
+package godcpclient
 
 import (
 	"context"
@@ -7,11 +7,48 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+func createConfigFile(t *testing.T) (string, func()) {
+	configStr := `couchbase:
+  hosts:
+    - localhost:8091
+  username: Administrator
+  password: password
+  bucketName: sample
+  userAgent: go-dcp-client
+  compression: true
+  metadataBucket: sample
+  connectTimeout: 10000
+  dcp:
+    connectTimeout: 10000
+    flowControlBuffer: 16
+    group:
+      name: groupName
+      membership:
+        memberNumber: 1
+        totalMembers: 1`
+
+	tmpFile, err := os.CreateTemp("", "*.yml")
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, err = tmpFile.WriteString(configStr); err != nil {
+		t.Error(err)
+	}
+
+	return tmpFile.Name(), func() {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}
+}
 
 func setupContainer(t *testing.T, config Config) func() {
 	ctx := context.Background()
@@ -77,7 +114,9 @@ func insertDataToContainer(t *testing.T, config Config) {
 }
 
 func TestDcp(t *testing.T) {
-	configPath := "configs/test.yml"
+	configPath, configFileClean := createConfigFile(t)
+	defer configFileClean()
+
 	config := NewConfig(configPath)
 
 	containerShutdown := setupContainer(t, config)
@@ -91,20 +130,18 @@ func TestDcp(t *testing.T) {
 	counter := 0
 	lock := sync.Mutex{}
 
-	dcp, err = NewDcp(configPath, func(event int, data interface{}, err error) {
+	dcp, err = NewDcp(configPath, func(event interface{}, err error) {
 		if err != nil {
 			return
 		}
 
-		if event == MutationName {
+		if event, ok := event.(DcpMutation); ok {
 			lock.Lock()
 			counter++
 			lock.Unlock()
 
-			mutation := data.(gocbcore.DcpMutation)
-
-			assert.True(t, strings.HasPrefix(string(mutation.Key), "my_key"))
-			assert.True(t, strings.HasPrefix(string(mutation.Value), "my_value"))
+			assert.True(t, strings.HasPrefix(string(event.Key), "my_key"))
+			assert.True(t, strings.HasPrefix(string(event.Value), "my_value"))
 
 			if counter == 1000 {
 				dcp.Close()

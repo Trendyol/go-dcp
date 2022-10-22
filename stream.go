@@ -1,4 +1,4 @@
-package main
+package godcpclient
 
 import (
 	"github.com/couchbase/gocbcore/v10"
@@ -26,21 +26,21 @@ type stream struct {
 	streams     []uint16
 }
 
-func (s *stream) Listener(event int, data interface{}, err error) {
+func (s *stream) Listener(event interface{}, err error) {
 	if err != nil {
 		return
 	}
 
-	if event == EndName {
+	if _, ok := event.(DcpStreamEnd); ok {
 		s.finishedStreams.Done()
 	}
 
-	if IsMetadata(data) {
+	if IsMetadata(event) {
 		return
 	}
 
 	for _, listener := range s.listeners {
-		listener(event, data, err)
+		listener(event, err)
 	}
 }
 

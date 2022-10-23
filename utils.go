@@ -28,11 +28,11 @@ func IsMetadata(data interface{}) bool {
 	return false
 }
 
-func ChunkSlice(slice []uint16, chunks int) [][]uint16 {
+func ChunkSlice[T any](slice []T, chunks int) [][]T {
 	maxChunkSize := ((len(slice) - 1) / chunks) + 1
 	numFullChunks := chunks - (maxChunkSize*chunks - len(slice))
 
-	result := make([][]uint16, chunks)
+	result := make([][]T, chunks)
 
 	startIndex := 0
 

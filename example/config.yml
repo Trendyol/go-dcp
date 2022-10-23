@@ -1,18 +1,18 @@
-couchbase:
-  hosts:
-    - localhost:8091
-  username: user
-  password: password
-  bucketName: dcp-test
-  userAgent: stdout-listener
-  compression: true
-  metadataBucket: dcp-test-meta
-  connectTimeout: 10000
-  dcp:
-    connectTimeout: 10000
-    flowControlBuffer: 16
-    group:
-      name: groupName
-      membership:
-        memberNumber: 1
-        totalMembers: 1
+hosts:
+  - localhost:8091
+username: user
+password: password
+bucketName: dcp-test
+userAgent: stdout-listener
+compression: true
+metadataBucket: dcp-test-meta
+connectTimeout: 10s
+dcp:
+  connectTimeout: 10s
+  flowControlBuffer: 16
+  persistencePollingInterval: 100ms
+  group:
+    name: groupName
+    membership:
+      memberNumber: 1
+      totalMembers: 1

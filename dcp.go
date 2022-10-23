@@ -42,7 +42,7 @@ func (s *dcp) Close() {
 }
 
 func NewDcp(configPath string, listener Listener) (Dcp, error) {
-	config := NewConfig(configPath)
+	config := NewConfig(Name, configPath)
 
 	client := NewClient(config)
 

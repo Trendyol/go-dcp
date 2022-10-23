@@ -55,6 +55,9 @@ func (s *client) Connect() error {
 			CompressionConfig: gocbcore.CompressionConfig{
 				Enabled: s.config.Compression,
 			},
+			ConfigPollerConfig: gocbcore.ConfigPollerConfig{
+				CccpPollPeriod: s.config.Dcp.PersistencePollingInterval,
+			},
 		},
 	)
 
@@ -65,7 +68,7 @@ func (s *client) Connect() error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(s.config.ConnectTimeout*time.Millisecond),
+		time.Now().Add(s.config.ConnectTimeout),
 		gocbcore.WaitUntilReadyOptions{},
 		func(result *gocbcore.WaitUntilReadyResult, err error) {
 			ch <- err
@@ -106,6 +109,9 @@ func (s *client) DcpConnect() error {
 			CompressionConfig: gocbcore.CompressionConfig{
 				Enabled: s.config.Compression,
 			},
+			ConfigPollerConfig: gocbcore.ConfigPollerConfig{
+				CccpPollPeriod: s.config.Dcp.PersistencePollingInterval,
+			},
 			DCPConfig: gocbcore.DCPConfig{
 				BufferSize: s.config.Dcp.FlowControlBuffer,
 			},
@@ -121,7 +127,7 @@ func (s *client) DcpConnect() error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(s.config.Dcp.ConnectTimeout*time.Millisecond),
+		time.Now().Add(s.config.Dcp.ConnectTimeout),
 		gocbcore.WaitUntilReadyOptions{},
 		func(result *gocbcore.WaitUntilReadyResult, err error) {
 			ch <- err

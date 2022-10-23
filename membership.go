@@ -19,7 +19,7 @@ func (s *membership) GetVBuckets() []uint16 {
 		vBuckets = append(vBuckets, uint16(i))
 	}
 
-	readyToStreamVBuckets := ChunkSlice(vBuckets, s.totalMembers)[s.memberNumber-1]
+	readyToStreamVBuckets := ChunkSlice[uint16](vBuckets, s.totalMembers)[s.memberNumber-1]
 	log.Printf("Ready to stream VBuckets range: %v-%v", readyToStreamVBuckets[0], readyToStreamVBuckets[len(readyToStreamVBuckets)-1])
 
 	return readyToStreamVBuckets

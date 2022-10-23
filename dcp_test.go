@@ -7,6 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"log"
+	"math"
+	"math/rand"
 	"os"
 	"strings"
 	"sync"
@@ -15,24 +18,24 @@ import (
 )
 
 func createConfigFile(t *testing.T) (string, func()) {
-	configStr := `couchbase:
-  hosts:
-    - localhost:8091
-  username: Administrator
-  password: password
-  bucketName: sample
-  userAgent: unit-test-listener
-  compression: true
-  metadataBucket: sample
-  connectTimeout: 10000
-  dcp:
-    connectTimeout: 10000
-    flowControlBuffer: 16
-    group:
-      name: groupName
-      membership:
-        memberNumber: 1
-        totalMembers: 1`
+	configStr := `hosts:
+  - localhost:8091
+username: Administrator
+password: password
+bucketName: sample
+userAgent: unit-test-listener
+compression: true
+metadataBucket: sample
+connectTimeout: 10s
+dcp:
+  connectTimeout: 10s
+  flowControlBuffer: 16
+  persistencePollingInterval: 100ms
+  group:
+    name: groupName
+    membership:
+      memberNumber: 1
+      totalMembers: 1`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 
@@ -72,57 +75,71 @@ func setupContainer(t *testing.T, config Config) func() {
 	}
 }
 
-func insertDataToContainer(t *testing.T, config Config) {
+func insertDataToContainer(t *testing.T, mockDataSize int, config Config) {
 	client := NewClient(config)
 
 	_ = client.Connect()
 	defer client.Close()
 
-	wg := sync.WaitGroup{}
-	wg.Add(1000)
-
-	for i := 0; i < 1000; i++ {
-		go func(i int) {
-			ch := make(chan error)
-
-			opm := newAsyncOp(nil)
-			op, err := client.GetAgent().Set(gocbcore.SetOptions{
-				Key:   []byte(fmt.Sprintf("my_key_%v", i)),
-				Value: []byte(fmt.Sprintf("my_value_%v", i)),
-			}, func(result *gocbcore.StoreResult, err error) {
-				ch <- err
-				opm.Resolve()
-			})
-
-			if err != nil {
-				t.Error(err)
-			}
-
-			err = <-ch
-
-			err = opm.Wait(op, err)
-
-			if err != nil {
-				t.Error(err)
-			}
-
-			wg.Done()
-		}(i)
+	ids := make([]int, mockDataSize)
+	for i := range ids {
+		ids[i] = i
 	}
 
-	wg.Wait()
+	// 2048 is the default value for the max queue size of the client, so we need to make sure that we don't exceed that
+	chunks := ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
+
+	for _, chunk := range chunks {
+		wg := sync.WaitGroup{}
+		wg.Add(len(chunk))
+
+		for _, id := range chunk {
+			go func(i int) {
+				ch := make(chan error)
+
+				opm := newAsyncOp(nil)
+				op, err := client.GetAgent().Set(gocbcore.SetOptions{
+					Key:   []byte(fmt.Sprintf("my_key_%v", i)),
+					Value: []byte(fmt.Sprintf("my_value_%v", i)),
+				}, func(result *gocbcore.StoreResult, err error) {
+					ch <- err
+					opm.Resolve()
+				})
+
+				if err != nil {
+					t.Error(err)
+				}
+
+				err = <-ch
+
+				err = opm.Wait(op, err)
+
+				if err != nil {
+					t.Error(err)
+				}
+
+				wg.Done()
+			}(id)
+		}
+
+		wg.Wait()
+	}
+
+	log.Printf("Inserted %v items", mockDataSize)
 }
 
 func TestDcp(t *testing.T) {
+	mockDataSize := rand.Intn(50000-40000) + 40000
+
 	configPath, configFileClean := createConfigFile(t)
 	defer configFileClean()
 
-	config := NewConfig(configPath)
+	config := NewConfig(fmt.Sprintf("%v_data_insert", Name), configPath)
 
 	containerShutdown := setupContainer(t, config)
 	defer containerShutdown()
 
-	insertDataToContainer(t, config)
+	insertDataToContainer(t, mockDataSize, config)
 
 	var dcp Dcp
 	var err error
@@ -143,7 +160,7 @@ func TestDcp(t *testing.T) {
 			assert.True(t, strings.HasPrefix(string(event.Key), "my_key"))
 			assert.True(t, strings.HasPrefix(string(event.Value), "my_value"))
 
-			if counter == 1000 {
+			if counter == mockDataSize {
 				dcp.Close()
 			}
 		}

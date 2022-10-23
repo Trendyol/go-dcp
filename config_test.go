@@ -6,7 +6,10 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	config := NewConfig("configs/test.yml")
+	configPath, configFileClean := createConfigFile(t)
+	defer configFileClean()
+
+	config := NewConfig(Name, configPath)
 
 	assert.Equal(t, 1, len(config.Hosts))
 	assert.Contains(t, config.Hosts, "localhost:8091")

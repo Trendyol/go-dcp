@@ -18,9 +18,10 @@ type ConfigDCPGroup struct {
 }
 
 type ConfigDCP struct {
-	ConnectTimeout    time.Duration  `yaml:"connectTimeout"`
-	FlowControlBuffer int            `yaml:"flowControlBuffer"`
-	Group             ConfigDCPGroup `yaml:"group"`
+	ConnectTimeout             time.Duration  `yaml:"connectTimeout"`
+	FlowControlBuffer          int            `yaml:"flowControlBuffer"`
+	PersistencePollingInterval time.Duration  `yaml:"persistencePollingInterval"`
+	Group                      ConfigDCPGroup `yaml:"group"`
 }
 
 type Config struct {
@@ -35,17 +36,23 @@ type Config struct {
 	Dcp            ConfigDCP     `yaml:"dcp"`
 }
 
-func NewConfig(filePath string) Config {
-	config.AddDriver(yamlv3.Driver)
+func Options(opts *config.Options) {
+	opts.ParseTime = true
+	opts.Readonly = true
+	opts.EnableCache = true
+}
 
-	err := config.LoadFiles(filePath)
+func NewConfig(name string, filePath string) Config {
+	conf := config.New(name).WithOptions(Options).WithDriver(yamlv3.Driver)
+
+	err := conf.LoadFiles(filePath)
 
 	if err != nil {
 		panic(err)
 	}
 
 	_config := Config{}
-	err = config.BindStruct("couchbase", &_config)
+	err = conf.Decode(&_config)
 
 	if err != nil {
 		panic(err)

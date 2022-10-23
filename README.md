@@ -1,5 +1,10 @@
 # go-dcp-client
 
-### example usage
+### example
 - [main.go](example/main.go)
 - [config.yml](example/config.yml)
+
+### test
+```shell
+go test
+```

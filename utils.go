@@ -8,8 +8,9 @@ import (
 	"strconv"
 )
 
-func GetCheckpointId(vbId uint16, groupName string) string {
-	key := Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbId))
+func GetCheckpointId(vbId uint16, groupName string, userAgent string) string {
+	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId#crcVbId
+	key := Prefix + groupName + ":" + userAgent + ":checkpoint:" + strconv.Itoa(int(vbId))
 	crc := crc32.Checksum([]byte(fmt.Sprintf("%x", vbId)), crc32.IEEETable)
 	return fmt.Sprintf("%v#%08x", key, crc)
 }

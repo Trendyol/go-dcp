@@ -8,10 +8,10 @@ import (
 )
 
 type Checkpoint interface {
-	Save(groupName string)
-	Load(groupName string) map[uint16]*ObserverState
-	Clear(groupName string)
-	StartSchedule(groupName string)
+	Save()
+	Load() map[uint16]*ObserverState
+	Clear()
+	StartSchedule()
 	StopSchedule()
 }
 
@@ -54,9 +54,10 @@ type checkpoint struct {
 	saveLock     sync.Mutex
 	loadLock     sync.Mutex
 	schedule     *time.Ticker
+	config       Config
 }
 
-func (s *checkpoint) Save(groupName string) {
+func (s *checkpoint) Save() {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
@@ -78,15 +79,15 @@ func (s *checkpoint) Save(groupName string) {
 		}
 	}
 
-	s.metadata.Save(dump, groupName, s.bucketUuid)
+	s.metadata.Save(dump, s.bucketUuid)
 	log.Printf("Saved checkpoint")
 }
 
-func (s *checkpoint) Load(groupName string) map[uint16]*ObserverState {
+func (s *checkpoint) Load() map[uint16]*ObserverState {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
-	dump := s.metadata.Load(s.vbIds, groupName, s.bucketUuid)
+	dump := s.metadata.Load(s.vbIds, s.bucketUuid)
 
 	var observerState = map[uint16]*ObserverState{}
 
@@ -104,18 +105,18 @@ func (s *checkpoint) Load(groupName string) map[uint16]*ObserverState {
 	return observerState
 }
 
-func (s *checkpoint) Clear(groupName string) {
-	s.metadata.Clear(s.vbIds, groupName)
+func (s *checkpoint) Clear() {
+	s.metadata.Clear(s.vbIds)
 	log.Printf("Cleared checkpoint")
 }
 
-func (s *checkpoint) StartSchedule(groupName string) {
+func (s *checkpoint) StartSchedule() {
 	go func() {
 		s.schedule = time.NewTicker(10 * time.Second)
 		go func() {
 			time.Sleep(10 * time.Second)
 			for range s.schedule.C {
-				s.Save(groupName)
+				s.Save()
 			}
 		}()
 	}()
@@ -127,12 +128,13 @@ func (s *checkpoint) StopSchedule() {
 	log.Printf("Stopped checkpoint schedule")
 }
 
-func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, bucketUuid string, metadata Metadata) Checkpoint {
+func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, bucketUuid string, metadata Metadata, config Config) Checkpoint {
 	return &checkpoint{
 		observer:     observer,
 		vbIds:        vbIds,
 		failoverLogs: failoverLogs,
 		bucketUuid:   bucketUuid,
 		metadata:     metadata,
+		config:       config,
 	}
 }

@@ -16,10 +16,11 @@ type dcp struct {
 	metadata Metadata
 	listener Listener
 	stream   Stream
+	config   Config
 }
 
 func (s *dcp) StartAndWait() {
-	s.stream = NewStream(s.client, s.metadata, s.listener)
+	s.stream = NewStream(s.client, s.metadata, s.config, s.listener)
 	s.stream.Start()
 
 	cancelCh := make(chan os.Signal, 1)
@@ -57,11 +58,12 @@ func NewDcp(configPath string, listener Listener) (Dcp, error) {
 		return nil, err
 	}
 
-	metadata := NewCBMetadata(client.GetAgent())
+	metadata := NewCBMetadata(client.GetAgent(), config)
 
 	return &dcp{
 		client:   client,
 		metadata: metadata,
 		listener: listener,
+		config:   config,
 	}, nil
 }

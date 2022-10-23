@@ -39,6 +39,7 @@ func newAsyncOp(ctx context.Context) *asyncOp {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+
 	return &asyncOp{
 		signal: make(chan struct{}, 1),
 		ctx:    ctx,

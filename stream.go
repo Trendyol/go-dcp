@@ -24,6 +24,8 @@ type stream struct {
 
 	streamsLock sync.Mutex
 	streams     []uint16
+
+	config Config
 }
 
 func (s *stream) Listener(event interface{}, err error) {
@@ -61,8 +63,8 @@ func (s *stream) Start() {
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(observer, vbIds, failoverLogs, s.client.GetBucketUuid(), s.Metadata)
-	observerState := s.checkpoint.Load(s.client.GetGroupName())
+	s.checkpoint = NewCheckpoint(observer, vbIds, failoverLogs, s.client.GetBucketUuid(), s.Metadata, s.config)
+	observerState := s.checkpoint.Load()
 
 	for _, vbId := range vbIds {
 		go func(innerVbId uint16) {
@@ -96,7 +98,7 @@ func (s *stream) Start() {
 	openWg.Wait()
 	log.Printf("All streams are opened")
 
-	s.checkpoint.StartSchedule(s.client.GetGroupName())
+	s.checkpoint.StartSchedule()
 }
 
 func (s *stream) Wait() {
@@ -104,7 +106,7 @@ func (s *stream) Wait() {
 }
 
 func (s *stream) Save() {
-	s.checkpoint.Save(s.client.GetGroupName())
+	s.checkpoint.Save()
 }
 
 func (s *stream) Stop() {
@@ -130,7 +132,7 @@ func (s *stream) Stop() {
 	log.Printf("All streams are closed")
 }
 
-func NewStream(client Client, metadata Metadata, listeners ...Listener) Stream {
+func NewStream(client Client, metadata Metadata, config Config, listeners ...Listener) Stream {
 	return &stream{
 		client:   client,
 		Metadata: metadata,
@@ -138,5 +140,7 @@ func NewStream(client Client, metadata Metadata, listeners ...Listener) Stream {
 		finishedStreams: sync.WaitGroup{},
 
 		listeners: listeners,
+
+		config: config,
 	}
 }

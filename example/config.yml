@@ -4,7 +4,7 @@ couchbase:
   username: user
   password: password
   bucketName: dcp-test
-  userAgent: go-dcp-client
+  userAgent: stdout-listener
   compression: true
   metadataBucket: dcp-test-meta
   connectTimeout: 10000

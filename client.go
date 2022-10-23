@@ -10,8 +10,6 @@ import (
 
 type Client interface {
 	GetAgent() *gocbcore.Agent
-	GetDcpAgent() *gocbcore.DCPAgent
-	GetGroupName() string
 	GetMembership() Membership
 	Connect() error
 	Close() error
@@ -34,14 +32,6 @@ type client struct {
 
 func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
-}
-
-func (s *client) GetDcpAgent() *gocbcore.DCPAgent {
-	return s.dcpAgent
-}
-
-func (s *client) GetGroupName() string {
-	return s.config.Dcp.Group.Name
 }
 
 func (s *client) GetMembership() Membership {

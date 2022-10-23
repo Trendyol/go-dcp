@@ -8,7 +8,8 @@ import (
 )
 
 type cbMetadata struct {
-	agent *gocbcore.Agent
+	agent  *gocbcore.Agent
+	config Config
 }
 
 func (s *cbMetadata) upsertXattrs(id string, path string, xattrs interface{}) error {
@@ -120,9 +121,9 @@ func (s *cbMetadata) createEmptyDocument(id string) error {
 	return opm.Wait(op, err)
 }
 
-func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, groupName string, _ string) {
+func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 	for vbId, checkpointDocument := range state {
-		id := GetCheckpointId(vbId, groupName)
+		id := GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
 
 		err := s.upsertXattrs(id, Name, checkpointDocument)
 
@@ -133,11 +134,11 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, groupName string,
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, groupName string, bucketUuid string) map[uint16]CheckpointDocument {
+func (s *cbMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]CheckpointDocument {
 	state := map[uint16]CheckpointDocument{}
 
 	for _, vbId := range vbIds {
-		id := GetCheckpointId(vbId, groupName)
+		id := GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
 
 		data, err := s.getXattrs(id, Name, bucketUuid)
 
@@ -152,16 +153,17 @@ func (s *cbMetadata) Load(vbIds []uint16, groupName string, bucketUuid string) m
 	return state
 }
 
-func (s *cbMetadata) Clear(vbIds []uint16, groupName string) {
+func (s *cbMetadata) Clear(vbIds []uint16) {
 	for _, vbId := range vbIds {
-		id := GetCheckpointId(vbId, groupName)
+		id := GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
 
 		s.deleteDocument(id)
 	}
 }
 
-func NewCBMetadata(agent *gocbcore.Agent) Metadata {
+func NewCBMetadata(agent *gocbcore.Agent, config Config) Metadata {
 	return &cbMetadata{
-		agent: agent,
+		agent:  agent,
+		config: config,
 	}
 }

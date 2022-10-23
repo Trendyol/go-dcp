@@ -1,7 +1,7 @@
 package godcpclient
 
 type Metadata interface {
-	Save(map[uint16]CheckpointDocument, string, string)
-	Load([]uint16, string, string) map[uint16]CheckpointDocument
-	Clear([]uint16, string)
+	Save(state map[uint16]CheckpointDocument, bucketUuid string)
+	Load(vbIds []uint16, bucketUuid string) map[uint16]CheckpointDocument
+	Clear(vbIds []uint16)
 }

@@ -1,4 +1,4 @@
 package godcpclient
 
-const Name = "cbdcpgo"
+const Name = "cbgo"
 const Prefix = "_connector:" + Name + ":"

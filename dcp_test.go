@@ -21,7 +21,7 @@ func createConfigFile(t *testing.T) (string, func()) {
   username: Administrator
   password: password
   bucketName: sample
-  userAgent: go-dcp-client
+  userAgent: unit-test-listener
   compression: true
   metadataBucket: sample
   connectTimeout: 10000

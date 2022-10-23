@@ -17,11 +17,15 @@ type dcp struct {
 	listener Listener
 	stream   Stream
 	config   Config
+	api      Api
 }
 
 func (s *dcp) StartAndWait() {
 	s.stream = NewStream(s.client, s.metadata, s.config, s.listener)
 	s.stream.Start()
+
+	s.api = NewApi(s.config, s.stream.GetObserver())
+	s.api.Start()
 
 	cancelCh := make(chan os.Signal, 1)
 	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
@@ -35,6 +39,7 @@ func (s *dcp) StartAndWait() {
 }
 
 func (s *dcp) Close() {
+	s.api.Stop()
 	s.stream.Save()
 	s.stream.Stop()
 	s.client.Close()

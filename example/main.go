@@ -22,12 +22,13 @@ func listener(event interface{}, err error) {
 }
 
 func main() {
-	dcp, err := NewDcp("config.yml", listener)
-	defer dcp.Close()
+	dcp, err := NewDcp("example/config.yml", listener)
 
 	if err != nil {
 		panic(err)
 	}
+
+	defer dcp.Close()
 
 	dcp.StartAndWait()
 }

@@ -11,6 +11,7 @@ type Stream interface {
 	Wait()
 	Save()
 	Stop()
+	GetObserver() Observer
 }
 
 type stream struct {
@@ -26,9 +27,11 @@ type stream struct {
 	streams     []uint16
 
 	config Config
+
+	observer Observer
 }
 
-func (s *stream) Listener(event interface{}, err error) {
+func (s *stream) listener(event interface{}, err error) {
 	if err != nil {
 		return
 	}
@@ -50,7 +53,8 @@ func (s *stream) Start() {
 	vbIds := s.client.GetMembership().GetVBuckets()
 	vBucketNumber := len(vbIds)
 
-	observer := NewObserver(vbIds, s.Listener)
+	observer := NewObserver(vbIds, s.listener)
+	s.observer = observer
 
 	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
 
@@ -130,6 +134,10 @@ func (s *stream) Stop() {
 
 	s.streams = []uint16{}
 	log.Printf("All streams are closed")
+}
+
+func (s *stream) GetObserver() Observer {
+	return s.observer
 }
 
 func NewStream(client Client, metadata Metadata, config Config, listeners ...Listener) Stream {

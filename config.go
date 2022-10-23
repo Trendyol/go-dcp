@@ -24,6 +24,10 @@ type ConfigDCP struct {
 	Group                      ConfigDCPGroup `yaml:"group"`
 }
 
+type ConfigAPI struct {
+	Port int `yaml:"port"`
+}
+
 type Config struct {
 	Hosts          []string      `yaml:"hosts"`
 	Username       string        `yaml:"username"`
@@ -34,6 +38,7 @@ type Config struct {
 	MetadataBucket string        `yaml:"metadataBucket"`
 	ConnectTimeout time.Duration `yaml:"connectTimeout"`
 	Dcp            ConfigDCP     `yaml:"dcp"`
+	Api            ConfigAPI     `yaml:"api"`
 }
 
 func Options(opts *config.Options) {

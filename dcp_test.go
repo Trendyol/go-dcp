@@ -35,7 +35,9 @@ dcp:
     name: groupName
     membership:
       memberNumber: 1
-      totalMembers: 1`
+      totalMembers: 1
+api:
+  port: 8080`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 

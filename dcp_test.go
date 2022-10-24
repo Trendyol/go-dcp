@@ -37,7 +37,9 @@ dcp:
       memberNumber: 1
       totalMembers: 1
 api:
-  port: 8080`
+  port: 8080
+metric:
+  path: /metrics`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 

@@ -18,3 +18,5 @@ dcp:
       totalMembers: 1
 api:
   port: 8080
+metric:
+  path: /metrics

@@ -28,6 +28,10 @@ type ConfigAPI struct {
 	Port int `yaml:"port"`
 }
 
+type ConfigMetric struct {
+	Path string `yaml:"path"`
+}
+
 type Config struct {
 	Hosts          []string      `yaml:"hosts"`
 	Username       string        `yaml:"username"`
@@ -39,6 +43,7 @@ type Config struct {
 	ConnectTimeout time.Duration `yaml:"connectTimeout"`
 	Dcp            ConfigDCP     `yaml:"dcp"`
 	Api            ConfigAPI     `yaml:"api"`
+	Metric         ConfigMetric  `yaml:"metric"`
 }
 
 func Options(opts *config.Options) {

@@ -20,6 +20,13 @@ type Observer interface {
 	SeqNoAdvanced(advanced DcpSeqNoAdvanced)
 	GetState() map[uint16]*ObserverState
 	SetState(map[uint16]*ObserverState)
+	GetMetric() ObserverMetric
+}
+
+type ObserverMetric struct {
+	TotalMutations   float64
+	TotalDeletions   float64
+	TotalExpirations float64
 }
 
 type ObserverState struct {
@@ -31,6 +38,9 @@ type ObserverState struct {
 type observer struct {
 	stateLock sync.Mutex
 	state     map[uint16]*ObserverState
+
+	metricLock sync.Mutex
+	metric     ObserverMetric
 
 	listener Listener
 
@@ -64,6 +74,12 @@ func (so *observer) Mutation(mutation DcpMutation) {
 	if so.listener != nil {
 		so.listener(mutation, nil)
 	}
+
+	so.metricLock.Lock()
+
+	so.metric.TotalMutations++
+
+	so.metricLock.Unlock()
 }
 
 func (so *observer) Deletion(deletion DcpDeletion) {
@@ -76,6 +92,12 @@ func (so *observer) Deletion(deletion DcpDeletion) {
 	if so.listener != nil {
 		so.listener(deletion, nil)
 	}
+
+	so.metricLock.Lock()
+
+	so.metric.TotalDeletions++
+
+	so.metricLock.Unlock()
 }
 
 func (so *observer) Expiration(expiration DcpExpiration) {
@@ -88,6 +110,12 @@ func (so *observer) Expiration(expiration DcpExpiration) {
 	if so.listener != nil {
 		so.listener(expiration, nil)
 	}
+
+	so.metricLock.Lock()
+
+	so.metric.TotalExpirations++
+
+	so.metricLock.Unlock()
 }
 
 func (so *observer) End(dcpEnd DcpStreamEnd, err error) {
@@ -164,11 +192,23 @@ func (so *observer) SetState(state map[uint16]*ObserverState) {
 	so.state = state
 }
 
+func (so *observer) GetMetric() ObserverMetric {
+	so.metricLock.Lock()
+	defer so.metricLock.Unlock()
+
+	return so.metric
+}
+
 func NewObserver(vbIds []uint16, listener Listener) Observer {
 	return &observer{
 		stateLock: sync.Mutex{},
 		state:     map[uint16]*ObserverState{},
-		listener:  listener,
-		vbIds:     vbIds,
+
+		metricLock: sync.Mutex{},
+		metric:     ObserverMetric{},
+
+		listener: listener,
+
+		vbIds: vbIds,
 	}
 }

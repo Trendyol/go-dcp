@@ -50,6 +50,8 @@ func (s *api) observerState(c *fiber.Ctx) error {
 func NewApi(config Config, observer Observer) Api {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
+	app.Use(NewMetricMiddleware(app, config, observer))
+
 	api := &api{
 		app:      app,
 		config:   config,

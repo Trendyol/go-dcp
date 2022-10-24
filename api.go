@@ -7,8 +7,8 @@ import (
 )
 
 type Api interface {
-	Start()
-	Stop()
+	Listen()
+	Shutdown()
 }
 
 type api struct {
@@ -17,7 +17,7 @@ type api struct {
 	observer Observer
 }
 
-func (s *api) Start() {
+func (s *api) Listen() {
 	go func() {
 		log.Printf("Api starting on port %d", s.config.Api.Port)
 
@@ -31,7 +31,7 @@ func (s *api) Start() {
 	}()
 }
 
-func (s *api) Stop() {
+func (s *api) Shutdown() {
 	err := s.app.Shutdown()
 
 	if err != nil {

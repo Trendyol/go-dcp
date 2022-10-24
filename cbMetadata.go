@@ -81,10 +81,10 @@ func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (Check
 			if err == nil {
 				documentCh <- document
 			} else {
-				documentCh <- NewCheckpointDocument(bucketUuid)
+				documentCh <- NewEmptyCheckpointDocument(bucketUuid)
 			}
 		} else {
-			documentCh <- NewCheckpointDocument(bucketUuid)
+			documentCh <- NewEmptyCheckpointDocument(bucketUuid)
 		}
 
 		errorCh <- err
@@ -93,7 +93,7 @@ func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (Check
 	})
 
 	if err != nil {
-		return NewCheckpointDocument(bucketUuid), err
+		return NewEmptyCheckpointDocument(bucketUuid), err
 	}
 
 	document := <-documentCh

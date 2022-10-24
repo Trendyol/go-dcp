@@ -30,5 +30,5 @@ func main() {
 
 	defer dcp.Close()
 
-	dcp.StartAndWait()
+	dcp.Start()
 }

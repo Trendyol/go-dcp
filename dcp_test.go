@@ -63,7 +63,11 @@ func setupContainer(t *testing.T, config Config) func() {
 			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
 			ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
 			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
-			Env:          map[string]string{"USERNAME": config.Username, "PASSWORD": config.Password, "BUCKET_NAME": config.BucketName},
+			Env: map[string]string{
+				"USERNAME":    config.Username,
+				"PASSWORD":    config.Password,
+				"BUCKET_NAME": config.BucketName,
+			},
 		},
 		Started: true,
 	})
@@ -131,7 +135,7 @@ func insertDataToContainer(t *testing.T, mockDataSize int, config Config) {
 }
 
 func TestDcp(t *testing.T) {
-	mockDataSize := rand.Intn(50000-40000) + 40000
+	mockDataSize := rand.Intn(24000-12000) + 12000
 
 	configPath, configFileClean := createConfigFile(t)
 	defer configFileClean()
@@ -172,5 +176,5 @@ func TestDcp(t *testing.T) {
 		t.Error(err)
 	}
 
-	dcp.StartAndWait()
+	dcp.Start()
 }

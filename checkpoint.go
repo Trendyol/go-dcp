@@ -31,7 +31,7 @@ type CheckpointDocument struct {
 	BucketUuid string                       `json:"bucketUuid"`
 }
 
-func NewCheckpointDocument(bucketUuid string) CheckpointDocument {
+func NewEmptyCheckpointDocument(bucketUuid string) CheckpointDocument {
 	return CheckpointDocument{
 		Checkpoint: checkpointDocumentCheckpoint{
 			VbUuid: 0,

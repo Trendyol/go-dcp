@@ -7,10 +7,10 @@ import (
 )
 
 type Stream interface {
-	Start()
+	Open()
 	Wait()
 	Save()
-	Stop()
+	Close()
 	GetObserver() Observer
 }
 
@@ -49,7 +49,7 @@ func (s *stream) listener(event interface{}, err error) {
 	}
 }
 
-func (s *stream) Start() {
+func (s *stream) Open() {
 	vbIds := s.client.GetMembership().GetVBuckets()
 	vBucketNumber := len(vbIds)
 
@@ -113,7 +113,7 @@ func (s *stream) Save() {
 	s.checkpoint.Save()
 }
 
-func (s *stream) Stop() {
+func (s *stream) Close() {
 	s.checkpoint.StopSchedule()
 
 	for _, stream := range s.streams {

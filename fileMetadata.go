@@ -24,7 +24,7 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]Checkp
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			for _, vbId := range vbIds {
-				state[vbId] = NewCheckpointDocument(bucketUuid)
+				state[vbId] = NewEmptyCheckpointDocument(bucketUuid)
 			}
 		} else {
 			panic(err)

@@ -1,6 +1,7 @@
 package godcpclient
 
 import (
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,8 +25,10 @@ func (s *dcp) Start() {
 	s.stream = NewStream(s.client, s.metadata, s.config, s.listener)
 	s.stream.Open()
 
-	s.api = NewApi(s.config, s.stream.GetObserver())
-	s.api.Listen()
+	if s.config.Metric.Enabled {
+		s.api = NewApi(s.config, s.stream.GetObserver())
+		s.api.Listen()
+	}
 
 	cancelCh := make(chan os.Signal, 1)
 	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
@@ -39,25 +42,28 @@ func (s *dcp) Start() {
 }
 
 func (s *dcp) Close() {
-	s.api.Shutdown()
+	if s.config.Metric.Enabled {
+		s.api.Shutdown()
+	}
+
 	s.stream.Save()
 	s.stream.Close()
-	s.client.Close()
 	s.client.DcpClose()
+	s.client.Close()
 }
 
 func NewDcp(configPath string, listener Listener) (Dcp, error) {
-	config := NewConfig(Name, configPath)
+	config := NewConfig(helpers.Name, configPath)
 
 	client := NewClient(config)
 
-	err := client.DcpConnect()
+	err := client.Connect()
 
 	if err != nil {
 		return nil, err
 	}
 
-	err = client.Connect()
+	err = client.DcpConnect()
 
 	if err != nil {
 		return nil, err

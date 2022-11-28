@@ -1,4 +1,4 @@
-package godcpclient
+package helpers
 
 import (
 	"bytes"

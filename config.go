@@ -8,8 +8,9 @@ import (
 )
 
 type ConfigDCPGroupMembership struct {
-	MemberNumber int `yaml:"memberNumber"`
-	TotalMembers int `yaml:"totalMembers"`
+	Type         string `json:"type" yaml:"type"`
+	MemberNumber int    `yaml:"memberNumber"`
+	TotalMembers int    `yaml:"totalMembers"`
 }
 
 type ConfigDCPGroup struct {
@@ -29,7 +30,8 @@ type ConfigAPI struct {
 }
 
 type ConfigMetric struct {
-	Path string `yaml:"path"`
+	Enabled bool   `yaml:"enabled"`
+	Path    string `yaml:"path"`
 }
 
 type Config struct {
@@ -68,7 +70,7 @@ func NewConfig(name string, filePath string) Config {
 		panic(err)
 	}
 
-	log.Printf("Config loaded from file: %v", filePath)
+	log.Printf("config loaded from file: %v", filePath)
 
 	return _config
 }

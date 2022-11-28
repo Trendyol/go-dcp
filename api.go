@@ -19,7 +19,7 @@ type api struct {
 
 func (s *api) Listen() {
 	go func() {
-		log.Printf("Api starting on port %d", s.config.Api.Port)
+		log.Printf("api starting on port %d", s.config.Api.Port)
 
 		err := s.app.Listen(fmt.Sprintf(":%d", s.config.Api.Port))
 
@@ -27,7 +27,7 @@ func (s *api) Listen() {
 			panic(err)
 		}
 
-		log.Printf("Api stopped")
+		log.Printf("api stopped")
 	}()
 }
 

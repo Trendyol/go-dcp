@@ -3,6 +3,7 @@ package godcpclient
 import (
 	"context"
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
@@ -34,11 +35,13 @@ dcp:
   group:
     name: groupName
     membership:
+      type: static
       memberNumber: 1
       totalMembers: 1
 api:
   port: 8080
 metric:
+  enabled: true
   path: /metrics`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
@@ -95,7 +98,7 @@ func insertDataToContainer(t *testing.T, mockDataSize int, config Config) {
 	}
 
 	// 2048 is the default value for the max queue size of the client, so we need to make sure that we don't exceed that
-	chunks := ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
+	chunks := helpers.ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
 
 	for _, chunk := range chunks {
 		wg := sync.WaitGroup{}
@@ -142,7 +145,7 @@ func TestDcp(t *testing.T) {
 	configPath, configFileClean := createConfigFile(t)
 	defer configFileClean()
 
-	config := NewConfig(fmt.Sprintf("%v_data_insert", Name), configPath)
+	config := NewConfig(fmt.Sprintf("%v_data_insert", helpers.Name), configPath)
 
 	containerShutdown := setupContainer(t, config)
 	defer containerShutdown()

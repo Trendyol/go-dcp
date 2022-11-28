@@ -1,6 +1,7 @@
 package godcpclient
 
 import (
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"log"
 	"sync"
@@ -40,7 +41,7 @@ func (s *stream) listener(event interface{}, err error) {
 		s.finishedStreams.Done()
 	}
 
-	if IsMetadata(event) {
+	if helpers.IsMetadata(event) {
 		return
 	}
 
@@ -100,7 +101,7 @@ func (s *stream) Open() {
 	}
 
 	openWg.Wait()
-	log.Printf("All streams are opened")
+	log.Printf("all streams are opened")
 
 	s.checkpoint.StartSchedule()
 }
@@ -133,7 +134,7 @@ func (s *stream) Close() {
 	}
 
 	s.streams = []uint16{}
-	log.Printf("All streams are closed")
+	log.Printf("all streams are closed")
 }
 
 func (s *stream) GetObserver() Observer {

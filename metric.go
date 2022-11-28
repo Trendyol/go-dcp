@@ -1,6 +1,7 @@
 package godcpclient
 
 import (
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/prometheus/client_golang/prometheus"
@@ -74,37 +75,37 @@ func NewMetricMiddleware(app *fiber.App, config Config, observer Observer) func(
 		observer: observer,
 
 		mutation: prometheus.NewDesc(
-			prometheus.BuildFQName(Name, "mutation", "total"),
+			prometheus.BuildFQName(helpers.Name, "mutation", "total"),
 			"Mutation count",
 			nil,
 			nil,
 		),
 		deletion: prometheus.NewDesc(
-			prometheus.BuildFQName(Name, "deletion", "total"),
+			prometheus.BuildFQName(helpers.Name, "deletion", "total"),
 			"Deletion count",
 			nil,
 			nil,
 		),
 		expiration: prometheus.NewDesc(
-			prometheus.BuildFQName(Name, "expiration", "total"),
+			prometheus.BuildFQName(helpers.Name, "expiration", "total"),
 			"Expiration count",
 			nil,
 			nil,
 		),
 		currentSeqNo: prometheus.NewDesc(
-			prometheus.BuildFQName(Name, "seq_no", "current"),
+			prometheus.BuildFQName(helpers.Name, "seq_no", "current"),
 			"Current seq no",
 			[]string{"vbId"},
 			nil,
 		),
 		startSeqNo: prometheus.NewDesc(
-			prometheus.BuildFQName(Name, "start_seq_no", "current"),
+			prometheus.BuildFQName(helpers.Name, "start_seq_no", "current"),
 			"Start seq no",
 			[]string{"vbId"},
 			nil,
 		),
 		endSeqNo: prometheus.NewDesc(
-			prometheus.BuildFQName(Name, "end_seq_no", "current"),
+			prometheus.BuildFQName(helpers.Name, "end_seq_no", "current"),
 			"End seq no",
 			[]string{"vbId"},
 			nil,
@@ -118,7 +119,7 @@ func NewMetricMiddleware(app *fiber.App, config Config, observer Observer) func(
 	fiberPrometheus := fiberprometheus.New(config.UserAgent)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
-	log.Printf("Metric middleware registered on path %s", config.Metric.Path)
+	log.Printf("metric middleware registered on path %s", config.Metric.Path)
 
 	return fiberPrometheus.Middleware
 }

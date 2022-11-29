@@ -2,6 +2,9 @@ package godcpclient
 
 import (
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/kubernetes"
+	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"log"
@@ -10,7 +13,7 @@ import (
 
 type Client interface {
 	GetAgent() *gocbcore.Agent
-	GetMembership() Membership
+	GetMembership() membership.Membership
 	Connect() error
 	Close() error
 	DcpConnect() error
@@ -27,14 +30,14 @@ type client struct {
 	agent      *gocbcore.Agent
 	dcpAgent   *gocbcore.DCPAgent
 	config     Config
-	membership Membership
+	membership membership.Membership
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
 }
 
-func (s *client) GetMembership() Membership {
+func (s *client) GetMembership() membership.Membership {
 	return s.membership
 }
 
@@ -82,13 +85,13 @@ func (s *client) Connect() error {
 	}
 
 	s.agent = client
-	log.Printf("Connected to %s", s.config.Hosts)
+	log.Printf("connected to %s", s.config.Hosts)
 
 	return nil
 }
 
 func (s *client) Close() error {
-	log.Printf("Closing connection to %s", s.config.Hosts)
+	log.Printf("closing connection to %s", s.config.Hosts)
 	return s.agent.Close()
 }
 
@@ -145,21 +148,30 @@ func (s *client) DcpConnect() error {
 	}
 
 	s.dcpAgent = client
-	log.Printf("Connected to %s as DCP", s.config.Hosts)
+	log.Printf("connected to %s as dcp", s.config.Hosts)
 
 	vBucketNumber, err := s.GetNumVBuckets()
 
-	s.membership = NewMembership(
-		s.config.Dcp.Group.Membership.MemberNumber,
-		s.config.Dcp.Group.Membership.TotalMembers,
-		vBucketNumber,
-	)
+	if s.config.Dcp.Group.Membership.Type == helpers.StaticMembershipType {
+		s.membership = membership.NewStaticMembership(
+			s.config.Dcp.Group.Membership.MemberNumber,
+			s.config.Dcp.Group.Membership.TotalMembers,
+			vBucketNumber,
+		)
+	} else if s.config.Dcp.Group.Membership.Type == helpers.KubernetesStatefulSetMembershipType {
+		s.membership = kubernetes.NewKubernetesStatefulSetMembership(
+			s.config.Dcp.Group.Membership.TotalMembers,
+			vBucketNumber,
+		)
+	} else {
+		return fmt.Errorf("unknown membership type %s", s.config.Dcp.Group.Membership.Type)
+	}
 
 	return nil
 }
 
 func (s *client) DcpClose() error {
-	log.Printf("Closing DCP connection to %s", s.config.Hosts)
+	log.Printf("closing dcp connection to %s", s.config.Hosts)
 	return s.dcpAgent.Close()
 }
 

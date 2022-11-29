@@ -3,6 +3,7 @@ package godcpclient
 import (
 	"encoding/json"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -98,8 +99,7 @@ func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (Check
 
 	document := <-documentCh
 
-	err = <-errorCh
-	err = opm.Wait(op, err)
+	err = opm.Wait(op, <-errorCh)
 
 	return document, err
 }
@@ -123,13 +123,13 @@ func (s *cbMetadata) createEmptyDocument(id string) error {
 
 func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 	for vbId, checkpointDocument := range state {
-		id := GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
+		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
 
-		err := s.upsertXattrs(id, Name, checkpointDocument)
+		err := s.upsertXattrs(id, helpers.Name, checkpointDocument)
 
 		if err != nil {
 			_ = s.createEmptyDocument(id)
-			_ = s.upsertXattrs(id, Name, checkpointDocument)
+			_ = s.upsertXattrs(id, helpers.Name, checkpointDocument)
 		}
 	}
 }
@@ -138,9 +138,9 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]Checkpoi
 	state := map[uint16]CheckpointDocument{}
 
 	for _, vbId := range vbIds {
-		id := GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
+		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
 
-		data, err := s.getXattrs(id, Name, bucketUuid)
+		data, err := s.getXattrs(id, helpers.Name, bucketUuid)
 
 		var kvErr *gocbcore.KeyValueError
 		if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
@@ -155,7 +155,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]Checkpoi
 
 func (s *cbMetadata) Clear(vbIds []uint16) {
 	for _, vbId := range vbIds {
-		id := GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
+		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
 
 		s.deleteDocument(id)
 	}

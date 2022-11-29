@@ -80,7 +80,7 @@ func (s *checkpoint) Save() {
 	}
 
 	s.metadata.Save(dump, s.bucketUuid)
-	log.Printf("Saved checkpoint")
+	log.Printf("saved checkpoint")
 }
 
 func (s *checkpoint) Load() map[uint16]*ObserverState {
@@ -100,14 +100,14 @@ func (s *checkpoint) Load() map[uint16]*ObserverState {
 	}
 
 	s.observer.SetState(observerState)
-	log.Printf("Loaded checkpoint")
+	log.Printf("loaded checkpoint")
 
 	return observerState
 }
 
 func (s *checkpoint) Clear() {
 	s.metadata.Clear(s.vbIds)
-	log.Printf("Cleared checkpoint")
+	log.Printf("cleared checkpoint")
 }
 
 func (s *checkpoint) StartSchedule() {
@@ -120,12 +120,12 @@ func (s *checkpoint) StartSchedule() {
 			}
 		}()
 	}()
-	log.Printf("Started checkpoint schedule")
+	log.Printf("started checkpoint schedule")
 }
 
 func (s *checkpoint) StopSchedule() {
 	s.schedule.Stop()
-	log.Printf("Stopped checkpoint schedule")
+	log.Printf("stopped checkpoint schedule")
 }
 
 func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, bucketUuid string, metadata Metadata, config Config) Checkpoint {

@@ -14,9 +14,11 @@ dcp:
   group:
     name: groupName
     membership:
+      type: static
       memberNumber: 1
       totalMembers: 1
 api:
   port: 8080
 metric:
+  enabled: true
   path: /metrics

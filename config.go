@@ -8,7 +8,7 @@ import (
 )
 
 type ConfigDCPGroupMembership struct {
-	Type         string `json:"type" yaml:"type"`
+	Type         string `yaml:"type"`
 	MemberNumber int    `yaml:"memberNumber"`
 	TotalMembers int    `yaml:"totalMembers"`
 }

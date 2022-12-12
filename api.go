@@ -2,6 +2,8 @@ package godcpclient
 
 import (
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/serviceDiscovery"
 	"github.com/gofiber/fiber/v2"
 	"log"
 )
@@ -12,9 +14,11 @@ type Api interface {
 }
 
 type api struct {
-	app      *fiber.App
-	config   Config
-	observer Observer
+	app              *fiber.App
+	config           helpers.Config
+	client           Client
+	stream           Stream
+	serviceDiscovery serviceDiscovery.ServiceDiscovery
 }
 
 func (s *api) Listen() {
@@ -40,26 +44,46 @@ func (s *api) Shutdown() {
 }
 
 func (s *api) status(c *fiber.Ctx) error {
+	_, err := s.client.Ping()
+
+	if err != nil {
+		return err
+	}
+
 	return c.SendString("OK")
 }
 
 func (s *api) observerState(c *fiber.Ctx) error {
-	return c.JSON(s.observer.GetState())
+	return c.JSON(s.stream.GetObserver().GetState())
 }
 
-func NewApi(config Config, observer Observer) Api {
+func (s *api) rebalance(c *fiber.Ctx) error {
+	s.stream.Rebalance()
+
+	return c.SendString("OK")
+}
+
+func (s *api) followers(c *fiber.Ctx) error {
+	return c.JSON(s.serviceDiscovery.GetAll())
+}
+
+func NewApi(config helpers.Config, client Client, stream Stream, serviceDiscovery serviceDiscovery.ServiceDiscovery) Api {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
-	app.Use(NewMetricMiddleware(app, config, observer))
+	app.Use(NewMetricMiddleware(app, config, stream.GetObserver()))
 
 	api := &api{
-		app:      app,
-		config:   config,
-		observer: observer,
+		app:              app,
+		config:           config,
+		client:           client,
+		stream:           stream,
+		serviceDiscovery: serviceDiscovery,
 	}
 
 	app.Get("/status", api.status)
 	app.Get("/states/observer", api.observerState)
+	app.Get("/states/followers", api.followers)
+	app.Post("/rebalance", api.rebalance)
 
 	return api
 }

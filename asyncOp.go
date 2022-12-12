@@ -5,6 +5,12 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
+type AsyncOp interface {
+	Reject()
+	Resolve()
+	Wait(op gocbcore.PendingOp, err error) error
+}
+
 type asyncOp struct {
 	signal      chan struct{}
 	wasResolved bool
@@ -32,10 +38,10 @@ func (m *asyncOp) Wait(op gocbcore.PendingOp, err error) error {
 		<-m.signal
 	}
 
-	return nil
+	return m.ctx.Err()
 }
 
-func newAsyncOp(ctx context.Context) *asyncOp {
+func NewAsyncOp(ctx context.Context) AsyncOp {
 	if ctx == nil {
 		ctx = context.Background()
 	}

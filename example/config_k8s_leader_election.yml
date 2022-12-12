@@ -1,5 +1,5 @@
 hosts:
-  - localhost:8091
+  - couchbase.couchbase.svc.cluster.local:8091
 username: user
 password: password
 bucketName: dcp-test
@@ -8,13 +8,17 @@ dcp:
   group:
     name: groupName
     membership:
-      type: static
-      memberNumber: 1
-      totalMembers: 1
+      type: kubernetesHa
 api:
   port: 8080
 metric:
   enabled: true
   path: /metrics
 leaderElection:
-  enabled: false
+  enabled: true
+  type: kubernetes
+  config:
+    leaseLockName: group-name-lock
+    leaseLockNamespace: default
+  rpc:
+    port: 8081

@@ -3,8 +3,6 @@ package godcpclient
 import (
 	"fmt"
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/kubernetes"
-	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"log"
@@ -12,39 +10,71 @@ import (
 )
 
 type Client interface {
+	Ping() (bool, error)
 	GetAgent() *gocbcore.Agent
-	GetMembership() membership.Membership
 	Connect() error
 	Close() error
 	DcpConnect() error
 	DcpClose() error
 	GetBucketUuid() string
-	GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error)
-	GetNumVBuckets() (int, error)
-	GetFailoverLogs(vbIds []uint16) (map[uint16]gocbcore.FailoverEntry, error)
+	GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error)
+	GetNumVBuckets() int
+	GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error)
 	OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *ObserverState, observer Observer, callback gocbcore.OpenStreamCallback) error
 	CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback) error
 }
 
 type client struct {
-	agent      *gocbcore.Agent
-	dcpAgent   *gocbcore.DCPAgent
-	config     Config
-	membership membership.Membership
+	agent    *gocbcore.Agent
+	dcpAgent *gocbcore.DCPAgent
+	config   helpers.Config
+}
+
+func (s *client) Ping() (bool, error) {
+	opm := NewAsyncOp(nil)
+
+	errorCh := make(chan error)
+	successCh := make(chan bool)
+
+	op, err := s.agent.Ping(gocbcore.PingOptions{}, func(result *gocbcore.PingResult, err error) {
+		opm.Resolve()
+
+		success := false
+
+		if err == nil {
+			if memdServiceResults, ok := result.Services[gocbcore.MemdService]; ok {
+				for _, memdServiceResult := range memdServiceResults {
+					if memdServiceResult.Error == nil && memdServiceResult.State == gocbcore.PingStateOK {
+						success = true
+						break
+					}
+				}
+			}
+		}
+
+		successCh <- success
+		errorCh <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return false, err
+	}
+
+	success := <-successCh
+	err = <-errorCh
+
+	return success, err
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
 }
 
-func (s *client) GetMembership() membership.Membership {
-	return s.membership
-}
-
 func (s *client) Connect() error {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
-			UserAgent:  s.config.UserAgent,
 			BucketName: s.config.MetadataBucket,
 			SeedConfig: gocbcore.SeedConfig{
 				HTTPAddrs: s.config.Hosts,
@@ -56,10 +86,7 @@ func (s *client) Connect() error {
 				},
 			},
 			CompressionConfig: gocbcore.CompressionConfig{
-				Enabled: s.config.Compression,
-			},
-			ConfigPollerConfig: gocbcore.ConfigPollerConfig{
-				CccpPollPeriod: s.config.Dcp.PersistencePollingInterval,
+				Enabled: true,
 			},
 		},
 	)
@@ -71,21 +98,31 @@ func (s *client) Connect() error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(s.config.ConnectTimeout),
-		gocbcore.WaitUntilReadyOptions{},
+		time.Now().Add(time.Second*10),
+		gocbcore.WaitUntilReadyOptions{
+			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
+		},
 		func(result *gocbcore.WaitUntilReadyResult, err error) {
 			ch <- err
 		},
 	)
 
-	err = <-ch
-
 	if err != nil {
+		return err
+	}
+
+	if err = <-ch; err != nil {
 		return err
 	}
 
 	s.agent = client
 	log.Printf("connected to %s", s.config.Hosts)
+
+	_, err = s.Ping()
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -98,7 +135,6 @@ func (s *client) Close() error {
 func (s *client) DcpConnect() error {
 	client, err := gocbcore.CreateDcpAgent(
 		&gocbcore.DCPAgentConfig{
-			UserAgent:  s.config.UserAgent,
 			BucketName: s.config.BucketName,
 			SeedConfig: gocbcore.SeedConfig{
 				HTTPAddrs: s.config.Hosts,
@@ -110,16 +146,10 @@ func (s *client) DcpConnect() error {
 				},
 			},
 			CompressionConfig: gocbcore.CompressionConfig{
-				Enabled: s.config.Compression,
-			},
-			ConfigPollerConfig: gocbcore.ConfigPollerConfig{
-				CccpPollPeriod: s.config.Dcp.PersistencePollingInterval,
-			},
-			DCPConfig: gocbcore.DCPConfig{
-				BufferSize: s.config.Dcp.FlowControlBuffer,
+				Enabled: true,
 			},
 		},
-		s.config.Dcp.Group.Name,
+		helpers.GetDcpStreamName(s.config.Dcp.Group.Name),
 		memd.DcpOpenFlagProducer,
 	)
 
@@ -130,42 +160,25 @@ func (s *client) DcpConnect() error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(s.config.Dcp.ConnectTimeout),
-		gocbcore.WaitUntilReadyOptions{},
+		time.Now().Add(time.Second*10),
+		gocbcore.WaitUntilReadyOptions{
+			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
+		},
 		func(result *gocbcore.WaitUntilReadyResult, err error) {
 			ch <- err
 		},
 	)
 
-	err = <-ch
-
 	if err != nil {
 		return err
 	}
 
-	if err != nil {
+	if err = <-ch; err != nil {
 		return err
 	}
 
 	s.dcpAgent = client
 	log.Printf("connected to %s as dcp", s.config.Hosts)
-
-	vBucketNumber, err := s.GetNumVBuckets()
-
-	if s.config.Dcp.Group.Membership.Type == helpers.StaticMembershipType {
-		s.membership = membership.NewStaticMembership(
-			s.config.Dcp.Group.Membership.MemberNumber,
-			s.config.Dcp.Group.Membership.TotalMembers,
-			vBucketNumber,
-		)
-	} else if s.config.Dcp.Group.Membership.Type == helpers.KubernetesStatefulSetMembershipType {
-		s.membership = kubernetes.NewKubernetesStatefulSetMembership(
-			s.config.Dcp.Group.Membership.TotalMembers,
-			vBucketNumber,
-		)
-	} else {
-		return fmt.Errorf("unknown membership type %s", s.config.Dcp.Group.Membership.Type)
-	}
 
 	return nil
 }
@@ -185,7 +198,7 @@ func (s *client) GetBucketUuid() string {
 	return ""
 }
 
-func (s *client) GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error) {
+func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 	if s.dcpAgent == nil {
 		return nil, fmt.Errorf("please connect to the dcp first")
 	}
@@ -202,18 +215,18 @@ func (s *client) GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error) {
 		return nil, err
 	}
 
-	var seqNos []gocbcore.VbSeqNoEntry
+	seqNos := make(map[uint16]gocbcore.VbSeqNoEntry)
 
 	for i := 1; i <= numNodes; i++ {
-		opm := newAsyncOp(nil)
+		opm := NewAsyncOp(nil)
 
 		op, err := s.dcpAgent.GetVbucketSeqnos(
 			i,
 			memd.VbucketStateActive,
 			gocbcore.GetVbucketSeqnoOptions{},
 			func(entries []gocbcore.VbSeqNoEntry, err error) {
-				if err == nil {
-					seqNos = append(seqNos, entries...)
+				for _, en := range entries {
+					seqNos[en.VbID] = en
 				}
 
 				opm.Resolve()
@@ -230,32 +243,32 @@ func (s *client) GetVBucketSeqNos() ([]gocbcore.VbSeqNoEntry, error) {
 	return seqNos, nil
 }
 
-func (s *client) GetNumVBuckets() (int, error) {
+func (s *client) GetNumVBuckets() int {
 	if s.dcpAgent == nil {
-		return 0, fmt.Errorf("please connect to the dcp first")
+		panic(fmt.Errorf("please connect to the dcp first"))
 	}
 
-	snapshot, err := s.dcpAgent.ConfigSnapshot()
-
-	if err == nil {
-		return snapshot.NumVbuckets()
+	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
+		if vBuckets, err := snapshot.NumVbuckets(); err == nil {
+			return vBuckets
+		} else {
+			panic(err)
+		}
+	} else {
+		panic(err)
 	}
-
-	return 0, err
 }
 
-func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16]gocbcore.FailoverEntry, error) {
-	failoverLogs := make(map[uint16]gocbcore.FailoverEntry)
+func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error) {
+	failoverLogs := make(map[uint16][]gocbcore.FailoverEntry)
 
 	for _, vbId := range vbIds {
-		opm := newAsyncOp(nil)
+		opm := NewAsyncOp(nil)
 
 		op, err := s.dcpAgent.GetFailoverLog(
 			vbId,
 			func(entries []gocbcore.FailoverEntry, err error) {
-				for _, en := range entries {
-					failoverLogs[vbId] = en
-				}
+				failoverLogs[vbId] = entries
 
 				opm.Resolve()
 			})
@@ -271,7 +284,7 @@ func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16]gocbcore.FailoverEn
 }
 
 func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *ObserverState, observer Observer, callback gocbcore.OpenStreamCallback) error {
-	opm := newAsyncOp(nil)
+	opm := NewAsyncOp(nil)
 
 	op, err := s.dcpAgent.OpenStream(
 		vbId,
@@ -285,6 +298,7 @@ func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *
 		gocbcore.OpenStreamOptions{},
 		func(entries []gocbcore.FailoverEntry, err error) {
 			opm.Resolve()
+
 			callback(entries, err)
 		},
 	)
@@ -297,13 +311,14 @@ func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *
 }
 
 func (s *client) CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback) error {
-	opm := newAsyncOp(nil)
+	opm := NewAsyncOp(nil)
 
 	op, err := s.dcpAgent.CloseStream(
 		vbId,
 		gocbcore.CloseStreamOptions{},
 		func(err error) {
 			opm.Resolve()
+
 			callback(err)
 		},
 	)
@@ -315,7 +330,7 @@ func (s *client) CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback)
 	return opm.Wait(op, err)
 }
 
-func NewClient(config Config) Client {
+func NewClient(config helpers.Config) Client {
 	return &client{
 		agent:    nil,
 		dcpAgent: nil,

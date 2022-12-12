@@ -1,15 +1,15 @@
-package kubernetes
+package model
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
 
 type StatefulSetInfo struct {
-	name       string
-	podOrdinal int
+	Name       string
+	PodOrdinal int
 }
 
 func NewStatefulSetInfoFromHostname() (*StatefulSetInfo, error) {
@@ -22,7 +22,7 @@ func NewStatefulSetInfoFromHostname() (*StatefulSetInfo, error) {
 	separatorIndex := strings.LastIndex(hostname, "-")
 
 	if separatorIndex == -1 {
-		return nil, errors.New("hostname is not in statefulSet format")
+		return nil, fmt.Errorf("hostname is not in statefulSet format")
 	}
 
 	name := hostname[:separatorIndex]
@@ -33,7 +33,7 @@ func NewStatefulSetInfoFromHostname() (*StatefulSetInfo, error) {
 	}
 
 	return &StatefulSetInfo{
-		name:       name,
-		podOrdinal: podOrdinal,
+		Name:       name,
+		PodOrdinal: podOrdinal,
 	}, nil
 }

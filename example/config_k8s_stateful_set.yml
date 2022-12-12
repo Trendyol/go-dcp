@@ -8,8 +8,7 @@ dcp:
   group:
     name: groupName
     membership:
-      type: static
-      memberNumber: 1
+      type: kubernetesStatefulSet
       totalMembers: 1
 api:
   port: 8080

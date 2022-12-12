@@ -1,5 +1,7 @@
 package membership
 
+import "github.com/Trendyol/go-dcp-client/membership/info"
+
 type Membership interface {
-	GetVBuckets() []uint16
+	GetInfo() *info.Model
 }

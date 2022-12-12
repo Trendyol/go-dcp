@@ -3,16 +3,19 @@ package helpers
 import (
 	"bytes"
 	"fmt"
-	"hash/crc32"
+	"github.com/google/uuid"
 	"reflect"
 	"strconv"
 )
 
-func GetCheckpointId(vbId uint16, groupName string, userAgent string) string {
-	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId#crcVbId
-	key := Prefix + groupName + ":" + userAgent + ":checkpoint:" + strconv.Itoa(int(vbId))
-	crc := crc32.Checksum([]byte(fmt.Sprintf("%x", vbId)), crc32.IEEETable)
-	return fmt.Sprintf("%v#%08x", key, crc)
+func GetCheckpointId(vbId uint16, groupName string) string {
+	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
+	return Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbId))
+}
+
+func GetDcpStreamName(groupName string) string {
+	streamName := fmt.Sprintf("%s_%s", groupName, uuid.New().String())
+	return streamName
 }
 
 func IsMetadata(data interface{}) bool {

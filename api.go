@@ -3,7 +3,7 @@ package godcpclient
 import (
 	"fmt"
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/serviceDiscovery"
+	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	"github.com/gofiber/fiber/v2"
 	"log"
 )
@@ -18,7 +18,7 @@ type api struct {
 	config           helpers.Config
 	client           Client
 	stream           Stream
-	serviceDiscovery serviceDiscovery.ServiceDiscovery
+	serviceDiscovery servicediscovery.ServiceDiscovery
 }
 
 func (s *api) Listen() {
@@ -67,7 +67,7 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func NewApi(config helpers.Config, client Client, stream Stream, serviceDiscovery serviceDiscovery.ServiceDiscovery) Api {
+func NewApi(config helpers.Config, client Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) Api {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
 	app.Use(NewMetricMiddleware(app, config, stream.GetObserver()))

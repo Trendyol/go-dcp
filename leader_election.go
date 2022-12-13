@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderElector"
-	"github.com/Trendyol/go-dcp-client/leaderElector"
+	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
+	"github.com/Trendyol/go-dcp-client/leaderelector"
 	"github.com/Trendyol/go-dcp-client/model"
 	rpcClient "github.com/Trendyol/go-dcp-client/rpc/client"
 	rpcServer "github.com/Trendyol/go-dcp-client/rpc/server"
-	"github.com/Trendyol/go-dcp-client/serviceDiscovery"
-	sdm "github.com/Trendyol/go-dcp-client/serviceDiscovery/model"
+	"github.com/Trendyol/go-dcp-client/servicediscovery"
+	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -25,10 +25,10 @@ type LeaderElection interface {
 
 type leaderElection struct {
 	config           helpers.ConfigLeaderElection
-	elector          leaderElector.LeaderElector
+	elector          leaderelector.LeaderElector
 	rpcServer        rpcServer.Server
 	stream           Stream
-	serviceDiscovery serviceDiscovery.ServiceDiscovery
+	serviceDiscovery servicediscovery.ServiceDiscovery
 	stable           bool
 	initialized      uint32
 	initializedCh    chan bool
@@ -133,7 +133,7 @@ func (l *leaderElection) watchStability() {
 	}()
 }
 
-func NewLeaderElection(config helpers.ConfigLeaderElection, stream Stream, serviceDiscovery serviceDiscovery.ServiceDiscovery, myIdentity *model.Identity, kubernetesClient kubernetes.Client) LeaderElection {
+func NewLeaderElection(config helpers.ConfigLeaderElection, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery, myIdentity *model.Identity, kubernetesClient kubernetes.Client) LeaderElection {
 	return &leaderElection{
 		config:           config,
 		stream:           stream,

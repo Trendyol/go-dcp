@@ -1,4 +1,4 @@
-package leaderElector
+package leaderelector
 
 import "github.com/Trendyol/go-dcp-client/model"
 

@@ -5,8 +5,8 @@ import (
 	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/rpc"
 	"github.com/Trendyol/go-dcp-client/rpc/client"
-	"github.com/Trendyol/go-dcp-client/serviceDiscovery"
-	sdm "github.com/Trendyol/go-dcp-client/serviceDiscovery/model"
+	"github.com/Trendyol/go-dcp-client/servicediscovery"
+	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 	"log"
 	"net"
 	pureRpc "net/rpc"
@@ -26,7 +26,7 @@ type server struct {
 type Handler struct {
 	port             int
 	myIdentity       *model.Identity
-	serviceDiscovery serviceDiscovery.ServiceDiscovery
+	serviceDiscovery servicediscovery.ServiceDiscovery
 }
 
 func (rh *Handler) Ping(_ rpc.Ping, reply *rpc.Pong) error {
@@ -106,7 +106,7 @@ func (s *server) Shutdown() {
 	}
 }
 
-func NewServer(port int, myIdentity *model.Identity, serviceDiscovery serviceDiscovery.ServiceDiscovery) Server {
+func NewServer(port int, myIdentity *model.Identity, serviceDiscovery servicediscovery.ServiceDiscovery) Server {
 	return &server{
 		port: port,
 		handler: &Handler{

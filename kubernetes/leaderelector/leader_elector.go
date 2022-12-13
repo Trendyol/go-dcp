@@ -1,11 +1,11 @@
-package leaderElector
+package leaderelector
 
 import (
 	"context"
 	"fmt"
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	godcpclient "github.com/Trendyol/go-dcp-client/leaderElector"
+	godcpclient "github.com/Trendyol/go-dcp-client/leaderelector"
 	dcpModel "github.com/Trendyol/go-dcp-client/model"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"

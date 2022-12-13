@@ -1,4 +1,4 @@
-package leaderElector
+package leaderelector
 
 import "context"
 

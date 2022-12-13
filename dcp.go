@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderElector/model"
+	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector/model"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/Trendyol/go-dcp-client/model"
-	"github.com/Trendyol/go-dcp-client/serviceDiscovery"
+	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,7 +27,7 @@ type dcp struct {
 	api              Api
 	leaderElection   LeaderElection
 	vBucketDiscovery VBucketDiscovery
-	serviceDiscovery serviceDiscovery.ServiceDiscovery
+	serviceDiscovery servicediscovery.ServiceDiscovery
 	kubernetesClient kubernetes.Client
 	myIdentity       *model.Identity
 }
@@ -48,7 +48,7 @@ func (s *dcp) Start() {
 		}
 	}
 
-	s.serviceDiscovery = serviceDiscovery.NewServiceDiscovery(infoHandler)
+	s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
 	s.serviceDiscovery.StartHealthCheck()
 	s.serviceDiscovery.StartRebalance()
 

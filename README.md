@@ -24,8 +24,8 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 
 - [X] Metrics calculator
 - [X] Kubernetes StatefulSet membership
-- [ ] Kubernetes Replica change watcher
-- [ ] Auto membership
+- [X] Kubernetes High Availability
+- [X] Auto membership
 - [ ] Durable connection
 - [ ] Auto restart
 
@@ -59,7 +59,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `leaderElection.enabled`            | boolean *(true/false)*      | yes         |
 | `leaderElection.type`               | string                      | no          |
 | `leaderElection.config`             | string/string key value map | no          |
-| `leaderElection.rpc.port`           | integer                     | yes         |
+| `leaderElection.rpc.port`           | integer                     | no          |
 
 ---
 

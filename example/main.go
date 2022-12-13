@@ -1,7 +1,7 @@
 package main
 
 import (
-	godcpclient "github.com/Trendyol/go-dcp-client"
+	"github.com/Trendyol/go-dcp-client"
 	"log"
 )
 
@@ -15,14 +15,14 @@ func listener(event interface{}, err error) {
 	case godcpclient.DcpMutation:
 		log.Printf("mutated | id: %v, value: %v", string(event.Key), string(event.Value))
 	case godcpclient.DcpDeletion:
-		log.Printf("deleted | id: %v, value: %v", string(event.Key), string(event.Value))
+		log.Printf("deleted | id: %v", string(event.Key))
 	case godcpclient.DcpExpiration:
 		log.Printf("expired | id: %v", string(event.Key))
 	}
 }
 
 func main() {
-	dcp, err := godcpclient.NewDcp("example/config.yml", listener)
+	dcp, err := godcpclient.NewDcp("config.yml", listener)
 
 	if err != nil {
 		panic(err)

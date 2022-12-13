@@ -1,7 +1,13 @@
 package godcpclient
 
 import (
+	"fmt"
 	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/kubernetes"
+	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderElector/model"
+	"github.com/Trendyol/go-dcp-client/membership/info"
+	"github.com/Trendyol/go-dcp-client/model"
+	"github.com/Trendyol/go-dcp-client/serviceDiscovery"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,25 +19,63 @@ type Dcp interface {
 }
 
 type dcp struct {
-	client   Client
-	metadata Metadata
-	listener Listener
-	stream   Stream
-	config   Config
-	api      Api
+	client           Client
+	metadata         Metadata
+	listener         Listener
+	stream           Stream
+	config           helpers.Config
+	api              Api
+	leaderElection   LeaderElection
+	vBucketDiscovery VBucketDiscovery
+	serviceDiscovery serviceDiscovery.ServiceDiscovery
+	kubernetesClient kubernetes.Client
+	myIdentity       *model.Identity
 }
 
 func (s *dcp) Start() {
-	s.stream = NewStream(s.client, s.metadata, s.config, s.listener)
+	infoHandler := info.NewHandler()
+
+	if s.config.LeaderElection.Enabled {
+		if s.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
+			s.myIdentity = klem.NewIdentityFromEnv()
+
+			if namespace, exist := s.config.LeaderElection.Config["leaseLockNamespace"]; exist {
+				s.kubernetesClient = kubernetes.NewClient(s.myIdentity, namespace)
+				infoHandler.Subscribe(func(new *info.Model) {
+					s.kubernetesClient.AddLabel("member", fmt.Sprintf("%v_%v", new.MemberNumber, new.TotalMembers))
+				})
+			}
+		}
+	}
+
+	s.serviceDiscovery = serviceDiscovery.NewServiceDiscovery(infoHandler)
+	s.serviceDiscovery.StartHealthCheck()
+	s.serviceDiscovery.StartRebalance()
+
+	vBuckets := s.client.GetNumVBuckets()
+
+	s.vBucketDiscovery = NewVBucketDiscovery(s.config.Dcp.Group.Membership, vBuckets, infoHandler)
+
+	s.stream = NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener)
+
+	if s.config.LeaderElection.Enabled {
+		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.stream, s.serviceDiscovery, s.myIdentity, s.kubernetesClient)
+		s.leaderElection.Start()
+	}
+
 	s.stream.Open()
 
+	infoHandler.Subscribe(func(new *info.Model) {
+		s.stream.Rebalance()
+	})
+
 	if s.config.Metric.Enabled {
-		s.api = NewApi(s.config, s.stream.GetObserver())
+		s.api = NewApi(s.config, s.client, s.stream, s.serviceDiscovery)
 		s.api.Listen()
 	}
 
 	cancelCh := make(chan os.Signal, 1)
-	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT, syscall.SIGKILL)
 
 	go func() {
 		s.stream.Wait()
@@ -42,19 +86,24 @@ func (s *dcp) Start() {
 }
 
 func (s *dcp) Close() {
+	s.serviceDiscovery.StopRebalance()
+	s.serviceDiscovery.StopHealthCheck()
+
+	if s.config.LeaderElection.Enabled {
+		s.leaderElection.Stop()
+	}
+
 	if s.config.Metric.Enabled {
 		s.api.Shutdown()
 	}
 
 	s.stream.Save()
-	s.stream.Close()
+	s.stream.Close(false)
 	s.client.DcpClose()
 	s.client.Close()
 }
 
-func NewDcp(configPath string, listener Listener) (Dcp, error) {
-	config := NewConfig(helpers.Name, configPath)
-
+func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 	client := NewClient(config)
 
 	err := client.Connect()
@@ -77,4 +126,19 @@ func NewDcp(configPath string, listener Listener) (Dcp, error) {
 		listener: listener,
 		config:   config,
 	}, nil
+}
+
+// NewDcp creates a new DCP client
+//
+//	config: path to a configuration file or a configuration struct
+//	listener is a callback function that will be called when a mutation, deletion or expiration event occurs
+func NewDcp(config interface{}, listener Listener) (Dcp, error) {
+	switch config.(type) {
+	case string:
+		return newDcp(helpers.NewConfig(helpers.Name, config.(string)), listener)
+	case helpers.Config:
+		return newDcp(config.(helpers.Config), listener)
+	default:
+		panic("Unknown type")
+	}
 }

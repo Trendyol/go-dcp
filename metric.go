@@ -9,7 +9,7 @@ import (
 	"strconv"
 )
 
-type MetricCollector struct {
+type metricCollector struct {
 	observer Observer
 
 	mutation   *prometheus.Desc
@@ -21,11 +21,15 @@ type MetricCollector struct {
 	endSeqNo     *prometheus.Desc
 }
 
-func (s *MetricCollector) Describe(ch chan<- *prometheus.Desc) {
+func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(s, ch)
 }
 
-func (s *MetricCollector) Collect(ch chan<- prometheus.Metric) {
+func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
+	if s.observer == nil {
+		return
+	}
+
 	metric := s.observer.GetMetric()
 
 	ch <- prometheus.MustNewConstMetric(
@@ -70,8 +74,8 @@ func (s *MetricCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func NewMetricMiddleware(app *fiber.App, config Config, observer Observer) func(ctx *fiber.Ctx) error {
-	err := prometheus.DefaultRegisterer.Register(&MetricCollector{
+func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observer) func(ctx *fiber.Ctx) error {
+	err := prometheus.DefaultRegisterer.Register(&metricCollector{
 		observer: observer,
 
 		mutation: prometheus.NewDesc(
@@ -116,7 +120,7 @@ func NewMetricMiddleware(app *fiber.App, config Config, observer Observer) func(
 		panic(err)
 	}
 
-	fiberPrometheus := fiberprometheus.New(config.UserAgent)
+	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
 	log.Printf("metric middleware registered on path %s", config.Metric.Path)

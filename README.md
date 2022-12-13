@@ -42,30 +42,30 @@ $ go get github.com/Trendyol/go-dcp-client
 
 ### Configuration
 
-| Variable                         | Type                    | Is Required |
-|----------------------------------|-------------------------|-------------|
-| `hosts`                          | array                   | yes         |
-| `username`                       | string                  | yes         |
-| `password`                       | string                  | yes         |
-| `bucketName`                     | string                  | yes         |
-| `userAgent`                      | string                  | yes         |
-| `compression`                    | boolean *(true/false)*  | yes         |
-| `metadataBucket`                 | string                  | yes         |
-| `connectTimeout`                 | integer *(second)*      | yes         |
-| `dcp.connectTimeout`             | integer *(second)*      | yes         |
-| `dcp.flowControlBuffer`          | integer                 | yes         |
-| `dcp.persistencePollingInterval` | integer *(millisecond)* | yes         |
-| `dcp.group.name`                 | string                  | yes         |
-| `dcp.membership.type`            | string                  | yes         |
-| `dcp.membership.memberNumber`    | integer                 | yes         |
-| `dcp.membership.totalMembers`    | integer                 | yes         |
-| `api.port`                       | integer                 | yes         |
-| `metric.enabled`                 | boolean *(true/false)*  | yes         |
-| `metric.path`                    | string                  | yes         |
+| Variable                            | Type                        | Is Required |
+|-------------------------------------|-----------------------------|-------------|
+| `hosts`                             | array                       | yes         |
+| `username`                          | string                      | yes         |
+| `password`                          | string                      | yes         |
+| `bucketName`                        | string                      | yes         |
+| `metadataBucket`                    | string                      | yes         |
+| `dcp.group.name`                    | string                      | yes         |
+| `dcp.group.membership.type`         | string                      | yes         |
+| `dcp.group.membership.memberNumber` | integer                     | no          |
+| `dcp.group.membership.totalMembers` | integer                     | no          |
+| `api.port`                          | integer                     | yes         |
+| `metric.enabled`                    | boolean *(true/false)*      | yes         |
+| `metric.path`                       | string                      | yes         |
+| `leaderElection.enabled`            | boolean *(true/false)*      | yes         |
+| `leaderElection.type`               | string                      | no          |
+| `leaderElection.config`             | string/string key value map | no          |
+| `leaderElection.rpc.port`           | integer                     | yes         |
 
 ---
 
 ### Examples
 
-- [main.go](example/main.go)
-- [config.yml](example/config.yml)
+- [example with static membership](example/main.go)
+- [static membership config](example/config.yml)
+- [kubernetesStatefulSet membership config](example/config_k8s_stateful_set.yml)
+- [kubernetesHa membership config](example/config_k8s_leader_election.yml)

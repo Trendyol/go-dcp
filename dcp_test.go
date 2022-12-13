@@ -24,14 +24,8 @@ func createConfigFile(t *testing.T) (string, func()) {
 username: Administrator
 password: password
 bucketName: sample
-userAgent: unit-test-listener
-compression: true
 metadataBucket: sample
-connectTimeout: 10s
 dcp:
-  connectTimeout: 10s
-  flowControlBuffer: 16
-  persistencePollingInterval: 100ms
   group:
     name: groupName
     membership:
@@ -42,7 +36,9 @@ api:
   port: 8080
 metric:
   enabled: true
-  path: /metrics`
+  path: /metrics
+leaderElector:
+  enabled: false`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 
@@ -60,7 +56,7 @@ metric:
 	}
 }
 
-func setupContainer(t *testing.T, config Config) func() {
+func setupContainer(t *testing.T, config helpers.Config) func() {
 	ctx := context.Background()
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -86,7 +82,7 @@ func setupContainer(t *testing.T, config Config) func() {
 	}
 }
 
-func insertDataToContainer(t *testing.T, mockDataSize int, config Config) {
+func insertDataToContainer(t *testing.T, mockDataSize int, config helpers.Config) {
 	client := NewClient(config)
 
 	_ = client.Connect()
@@ -108,22 +104,24 @@ func insertDataToContainer(t *testing.T, mockDataSize int, config Config) {
 			go func(i int) {
 				ch := make(chan error)
 
-				opm := newAsyncOp(nil)
+				opm := NewAsyncOp(nil)
+
 				op, err := client.GetAgent().Set(gocbcore.SetOptions{
 					Key:   []byte(fmt.Sprintf("my_key_%v", i)),
 					Value: []byte(fmt.Sprintf("my_value_%v", i)),
 				}, func(result *gocbcore.StoreResult, err error) {
-					ch <- err
 					opm.Resolve()
+
+					ch <- err
 				})
+
+				err = opm.Wait(op, err)
 
 				if err != nil {
 					t.Error(err)
 				}
 
 				err = <-ch
-
-				err = opm.Wait(op, err)
 
 				if err != nil {
 					t.Error(err)
@@ -145,7 +143,7 @@ func TestDcp(t *testing.T) {
 	configPath, configFileClean := createConfigFile(t)
 	defer configFileClean()
 
-	config := NewConfig(fmt.Sprintf("%v_data_insert", helpers.Name), configPath)
+	config := helpers.NewConfig(fmt.Sprintf("%v_data_insert", helpers.Name), configPath)
 
 	containerShutdown := setupContainer(t, config)
 	defer containerShutdown()

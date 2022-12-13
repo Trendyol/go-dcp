@@ -1,20 +1,25 @@
 package godcpclient
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
+	"log"
+	"time"
 )
 
 type cbMetadata struct {
 	agent  *gocbcore.Agent
-	config Config
+	config helpers.Config
 }
 
-func (s *cbMetadata) upsertXattrs(id string, path string, xattrs interface{}) error {
-	opm := newAsyncOp(nil)
+func (s *cbMetadata) upsertXattrs(ctx context.Context, id string, path string, xattrs interface{}) error {
+	opm := NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
 
 	payload, _ := json.Marshal(xattrs)
 
@@ -30,10 +35,14 @@ func (s *cbMetadata) upsertXattrs(id string, path string, xattrs interface{}) er
 				Value: payload,
 			},
 		},
+		Deadline: deadline,
 	}, func(result *gocbcore.MutateInResult, err error) {
-		ch <- err
 		opm.Resolve()
+
+		ch <- err
 	})
+
+	err = opm.Wait(op, err)
 
 	if err != nil {
 		return err
@@ -41,26 +50,42 @@ func (s *cbMetadata) upsertXattrs(id string, path string, xattrs interface{}) er
 
 	err = <-ch
 
-	return opm.Wait(op, err)
+	return err
 }
 
-func (s *cbMetadata) deleteDocument(id string) {
-	opm := newAsyncOp(nil)
+func (s *cbMetadata) deleteDocument(ctx context.Context, id string) {
+	opm := NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	ch := make(chan error)
+
 	op, err := s.agent.Delete(gocbcore.DeleteOptions{
-		Key: []byte(id),
+		Key:      []byte(id),
+		Deadline: deadline,
 	}, func(result *gocbcore.DeleteResult, err error) {
 		opm.Resolve()
+
+		ch <- err
 	})
+
+	err = opm.Wait(op, err)
 
 	if err != nil {
 		return
 	}
 
-	_ = opm.Wait(op, err)
+	err = <-ch
+
+	if err != nil {
+		return
+	}
 }
 
-func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (CheckpointDocument, error) {
-	opm := newAsyncOp(nil)
+func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, bucketUuid string) (CheckpointDocument, error) {
+	opm := NewAsyncOp(nil)
+
+	deadline, _ := ctx.Deadline()
 
 	errorCh := make(chan error)
 	documentCh := make(chan CheckpointDocument)
@@ -74,7 +99,10 @@ func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (Check
 				Path:  path,
 			},
 		},
+		Deadline: deadline,
 	}, func(result *gocbcore.LookupInResult, err error) {
+		opm.Resolve()
+
 		if err == nil {
 			document := CheckpointDocument{}
 			err = json.Unmarshal(result.Ops[0].Value, &document)
@@ -89,58 +117,81 @@ func (s *cbMetadata) getXattrs(id string, path string, bucketUuid string) (Check
 		}
 
 		errorCh <- err
-
-		opm.Resolve()
 	})
+
+	err = opm.Wait(op, err)
 
 	if err != nil {
 		return NewEmptyCheckpointDocument(bucketUuid), err
 	}
 
 	document := <-documentCh
-
-	err = opm.Wait(op, <-errorCh)
+	err = <-errorCh
 
 	return document, err
 }
 
-func (s *cbMetadata) createEmptyDocument(id string) error {
-	opm := newAsyncOp(nil)
+func (s *cbMetadata) createEmptyDocument(ctx context.Context, id string) error {
+	opm := NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	ch := make(chan error)
+
 	op, err := s.agent.Set(gocbcore.SetOptions{
-		Key:   []byte(id),
-		Value: []byte{},
-		Flags: 50333696,
+		Key:      []byte(id),
+		Value:    []byte{},
+		Flags:    50333696,
+		Deadline: deadline,
 	}, func(result *gocbcore.StoreResult, err error) {
 		opm.Resolve()
+
+		ch <- err
 	})
+
+	err = opm.Wait(op, err)
 
 	if err != nil {
 		return err
 	}
 
-	return opm.Wait(op, err)
+	return <-ch
 }
 
 func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
-	for vbId, checkpointDocument := range state {
-		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
-		err := s.upsertXattrs(id, helpers.Name, checkpointDocument)
+	for vbId, checkpointDocument := range state {
+		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name)
+		err := s.upsertXattrs(ctx, id, helpers.Name, checkpointDocument)
+
+		var kvErr *gocbcore.KeyValueError
+		if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+			err = s.createEmptyDocument(ctx, id)
+
+			if err == nil {
+				err = s.upsertXattrs(ctx, id, helpers.Name, checkpointDocument)
+			}
+		}
 
 		if err != nil {
-			_ = s.createEmptyDocument(id)
-			_ = s.upsertXattrs(id, helpers.Name, checkpointDocument)
+			log.Printf("error while saving checkpoint document: %v", err)
+			return
 		}
 	}
 }
 
 func (s *cbMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]CheckpointDocument {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
 	state := map[uint16]CheckpointDocument{}
 
 	for _, vbId := range vbIds {
-		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
+		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name)
 
-		data, err := s.getXattrs(id, helpers.Name, bucketUuid)
+		data, err := s.getXattrs(ctx, id, helpers.Name, bucketUuid)
 
 		var kvErr *gocbcore.KeyValueError
 		if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
@@ -154,14 +205,17 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]Checkpoi
 }
 
 func (s *cbMetadata) Clear(vbIds []uint16) {
-	for _, vbId := range vbIds {
-		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name, s.config.UserAgent)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
-		s.deleteDocument(id)
+	for _, vbId := range vbIds {
+		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name)
+
+		s.deleteDocument(ctx, id)
 	}
 }
 
-func NewCBMetadata(agent *gocbcore.Agent, config Config) Metadata {
+func NewCBMetadata(agent *gocbcore.Agent, config helpers.Config) Metadata {
 	return &cbMetadata{
 		agent:  agent,
 		config: config,

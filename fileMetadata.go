@@ -3,12 +3,13 @@ package godcpclient
 import (
 	"encoding/json"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"os"
 )
 
 type fileMetadata struct {
 	fileName string
-	config   Config
+	config   helpers.Config
 }
 
 func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
@@ -40,7 +41,7 @@ func (s *fileMetadata) Clear(_ []uint16) {
 	_ = os.Remove(s.fileName)
 }
 
-func NewFileMetadata(fileName string, config Config) Metadata {
+func _(fileName string, config helpers.Config) Metadata {
 	return &fileMetadata{
 		fileName: fileName,
 		config:   config,

@@ -1,10 +1,9 @@
-package godcpclient
+package helpers
 
 import (
 	"github.com/gookit/config/v2"
 	"github.com/gookit/config/v2/yamlv3"
 	"log"
-	"time"
 )
 
 type ConfigDCPGroupMembership struct {
@@ -19,10 +18,7 @@ type ConfigDCPGroup struct {
 }
 
 type ConfigDCP struct {
-	ConnectTimeout             time.Duration  `yaml:"connectTimeout"`
-	FlowControlBuffer          int            `yaml:"flowControlBuffer"`
-	PersistencePollingInterval time.Duration  `yaml:"persistencePollingInterval"`
-	Group                      ConfigDCPGroup `yaml:"group"`
+	Group ConfigDCPGroup `yaml:"group"`
 }
 
 type ConfigAPI struct {
@@ -34,18 +30,27 @@ type ConfigMetric struct {
 	Path    string `yaml:"path"`
 }
 
+type ConfigLeaderElection struct {
+	Enabled bool              `yaml:"enabled"`
+	Type    string            `yaml:"type"`
+	Config  map[string]string `yaml:"config"`
+	Rpc     ConfigRpc         `yaml:"rpc"`
+}
+
+type ConfigRpc struct {
+	Port int `yaml:"port"`
+}
+
 type Config struct {
-	Hosts          []string      `yaml:"hosts"`
-	Username       string        `yaml:"username"`
-	Password       string        `yaml:"password"`
-	BucketName     string        `yaml:"bucketName"`
-	UserAgent      string        `yaml:"userAgent"`
-	Compression    bool          `yaml:"compression"`
-	MetadataBucket string        `yaml:"metadataBucket"`
-	ConnectTimeout time.Duration `yaml:"connectTimeout"`
-	Dcp            ConfigDCP     `yaml:"dcp"`
-	Api            ConfigAPI     `yaml:"api"`
-	Metric         ConfigMetric  `yaml:"metric"`
+	Hosts          []string             `yaml:"hosts"`
+	Username       string               `yaml:"username"`
+	Password       string               `yaml:"password"`
+	BucketName     string               `yaml:"bucketName"`
+	MetadataBucket string               `yaml:"metadataBucket"`
+	Dcp            ConfigDCP            `yaml:"dcp"`
+	Api            ConfigAPI            `yaml:"api"`
+	Metric         ConfigMetric         `yaml:"metric"`
+	LeaderElection ConfigLeaderElection `yaml:"leaderElector"`
 }
 
 func Options(opts *config.Options) {

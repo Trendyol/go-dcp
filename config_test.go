@@ -10,7 +10,7 @@ func TestLoadConfig(t *testing.T) {
 	configPath, configFileClean := createConfigFile(t)
 	defer configFileClean()
 
-	config := NewConfig(helpers.Name, configPath)
+	config := helpers.NewConfig(helpers.Name, configPath)
 
 	assert.Equal(t, 1, len(config.Hosts))
 	assert.Contains(t, config.Hosts, "localhost:8091")

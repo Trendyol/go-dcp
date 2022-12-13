@@ -5,13 +5,17 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 	"log"
 	"sync"
+	"time"
 )
 
 type Stream interface {
 	Open()
+	Rebalance()
 	Wait()
 	Save()
-	Close()
+	Pause()
+	Resume()
+	Close(fromRebalance bool)
 	GetObserver() Observer
 }
 
@@ -25,20 +29,24 @@ type stream struct {
 	listeners []Listener
 
 	streamsLock sync.Mutex
-	streams     []uint16
+	streams     map[uint16]*uint16
 
-	config Config
+	config helpers.Config
 
 	observer Observer
+
+	vBucketDiscovery VBucketDiscovery
+
+	rebalanceTimer *time.Timer
 }
 
 func (s *stream) listener(event interface{}, err error) {
-	if err != nil {
-		return
+	if end, ok := event.(DcpStreamEnd); ok {
+		s.CleanStreamOfVbId(end.VbID, false)
 	}
 
-	if _, ok := event.(DcpStreamEnd); ok {
-		s.finishedStreams.Done()
+	if err != nil {
+		return
 	}
 
 	if helpers.IsMetadata(event) {
@@ -51,11 +59,10 @@ func (s *stream) listener(event interface{}, err error) {
 }
 
 func (s *stream) Open() {
-	vbIds := s.client.GetMembership().GetVBuckets()
+	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
 
-	observer := NewObserver(vbIds, s.listener)
-	s.observer = observer
+	s.observer = NewObserver(vbIds, s.listener)
 
 	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
 
@@ -63,12 +70,21 @@ func (s *stream) Open() {
 		panic(err)
 	}
 
+	vbSeqNos, err := s.client.GetVBucketSeqNos()
+
+	if err != nil {
+		panic(err)
+	}
+
+	s.finishedStreams = sync.WaitGroup{}
 	s.finishedStreams.Add(vBucketNumber)
+
+	s.streams = make(map[uint16]*uint16)
 
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(observer, vbIds, failoverLogs, s.client.GetBucketUuid(), s.Metadata, s.config)
+	s.checkpoint = NewCheckpoint(s.observer, vbIds, failoverLogs, vbSeqNos, s.client.GetBucketUuid(), s.Metadata, s.config)
 	observerState := s.checkpoint.Load()
 
 	for _, vbId := range vbIds {
@@ -77,24 +93,26 @@ func (s *stream) Open() {
 
 			err := s.client.OpenStream(
 				innerVbId,
-				failoverLogs[innerVbId].VbUUID,
+				failoverLogs[innerVbId][0].VbUUID,
 				observerState[innerVbId],
-				observer,
+				s.observer,
 				func(entries []gocbcore.FailoverEntry, err error) {
 					ch <- err
 				},
 			)
 
-			err = <-ch
-
 			if err != nil {
+				panic(err)
+			}
+
+			if err = <-ch; err != nil {
 				panic(err)
 			}
 
 			s.streamsLock.Lock()
 			defer s.streamsLock.Unlock()
 
-			s.streams = append(s.streams, innerVbId)
+			s.streams[innerVbId] = &innerVbId
 
 			openWg.Done()
 		}(vbId)
@@ -106,34 +124,80 @@ func (s *stream) Open() {
 	s.checkpoint.StartSchedule()
 }
 
+func (s *stream) Rebalance() {
+	if s.rebalanceTimer != nil {
+		s.rebalanceTimer.Stop()
+	}
+
+	s.rebalanceTimer = time.AfterFunc(time.Second*10, func() {
+		s.Pause()
+		s.Resume()
+		log.Printf("rebalance is finished")
+	})
+}
+
+func (s *stream) Pause() {
+	s.Save()
+	s.Close(true)
+}
+
+func (s *stream) Resume() {
+	s.Open()
+}
+
 func (s *stream) Wait() {
 	s.finishedStreams.Wait()
+	log.Printf("all streams are finished")
 }
 
 func (s *stream) Save() {
-	s.checkpoint.Save()
+	if s.checkpoint != nil {
+		s.checkpoint.Save(false)
+	}
 }
 
-func (s *stream) Close() {
-	s.checkpoint.StopSchedule()
+func (s *stream) CleanStreamOfVbId(vbId uint16, ignoreFinish bool) {
+	s.streamsLock.Lock()
+	defer s.streamsLock.Unlock()
 
-	for _, stream := range s.streams {
-		ch := make(chan error)
+	if s.streams[vbId] != nil {
+		s.streams[vbId] = nil
 
-		err := s.client.CloseStream(stream, func(err error) {
-			ch <- err
-		})
-
-		err = <-ch
-
-		if err != nil {
-			panic(err)
+		if !ignoreFinish {
+			s.finishedStreams.Done()
 		}
+	}
+}
 
-		s.finishedStreams.Done()
+func (s *stream) CloseWithVbId(vbId uint16, ignoreFinish bool) {
+	ch := make(chan error)
+
+	err := s.client.CloseStream(vbId, func(err error) {
+		ch <- err
+	})
+
+	if err != nil {
+		panic(err)
 	}
 
-	s.streams = []uint16{}
+	if err = <-ch; err != nil {
+		panic(err)
+	}
+
+	s.CleanStreamOfVbId(vbId, ignoreFinish)
+}
+
+func (s *stream) Close(ignoreFinish bool) {
+	if s.checkpoint != nil {
+		s.checkpoint.StopSchedule()
+	}
+
+	for _, stream := range s.streams {
+		if stream != nil {
+			s.CloseWithVbId(*stream, ignoreFinish)
+		}
+	}
+
 	log.Printf("all streams are closed")
 }
 
@@ -141,15 +205,12 @@ func (s *stream) GetObserver() Observer {
 	return s.observer
 }
 
-func NewStream(client Client, metadata Metadata, config Config, listeners ...Listener) Stream {
+func NewStream(client Client, metadata Metadata, config helpers.Config, vBucketDiscovery VBucketDiscovery, listeners ...Listener) Stream {
 	return &stream{
-		client:   client,
-		Metadata: metadata,
-
-		finishedStreams: sync.WaitGroup{},
-
-		listeners: listeners,
-
-		config: config,
+		client:           client,
+		Metadata:         metadata,
+		listeners:        listeners,
+		config:           config,
+		vBucketDiscovery: vBucketDiscovery,
 	}
 }

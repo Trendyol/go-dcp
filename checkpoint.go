@@ -1,6 +1,7 @@
 package godcpclient
 
 import (
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"log"
 	"sync"
@@ -8,7 +9,7 @@ import (
 )
 
 type Checkpoint interface {
-	Save()
+	Save(fromSchedule bool)
 	Load() map[uint16]*ObserverState
 	Clear()
 	StartSchedule()
@@ -48,16 +49,17 @@ func NewEmptyCheckpointDocument(bucketUuid string) CheckpointDocument {
 type checkpoint struct {
 	observer     Observer
 	vbIds        []uint16
-	failoverLogs map[uint16]gocbcore.FailoverEntry
+	failoverLogs map[uint16][]gocbcore.FailoverEntry
+	vbSeqNos     map[uint16]gocbcore.VbSeqNoEntry
 	metadata     Metadata
 	bucketUuid   string
 	saveLock     sync.Mutex
 	loadLock     sync.Mutex
 	schedule     *time.Ticker
-	config       Config
+	config       helpers.Config
 }
 
-func (s *checkpoint) Save() {
+func (s *checkpoint) Save(fromSchedule bool) {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
@@ -68,7 +70,7 @@ func (s *checkpoint) Save() {
 	for vbId, observerState := range state {
 		dump[vbId] = CheckpointDocument{
 			Checkpoint: checkpointDocumentCheckpoint{
-				VbUuid: uint64(s.failoverLogs[vbId].VbUUID),
+				VbUuid: uint64(s.failoverLogs[vbId][0].VbUUID),
 				SeqNo:  observerState.SeqNo,
 				Snapshot: checkpointDocumentSnapshot{
 					StartSeqNo: observerState.StartSeqNo,
@@ -80,7 +82,10 @@ func (s *checkpoint) Save() {
 	}
 
 	s.metadata.Save(dump, s.bucketUuid)
-	log.Printf("saved checkpoint")
+
+	if !fromSchedule {
+		log.Printf("saved checkpoint")
+	}
 }
 
 func (s *checkpoint) Load() map[uint16]*ObserverState {
@@ -116,7 +121,7 @@ func (s *checkpoint) StartSchedule() {
 		go func() {
 			time.Sleep(10 * time.Second)
 			for range s.schedule.C {
-				s.Save()
+				s.Save(true)
 			}
 		}()
 	}()
@@ -128,11 +133,12 @@ func (s *checkpoint) StopSchedule() {
 	log.Printf("stopped checkpoint schedule")
 }
 
-func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16]gocbcore.FailoverEntry, bucketUuid string, metadata Metadata, config Config) Checkpoint {
+func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16][]gocbcore.FailoverEntry, vbSeqNos map[uint16]gocbcore.VbSeqNoEntry, bucketUuid string, metadata Metadata, config helpers.Config) Checkpoint {
 	return &checkpoint{
 		observer:     observer,
 		vbIds:        vbIds,
 		failoverLogs: failoverLogs,
+		vbSeqNos:     vbSeqNos,
 		bucketUuid:   bucketUuid,
 		metadata:     metadata,
 		config:       config,

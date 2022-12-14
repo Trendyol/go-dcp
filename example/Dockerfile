@@ -1,22 +1,22 @@
 FROM golang:1.19-alpine as builder
 
-WORKDIR /app
+WORKDIR /project
 
-COPY .. .
+COPY go.mod go.sum ./
+COPY main.go ./
+COPY config_k8s_leader_election.yml ./config.yml
+
 RUN go mod download
-
-WORKDIR /app/example
-
 RUN CGO_ENABLED=0 go build -a -o godcpclient main.go
 
 FROM alpine:3.17.0
 
+WORKDIR /app
+
 RUN apk --no-cache add ca-certificates
-RUN apk --no-cache add curl
 
 USER nobody
-
-COPY --from=builder --chown=nobody:nobody /app/example/godcpclient .
-COPY --from=builder --chown=nobody:nobody /app/example/config_k8s_leader_election.yml ./example/config.yml
+COPY --from=builder --chown=nobody:nobody /project/godcpclient .
+COPY --from=builder --chown=nobody:nobody /project/config.yml ./config.yml
 
 ENTRYPOINT ["./godcpclient"]

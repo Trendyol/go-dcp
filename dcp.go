@@ -6,11 +6,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Trendyol/go-dcp-client/identity"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector/model"
 	"github.com/Trendyol/go-dcp-client/membership/info"
-	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
 
@@ -30,7 +30,7 @@ type dcp struct {
 	vBucketDiscovery VBucketDiscovery
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	kubernetesClient kubernetes.Client
-	myIdentity       *model.Identity
+	myIdentity       *identity.Identity
 }
 
 func (s *dcp) Start() {
@@ -38,7 +38,7 @@ func (s *dcp) Start() {
 
 	if s.config.LeaderElection.Enabled {
 		if s.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
-			s.myIdentity = klem.NewIdentityFromEnv()
+			s.myIdentity = identity.NewIdentityFromEnv()
 
 			if namespace, exist := s.config.LeaderElection.Config["leaseLockNamespace"]; exist {
 				s.kubernetesClient = kubernetes.NewClient(s.myIdentity, namespace)

@@ -22,7 +22,7 @@ type vBucketDiscovery struct {
 }
 
 func (s *vBucketDiscovery) Get() []uint16 {
-	var vBuckets []uint16
+	vBuckets := make([]uint16, 0, s.vBucketNumber)
 
 	for i := 0; i < s.vBucketNumber; i++ {
 		vBuckets = append(vBuckets, uint16(i))

@@ -1,6 +1,9 @@
-package model
+package identity
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"os"
+)
 
 type Identity struct {
 	IP   string
@@ -16,20 +19,24 @@ func (k *Identity) String() string {
 	return string(str)
 }
 
-func (k *Identity) LoadFromString(str string) {
-	err := json.Unmarshal([]byte(str), k)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (k *Identity) Equal(other *Identity) bool {
 	return k.IP == other.IP && k.Name == other.Name
 }
 
 func NewIdentityFromStr(str string) *Identity {
-	identity := &Identity{}
-	identity.LoadFromString(str)
+	var identity Identity
 
-	return identity
+	err := json.Unmarshal([]byte(str), &identity)
+	if err != nil {
+		panic(err)
+	}
+
+	return &identity
+}
+
+func NewIdentityFromEnv() *Identity {
+	return &Identity{
+		IP:   os.Getenv("POD_IP"),
+		Name: os.Getenv("POD_NAME"),
+	}
 }

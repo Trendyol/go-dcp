@@ -1,6 +1,7 @@
 package godcpclient
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"math"
 	"math/big"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -170,8 +170,8 @@ func TestDcp(t *testing.T) {
 			counter++
 			lock.Unlock()
 
-			assert.True(t, strings.HasPrefix(string(event.Key), "my_key"))
-			assert.True(t, strings.HasPrefix(string(event.Value), "my_value"))
+			assert.True(t, bytes.HasPrefix(event.Key, []byte("my_key")))
+			assert.True(t, bytes.HasPrefix(event.Value, []byte("my_value")))
 
 			if counter == mockDataSize {
 				dcp.Close()

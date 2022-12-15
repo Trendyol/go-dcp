@@ -2,7 +2,6 @@ package membership
 
 import (
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/kubernetes/membership/model"
 	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 )
@@ -16,7 +15,7 @@ func (s *statefulSetMembership) GetInfo() *info.Model {
 }
 
 func NewStatefulSetMembership(config helpers.ConfigDCPGroupMembership) membership.Membership {
-	statefulSetInfo, err := model.NewStatefulSetInfoFromHostname()
+	statefulSetInfo, err := NewStatefulSetInfoFromHostname()
 	if err != nil {
 		panic(err)
 	}

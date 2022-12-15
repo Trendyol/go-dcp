@@ -61,6 +61,7 @@ type checkpoint struct {
 }
 
 func (s *checkpoint) Save(fromSchedule bool) {
+	// TODO: review
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
@@ -119,12 +120,9 @@ func (s *checkpoint) Clear() {
 func (s *checkpoint) StartSchedule() {
 	go func() {
 		s.schedule = time.NewTicker(10 * time.Second)
-		go func() {
-			time.Sleep(10 * time.Second)
-			for range s.schedule.C {
-				s.Save(true)
-			}
-		}()
+		for range s.schedule.C {
+			s.Save(true)
+		}
 	}()
 	log.Printf("started checkpoint schedule")
 }

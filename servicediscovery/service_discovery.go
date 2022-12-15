@@ -8,14 +8,13 @@ import (
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/membership/info"
-	"github.com/Trendyol/go-dcp-client/servicediscovery/model"
 )
 
 type ServiceDiscovery interface {
-	Add(service *model.Service)
+	Add(service *Service)
 	Remove(name string)
 	RemoveAll()
-	AssignLeader(leaderService *model.Service)
+	AssignLeader(leaderService *Service)
 	RemoveLeader()
 	ReassignLeader() error
 	StartHealthCheck()
@@ -29,8 +28,8 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
-	leaderService       *model.Service
-	services            map[string]*model.Service
+	leaderService       *Service
+	services            map[string]*Service
 	healthCheckSchedule *time.Ticker
 	rebalanceSchedule   *time.Ticker
 	info                *info.Model
@@ -39,7 +38,7 @@ type serviceDiscovery struct {
 	servicesLock        *sync.RWMutex
 }
 
-func (s *serviceDiscovery) Add(service *model.Service) {
+func (s *serviceDiscovery) Add(service *Service) {
 	s.services[service.Name] = service
 }
 
@@ -65,7 +64,7 @@ func (s *serviceDiscovery) DontBeLeader() {
 	s.amILeader = false
 }
 
-func (s *serviceDiscovery) AssignLeader(leaderService *model.Service) {
+func (s *serviceDiscovery) AssignLeader(leaderService *Service) {
 	s.leaderService = leaderService
 }
 
@@ -93,7 +92,7 @@ func (s *serviceDiscovery) ReassignLeader() error {
 	return err
 }
 
-func (s *serviceDiscovery) healthCheckToService(service *model.Service, errorCallback func()) {
+func (s *serviceDiscovery) healthCheckToService(service *Service, errorCallback func()) {
 	if service == nil {
 		return
 	}
@@ -177,7 +176,7 @@ func (s *serviceDiscovery) StopRebalance() {
 }
 
 func (s *serviceDiscovery) GetAll() []string {
-	var names []string
+	names := make([]string, 0, len(s.services))
 
 	for name := range s.services {
 		names = append(names, name)
@@ -205,7 +204,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 
 func NewServiceDiscovery(infoHandler info.Handler) ServiceDiscovery {
 	return &serviceDiscovery{
-		services:     make(map[string]*model.Service),
+		services:     make(map[string]*Service),
 		infoHandler:  infoHandler,
 		servicesLock: &sync.RWMutex{},
 	}

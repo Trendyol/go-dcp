@@ -4,15 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
-	"strconv"
 
 	"github.com/google/uuid"
 )
-
-func GetCheckpointID(vbID uint16, groupName string) string {
-	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
-	return Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbID))
-}
 
 func GetDcpStreamName(groupName string) string {
 	streamName := fmt.Sprintf("%s_%s", groupName, uuid.New().String())
@@ -20,16 +14,12 @@ func GetDcpStreamName(groupName string) string {
 }
 
 func IsMetadata(data interface{}) bool {
-	t := reflect.TypeOf(data)
-
-	_, exist := t.FieldByName("Key")
-
-	if exist {
-		key := reflect.ValueOf(data).FieldByName("Key").Bytes()
-		return bytes.HasPrefix(key, []byte(Prefix))
+	value := reflect.ValueOf(data).FieldByName("Key")
+	if !value.IsValid() {
+		return false
 	}
 
-	return false
+	return bytes.HasPrefix(value.Bytes(), []byte(Prefix))
 }
 
 func ChunkSlice[T any](slice []T, chunks int) [][]T {

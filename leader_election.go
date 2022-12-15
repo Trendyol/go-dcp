@@ -8,15 +8,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/identity"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
-	"github.com/Trendyol/go-dcp-client/leaderelector"
-	"github.com/Trendyol/go-dcp-client/model"
-	rpcClient "github.com/Trendyol/go-dcp-client/rpc/client"
-	rpcServer "github.com/Trendyol/go-dcp-client/rpc/server"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
-	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 )
 
 type LeaderElection interface {
@@ -26,15 +23,15 @@ type LeaderElection interface {
 
 type leaderElection struct {
 	config           helpers.ConfigLeaderElection
-	elector          leaderelector.LeaderElector
-	rpcServer        rpcServer.Server
+	elector          kle.LeaderElector
+	rpcServer        servicediscovery.Server
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	stable           bool
 	initialized      uint32
 	initializedCh    chan bool
 	stabilityCh      chan bool
-	myIdentity       *model.Identity
+	myIdentity       *identity.Identity
 	newLeaderLock    sync.Mutex
 	kubernetesClient kubernetes.Client
 }
@@ -55,7 +52,7 @@ func (l *leaderElection) OnResignLeader() {
 	l.serviceDiscovery.RemoveAll()
 }
 
-func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
+func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 	l.newLeaderLock.Lock()
 	defer l.newLeaderLock.Unlock()
 
@@ -67,12 +64,12 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
 	l.serviceDiscovery.RemoveAll()
 	l.serviceDiscovery.RemoveLeader()
 
-	leaderClient, err := rpcClient.NewClient(l.config.RPC.Port, l.myIdentity, leaderIdentity)
+	leaderClient, err := servicediscovery.NewClient(l.config.RPC.Port, l.myIdentity, leaderIdentity)
 	if err != nil {
 		return
 	}
 
-	leaderService := sdm.NewService(leaderClient, true, leaderIdentity.Name)
+	leaderService := servicediscovery.NewService(leaderClient, true, leaderIdentity.Name)
 
 	l.serviceDiscovery.AssignLeader(leaderService)
 
@@ -86,7 +83,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
 }
 
 func (l *leaderElection) Start() {
-	l.rpcServer = rpcServer.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
+	l.rpcServer = servicediscovery.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
 	if l.config.Type == helpers.KubernetesLeaderElectionType {
@@ -134,7 +131,7 @@ func NewLeaderElection(
 	config helpers.ConfigLeaderElection,
 	stream Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	myIdentity *model.Identity,
+	myIdentity *identity.Identity,
 	kubernetesClient kubernetes.Client,
 ) LeaderElection {
 	return &leaderElection{

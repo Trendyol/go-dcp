@@ -1,4 +1,4 @@
-package server
+package rpc
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"net"
 
 	"github.com/Trendyol/go-dcp-client/model"
-	"github.com/Trendyol/go-dcp-client/rpc"
-	"github.com/Trendyol/go-dcp-client/rpc/client"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 
@@ -31,16 +29,16 @@ type Handler struct {
 	serviceDiscovery servicediscovery.ServiceDiscovery
 }
 
-func (rh *Handler) Ping(_ rpc.Ping, reply *rpc.Pong) error {
-	*reply = rpc.Pong{
+func (rh *Handler) Ping(_ Ping, reply *Pong) error {
+	*reply = Pong{
 		From: *rh.myIdentity,
 	}
 
 	return nil
 }
 
-func (rh *Handler) Register(payload rpc.Register, reply *bool) error {
-	followerClient, err := client.NewClient(rh.port, rh.myIdentity, &payload.Identity)
+func (rh *Handler) Register(payload Register, reply *bool) error {
+	followerClient, err := NewClient(rh.port, rh.myIdentity, &payload.Identity)
 	if err != nil {
 		*reply = false
 		return err
@@ -56,7 +54,7 @@ func (rh *Handler) Register(payload rpc.Register, reply *bool) error {
 	return nil
 }
 
-func (rh *Handler) Rebalance(payload rpc.Rebalance, reply *bool) error {
+func (rh *Handler) Rebalance(payload Rebalance, reply *bool) error {
 	rh.serviceDiscovery.SetInfo(payload.MemberNumber, payload.TotalMembers)
 
 	*reply = true

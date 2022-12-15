@@ -177,7 +177,7 @@ func (s *serviceDiscovery) StopRebalance() {
 }
 
 func (s *serviceDiscovery) GetAll() []string {
-	var names []string
+	names := make([]string, 0, len(s.services))
 
 	for name := range s.services {
 		names = append(names, name)

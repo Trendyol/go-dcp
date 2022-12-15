@@ -2,13 +2,13 @@ package godcpclient
 
 import (
 	"fmt"
+	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector/model"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"

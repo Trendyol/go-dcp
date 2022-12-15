@@ -1,6 +1,8 @@
 package model
 
-import rpcClient "github.com/Trendyol/go-dcp-client/rpc/client"
+import (
+	rpcClient "github.com/Trendyol/go-dcp-client/rpc"
+)
 
 type Service struct {
 	Client   rpcClient.Client

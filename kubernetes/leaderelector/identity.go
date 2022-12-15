@@ -1,4 +1,4 @@
-package model
+package leaderelector
 
 import (
 	"os"

@@ -1,4 +1,4 @@
-package client
+package rpc
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/model"
-	"github.com/Trendyol/go-dcp-client/rpc"
 	"github.com/avast/retry-go/v4"
 
 	pureRpc "net/rpc"
@@ -76,9 +75,9 @@ func (c *client) Reconnect() error {
 func (c *client) Ping() error {
 	return retry.Do(
 		func() error {
-			var reply rpc.Pong
+			var reply Pong
 
-			return c.client.Call("Handler.Ping", rpc.Ping{From: *c.myIdentity}, &reply)
+			return c.client.Call("Handler.Ping", Ping{From: *c.myIdentity}, &reply)
 		},
 		retry.Attempts(3),
 		retry.DelayType(retry.FixedDelay),
@@ -91,7 +90,7 @@ func (c *client) Register() error {
 		func() error {
 			var reply bool
 
-			return c.client.Call("Handler.Register", rpc.Register{From: *c.myIdentity, Identity: *c.myIdentity}, &reply)
+			return c.client.Call("Handler.Register", Register{From: *c.myIdentity, Identity: *c.myIdentity}, &reply)
 		},
 		retry.Attempts(3),
 		retry.DelayType(retry.FixedDelay),
@@ -106,7 +105,7 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 
 			return c.client.Call(
 				"Handler.Rebalance",
-				rpc.Rebalance{From: *c.myIdentity, MemberNumber: memberNumber, TotalMembers: totalMembers},
+				Rebalance{From: *c.myIdentity, MemberNumber: memberNumber, TotalMembers: totalMembers},
 				&reply,
 			)
 		},

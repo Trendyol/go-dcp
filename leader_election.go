@@ -3,6 +3,7 @@ package godcpclient
 import (
 	"context"
 	"fmt"
+	rpcClient "github.com/Trendyol/go-dcp-client/rpc"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -13,8 +14,6 @@ import (
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"github.com/Trendyol/go-dcp-client/leaderelector"
 	"github.com/Trendyol/go-dcp-client/model"
-	rpcClient "github.com/Trendyol/go-dcp-client/rpc/client"
-	rpcServer "github.com/Trendyol/go-dcp-client/rpc/server"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 )
@@ -27,7 +26,7 @@ type LeaderElection interface {
 type leaderElection struct {
 	config           helpers.ConfigLeaderElection
 	elector          leaderelector.LeaderElector
-	rpcServer        rpcServer.Server
+	rpcServer        rpcClient.Server
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	stable           bool
@@ -86,7 +85,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
 }
 
 func (l *leaderElection) Start() {
-	l.rpcServer = rpcServer.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
+	l.rpcServer = rpcClient.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
 	if l.config.Type == helpers.KubernetesLeaderElectionType {

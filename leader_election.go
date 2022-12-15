@@ -13,7 +13,6 @@ import (
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
-	sdm "github.com/Trendyol/go-dcp-client/servicediscovery"
 )
 
 type LeaderElection interface {
@@ -69,7 +68,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 		return
 	}
 
-	leaderService := sdm.NewService(leaderClient, true, leaderIdentity.Name)
+	leaderService := servicediscovery.NewService(leaderClient, true, leaderIdentity.Name)
 
 	l.serviceDiscovery.AssignLeader(leaderService)
 

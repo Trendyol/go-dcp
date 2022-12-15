@@ -5,13 +5,6 @@ import (
 	"log"
 )
 
-type listener struct {
-}
-
-func (l *listener) DcpMutation() {
-
-}
-
 func listener(event interface{}, err error) {
 	if err != nil {
 		log.Printf("error | %v", err)
@@ -19,7 +12,7 @@ func listener(event interface{}, err error) {
 	}
 
 	switch event := event.(type) {
-	case godcpclient.DcpScopeCreation:
+	case godcpclient.DcpMutation:
 		log.Printf("mutated | id: %v, value: %v", string(event.Key), string(event.Value))
 	case godcpclient.DcpDeletion:
 		log.Printf("deleted | id: %v", string(event.Key))
@@ -35,9 +28,7 @@ func main() {
 		panic(err)
 	}
 
-	go func() {
-		dcp.Start()
-		dcp.Close()
-	}()
+	defer dcp.Close()
 
+	dcp.Start()
 }

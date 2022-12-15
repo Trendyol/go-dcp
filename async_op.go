@@ -2,6 +2,7 @@ package godcpclient
 
 import (
 	"context"
+
 	"github.com/couchbase/gocbcore/v10"
 )
 
@@ -42,10 +43,6 @@ func (m *asyncOp) Wait(op gocbcore.PendingOp, err error) error {
 }
 
 func NewAsyncOp(ctx context.Context) AsyncOp {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	return &asyncOp{
 		signal: make(chan struct{}, 1),
 		ctx:    ctx,

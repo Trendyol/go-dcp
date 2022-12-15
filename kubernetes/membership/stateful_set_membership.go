@@ -17,7 +17,6 @@ func (s *statefulSetMembership) GetInfo() *info.Model {
 
 func NewStatefulSetMembership(config helpers.ConfigDCPGroupMembership) membership.Membership {
 	statefulSetInfo, err := model.NewStatefulSetInfoFromHostname()
-
 	if err != nil {
 		panic(err)
 	}

@@ -3,29 +3,30 @@ package godcpclient
 import (
 	"encoding/json"
 	"errors"
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"os"
+
+	"github.com/Trendyol/go-dcp-client/helpers"
 )
 
-type fileMetadata struct {
+type fileMetadata struct { //nolint:unused
 	fileName string
 	config   helpers.Config
 }
 
-func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
+func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) { //nolint:unused
 	file, _ := json.MarshalIndent(state, "", "  ")
-	_ = os.WriteFile(s.fileName, file, 0644)
+	_ = os.WriteFile(s.fileName, file, 0o644) //nolint:gosec
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]CheckpointDocument {
+func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]CheckpointDocument { //nolint:unused
 	file, err := os.ReadFile(s.fileName)
 
 	state := map[uint16]CheckpointDocument{}
 
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			for _, vbId := range vbIds {
-				state[vbId] = NewEmptyCheckpointDocument(bucketUuid)
+			for _, vbID := range vbIds {
+				state[vbID] = NewEmptyCheckpointDocument(bucketUUID)
 			}
 		} else {
 			panic(err)
@@ -37,7 +38,7 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]Checkp
 	return state
 }
 
-func (s *fileMetadata) Clear(_ []uint16) {
+func (s *fileMetadata) Clear(_ []uint16) { //nolint:unused
 	_ = os.Remove(s.fileName)
 }
 

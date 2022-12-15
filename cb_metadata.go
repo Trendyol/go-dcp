@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
+	"time"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-	"log"
-	"time"
 )
 
 type cbMetadata struct {
@@ -82,8 +83,8 @@ func (s *cbMetadata) deleteDocument(ctx context.Context, id string) {
 	}
 }
 
-func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, bucketUuid string) (CheckpointDocument, error) {
-	opm := NewAsyncOp(nil)
+func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, bucketUUID string) (CheckpointDocument, error) {
+	opm := NewAsyncOp(context.Background())
 
 	deadline, _ := ctx.Deadline()
 
@@ -110,10 +111,10 @@ func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, buck
 			if err == nil {
 				documentCh <- document
 			} else {
-				documentCh <- NewEmptyCheckpointDocument(bucketUuid)
+				documentCh <- NewEmptyCheckpointDocument(bucketUUID)
 			}
 		} else {
-			documentCh <- NewEmptyCheckpointDocument(bucketUuid)
+			documentCh <- NewEmptyCheckpointDocument(bucketUUID)
 		}
 
 		errorCh <- err
@@ -122,7 +123,7 @@ func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, buck
 	err = opm.Wait(op, err)
 
 	if err != nil {
-		return NewEmptyCheckpointDocument(bucketUuid), err
+		return NewEmptyCheckpointDocument(bucketUUID), err
 	}
 
 	document := <-documentCh
@@ -162,8 +163,8 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	for vbId, checkpointDocument := range state {
-		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name)
+	for vbID, checkpointDocument := range state {
+		id := helpers.GetCheckpointID(vbID, s.config.Dcp.Group.Name)
 		err := s.upsertXattrs(ctx, id, helpers.Name, checkpointDocument)
 
 		var kvErr *gocbcore.KeyValueError
@@ -182,20 +183,20 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, bucketUuid string) map[uint16]CheckpointDocument {
+func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]CheckpointDocument {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	state := map[uint16]CheckpointDocument{}
 
-	for _, vbId := range vbIds {
-		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name)
+	for _, vbID := range vbIds {
+		id := helpers.GetCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-		data, err := s.getXattrs(ctx, id, helpers.Name, bucketUuid)
+		data, err := s.getXattrs(ctx, id, helpers.Name, bucketUUID)
 
 		var kvErr *gocbcore.KeyValueError
 		if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-			state[vbId] = data
+			state[vbID] = data
 		} else {
 			panic(err)
 		}
@@ -208,8 +209,8 @@ func (s *cbMetadata) Clear(vbIds []uint16) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	for _, vbId := range vbIds {
-		id := helpers.GetCheckpointId(vbId, s.config.Dcp.Group.Name)
+	for _, vbID := range vbIds {
+		id := helpers.GetCheckpointID(vbID, s.config.Dcp.Group.Name)
 
 		s.deleteDocument(ctx, id)
 	}

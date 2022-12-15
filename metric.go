@@ -1,12 +1,14 @@
 package godcpclient
 
 import (
+	"log"
+	"strconv"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
+
 	"github.com/prometheus/client_golang/prometheus"
-	"log"
-	"strconv"
 )
 
 type metricCollector struct {
@@ -50,26 +52,26 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		metric.TotalExpirations,
 	)
 
-	for vbId, state := range s.observer.GetState() {
+	for vbID, state := range s.observer.GetState() {
 		ch <- prometheus.MustNewConstMetric(
 			s.currentSeqNo,
 			prometheus.CounterValue,
 			float64(state.SeqNo),
-			strconv.Itoa(int(vbId)),
+			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.startSeqNo,
 			prometheus.CounterValue,
 			float64(state.StartSeqNo),
-			strconv.Itoa(int(vbId)),
+			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.endSeqNo,
 			prometheus.CounterValue,
 			float64(state.EndSeqNo),
-			strconv.Itoa(int(vbId)),
+			strconv.Itoa(int(vbID)),
 		)
 	}
 }
@@ -115,7 +117,6 @@ func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observe
 			nil,
 		),
 	})
-
 	if err != nil {
 		return nil, err
 	}

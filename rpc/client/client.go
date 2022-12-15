@@ -2,12 +2,14 @@ package client
 
 import (
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/rpc"
 	"github.com/avast/retry-go/v4"
-	"log"
+
 	pureRpc "net/rpc"
-	"time"
 )
 
 type Client interface {
@@ -30,9 +32,8 @@ type client struct {
 func (c *client) connect() error {
 	return retry.Do(
 		func() error {
-			connectAddress := fmt.Sprintf("%s:%d", c.targetIdentity.Ip, c.port)
+			connectAddress := fmt.Sprintf("%s:%d", c.targetIdentity.IP, c.port)
 			client, err := pureRpc.Dial("tcp", connectAddress)
-
 			if err != nil {
 				return err
 			}
@@ -103,7 +104,11 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 		func() error {
 			var reply bool
 
-			return c.client.Call("Handler.Rebalance", rpc.Rebalance{From: *c.myIdentity, MemberNumber: memberNumber, TotalMembers: totalMembers}, &reply)
+			return c.client.Call(
+				"Handler.Rebalance",
+				rpc.Rebalance{From: *c.myIdentity, MemberNumber: memberNumber, TotalMembers: totalMembers},
+				&reply,
+			)
 		},
 		retry.Attempts(3),
 		retry.DelayType(retry.FixedDelay),
@@ -119,7 +124,6 @@ func NewClient(port int, myIdentity *model.Identity, targetIdentity *model.Ident
 	}
 
 	err := client.connect()
-
 	if err != nil {
 		return nil, err
 	}

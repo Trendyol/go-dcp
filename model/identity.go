@@ -3,13 +3,12 @@ package model
 import "encoding/json"
 
 type Identity struct {
-	Ip   string
+	IP   string
 	Name string
 }
 
 func (k *Identity) String() string {
 	str, err := json.Marshal(k)
-
 	if err != nil {
 		panic(err)
 	}
@@ -19,14 +18,13 @@ func (k *Identity) String() string {
 
 func (k *Identity) LoadFromString(str string) {
 	err := json.Unmarshal([]byte(str), k)
-
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (k *Identity) Equal(other *Identity) bool {
-	return k.Ip == other.Ip && k.Name == other.Name
+	return k.IP == other.IP && k.Name == other.Name
 }
 
 func NewIdentityFromStr(str string) *Identity {

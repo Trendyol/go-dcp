@@ -1,9 +1,10 @@
 package helpers
 
 import (
+	"log"
+
 	"github.com/gookit/config/v2"
 	"github.com/gookit/config/v2/yamlv3"
-	"log"
 )
 
 type ConfigDCPGroupMembership struct {
@@ -34,10 +35,10 @@ type ConfigLeaderElection struct {
 	Enabled bool              `yaml:"enabled"`
 	Type    string            `yaml:"type"`
 	Config  map[string]string `yaml:"config"`
-	Rpc     ConfigRpc         `yaml:"rpc"`
+	RPC     ConfigRPC         `yaml:"rpc"`
 }
 
-type ConfigRpc struct {
+type ConfigRPC struct {
 	Port int `yaml:"port"`
 }
 
@@ -48,7 +49,7 @@ type Config struct {
 	BucketName     string               `yaml:"bucketName"`
 	MetadataBucket string               `yaml:"metadataBucket"`
 	Dcp            ConfigDCP            `yaml:"dcp"`
-	Api            ConfigAPI            `yaml:"api"`
+	API            ConfigAPI            `yaml:"api"`
 	Metric         ConfigMetric         `yaml:"metric"`
 	LeaderElection ConfigLeaderElection `yaml:"leaderElector"`
 }
@@ -63,7 +64,6 @@ func NewConfig(name string, filePath string) Config {
 	conf := config.New(name).WithOptions(Options).WithDriver(yamlv3.Driver)
 
 	err := conf.LoadFiles(filePath)
-
 	if err != nil {
 		panic(err)
 	}

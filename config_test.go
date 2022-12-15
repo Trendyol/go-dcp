@@ -1,9 +1,10 @@
 package godcpclient
 
 import (
+	"testing"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestLoadConfig(t *testing.T) {

@@ -2,13 +2,15 @@ package server
 
 import (
 	"fmt"
+	"log"
+	"net"
+
 	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/rpc"
 	"github.com/Trendyol/go-dcp-client/rpc/client"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
-	"log"
-	"net"
+
 	pureRpc "net/rpc"
 )
 
@@ -39,7 +41,6 @@ func (rh *Handler) Ping(_ rpc.Ping, reply *rpc.Pong) error {
 
 func (rh *Handler) Register(payload rpc.Register, reply *bool) error {
 	followerClient, err := client.NewClient(rh.port, rh.myIdentity, &payload.Identity)
-
 	if err != nil {
 		*reply = false
 		return err
@@ -67,13 +68,11 @@ func (s *server) Listen() {
 	server := pureRpc.NewServer()
 
 	err := server.Register(s.handler)
-
 	if err != nil {
 		panic(err)
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
-
 	if err != nil {
 		panic(err)
 	}
@@ -84,7 +83,6 @@ func (s *server) Listen() {
 	go func() {
 		for {
 			conn, err := listener.Accept()
-
 			if err != nil {
 				log.Printf("rpc server error: %v", err)
 
@@ -100,7 +98,6 @@ func (s *server) Listen() {
 
 func (s *server) Shutdown() {
 	err := s.listener.Close()
-
 	if err != nil {
 		panic(err)
 	}

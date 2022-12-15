@@ -2,13 +2,14 @@ package godcpclient
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	"github.com/gofiber/fiber/v2"
-	"log"
 )
 
-type Api interface {
+type API interface {
 	Listen()
 	Shutdown()
 }
@@ -23,12 +24,12 @@ type api struct {
 
 func (s *api) Listen() {
 	go func() {
-		log.Printf("api starting on port %d", s.config.Api.Port)
+		log.Printf("api starting on port %d", s.config.API.Port)
 
-		err := s.app.Listen(fmt.Sprintf(":%d", s.config.Api.Port))
+		err := s.app.Listen(fmt.Sprintf(":%d", s.config.API.Port))
 
 		if err != nil {
-			log.Printf("api cannot start on port %d, error: %v", s.config.Api.Port, err)
+			log.Printf("api cannot start on port %d, error: %v", s.config.API.Port, err)
 		} else {
 			log.Printf("api stopped")
 		}
@@ -37,7 +38,6 @@ func (s *api) Listen() {
 
 func (s *api) Shutdown() {
 	err := s.app.Shutdown()
-
 	if err != nil {
 		panic(err)
 	}
@@ -45,7 +45,6 @@ func (s *api) Shutdown() {
 
 func (s *api) status(c *fiber.Ctx) error {
 	_, err := s.client.Ping()
-
 	if err != nil {
 		return err
 	}
@@ -67,7 +66,7 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func NewApi(config helpers.Config, client Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) Api {
+func NewAPI(config helpers.Config, client Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
 	metricMiddleware, err := NewMetricMiddleware(app, config, stream.GetObserver())

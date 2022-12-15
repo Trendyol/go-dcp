@@ -1,11 +1,12 @@
 package godcpclient
 
 import (
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/couchbase/gocbcore/v10"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type Checkpoint interface {
@@ -22,27 +23,27 @@ type checkpointDocumentSnapshot struct {
 }
 
 type checkpointDocumentCheckpoint struct {
-	VbUuid   uint64                     `json:"vbuuid"`
+	VbUUID   uint64                     `json:"vbuuid"`
 	SeqNo    uint64                     `json:"seqno"`
 	Snapshot checkpointDocumentSnapshot `json:"snapshot"`
 }
 
 type CheckpointDocument struct {
 	Checkpoint checkpointDocumentCheckpoint `json:"checkpoint"`
-	BucketUuid string                       `json:"bucketUuid"`
+	BucketUUID string                       `json:"bucketUuid"`
 }
 
-func NewEmptyCheckpointDocument(bucketUuid string) CheckpointDocument {
+func NewEmptyCheckpointDocument(bucketUUID string) CheckpointDocument {
 	return CheckpointDocument{
 		Checkpoint: checkpointDocumentCheckpoint{
-			VbUuid: 0,
+			VbUUID: 0,
 			SeqNo:  0,
 			Snapshot: checkpointDocumentSnapshot{
 				StartSeqNo: 0,
 				EndSeqNo:   0,
 			},
 		},
-		BucketUuid: bucketUuid,
+		BucketUUID: bucketUUID,
 	}
 }
 
@@ -52,7 +53,7 @@ type checkpoint struct {
 	failoverLogs map[uint16][]gocbcore.FailoverEntry
 	vbSeqNos     map[uint16]gocbcore.VbSeqNoEntry
 	metadata     Metadata
-	bucketUuid   string
+	bucketUUID   string
 	saveLock     sync.Mutex
 	loadLock     sync.Mutex
 	schedule     *time.Ticker
@@ -67,21 +68,21 @@ func (s *checkpoint) Save(fromSchedule bool) {
 
 	dump := map[uint16]CheckpointDocument{}
 
-	for vbId, observerState := range state {
-		dump[vbId] = CheckpointDocument{
+	for vbID, observerState := range state {
+		dump[vbID] = CheckpointDocument{
 			Checkpoint: checkpointDocumentCheckpoint{
-				VbUuid: uint64(s.failoverLogs[vbId][0].VbUUID),
+				VbUUID: uint64(s.failoverLogs[vbID][0].VbUUID),
 				SeqNo:  observerState.SeqNo,
 				Snapshot: checkpointDocumentSnapshot{
 					StartSeqNo: observerState.StartSeqNo,
 					EndSeqNo:   observerState.EndSeqNo,
 				},
 			},
-			BucketUuid: s.bucketUuid,
+			BucketUUID: s.bucketUUID,
 		}
 	}
 
-	s.metadata.Save(dump, s.bucketUuid)
+	s.metadata.Save(dump, s.bucketUUID)
 
 	if !fromSchedule {
 		log.Printf("saved checkpoint")
@@ -92,12 +93,12 @@ func (s *checkpoint) Load() map[uint16]*ObserverState {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
-	dump := s.metadata.Load(s.vbIds, s.bucketUuid)
+	dump := s.metadata.Load(s.vbIds, s.bucketUUID)
 
-	var observerState = map[uint16]*ObserverState{}
+	observerState := map[uint16]*ObserverState{}
 
-	for vbId, doc := range dump {
-		observerState[vbId] = &ObserverState{
+	for vbID, doc := range dump {
+		observerState[vbID] = &ObserverState{
 			SeqNo:      doc.Checkpoint.SeqNo,
 			StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
 			EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
@@ -133,13 +134,20 @@ func (s *checkpoint) StopSchedule() {
 	log.Printf("stopped checkpoint schedule")
 }
 
-func NewCheckpoint(observer Observer, vbIds []uint16, failoverLogs map[uint16][]gocbcore.FailoverEntry, vbSeqNos map[uint16]gocbcore.VbSeqNoEntry, bucketUuid string, metadata Metadata, config helpers.Config) Checkpoint {
+func NewCheckpoint(
+	observer Observer,
+	vbIds []uint16,
+	failoverLogs map[uint16][]gocbcore.FailoverEntry,
+	vbSeqNos map[uint16]gocbcore.VbSeqNoEntry,
+	bucketUUID string,
+	metadata Metadata, config helpers.Config,
+) Checkpoint {
 	return &checkpoint{
 		observer:     observer,
 		vbIds:        vbIds,
 		failoverLogs: failoverLogs,
 		vbSeqNos:     vbSeqNos,
-		bucketUuid:   bucketUuid,
+		bucketUUID:   bucketUUID,
 		metadata:     metadata,
 		config:       config,
 	}

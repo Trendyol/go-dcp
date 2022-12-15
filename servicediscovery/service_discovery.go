@@ -2,12 +2,13 @@ package servicediscovery
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/membership/info"
-	"github.com/Trendyol/go-dcp-client/servicediscovery/model"
 	"log"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/membership/info"
+	"github.com/Trendyol/go-dcp-client/servicediscovery/model"
 )
 
 type ServiceDiscovery interface {

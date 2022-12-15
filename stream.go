@@ -1,11 +1,12 @@
 package godcpclient
 
 import (
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/couchbase/gocbcore/v10"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type Stream interface {
@@ -42,7 +43,7 @@ type stream struct {
 
 func (s *stream) listener(event interface{}, err error) {
 	if end, ok := event.(DcpStreamEnd); ok {
-		s.CleanStreamOfVbId(end.VbID, false)
+		s.CleanStreamOfVbID(end.VbID, false)
 	}
 
 	if err != nil {
@@ -65,13 +66,11 @@ func (s *stream) Open() {
 	s.observer = NewObserver(vbIds, s.listener)
 
 	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
-
 	if err != nil {
 		panic(err)
 	}
 
 	vbSeqNos, err := s.client.GetVBucketSeqNos()
-
 	if err != nil {
 		panic(err)
 	}
@@ -84,10 +83,10 @@ func (s *stream) Open() {
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(s.observer, vbIds, failoverLogs, vbSeqNos, s.client.GetBucketUuid(), s.Metadata, s.config)
+	s.checkpoint = NewCheckpoint(s.observer, vbIds, failoverLogs, vbSeqNos, s.client.GetBucketUUID(), s.Metadata, s.config)
 	observerState := s.checkpoint.Load()
 
-	for _, vbId := range vbIds {
+	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
 			ch := make(chan error)
 
@@ -100,7 +99,6 @@ func (s *stream) Open() {
 					ch <- err
 				},
 			)
-
 			if err != nil {
 				panic(err)
 			}
@@ -115,7 +113,7 @@ func (s *stream) Open() {
 			s.streams[innerVbId] = &innerVbId
 
 			openWg.Done()
-		}(vbId)
+		}(vbID)
 	}
 
 	openWg.Wait()
@@ -156,12 +154,12 @@ func (s *stream) Save() {
 	}
 }
 
-func (s *stream) CleanStreamOfVbId(vbId uint16, ignoreFinish bool) {
+func (s *stream) CleanStreamOfVbID(vbID uint16, ignoreFinish bool) {
 	s.streamsLock.Lock()
 	defer s.streamsLock.Unlock()
 
-	if s.streams[vbId] != nil {
-		s.streams[vbId] = nil
+	if s.streams[vbID] != nil {
+		s.streams[vbID] = nil
 
 		if !ignoreFinish {
 			s.finishedStreams.Done()
@@ -169,13 +167,12 @@ func (s *stream) CleanStreamOfVbId(vbId uint16, ignoreFinish bool) {
 	}
 }
 
-func (s *stream) CloseWithVbId(vbId uint16, ignoreFinish bool) {
+func (s *stream) CloseWithVbID(vbID uint16, ignoreFinish bool) {
 	ch := make(chan error)
 
-	err := s.client.CloseStream(vbId, func(err error) {
+	err := s.client.CloseStream(vbID, func(err error) {
 		ch <- err
 	})
-
 	if err != nil {
 		panic(err)
 	}
@@ -184,7 +181,7 @@ func (s *stream) CloseWithVbId(vbId uint16, ignoreFinish bool) {
 		panic(err)
 	}
 
-	s.CleanStreamOfVbId(vbId, ignoreFinish)
+	s.CleanStreamOfVbID(vbID, ignoreFinish)
 }
 
 func (s *stream) Close(ignoreFinish bool) {
@@ -194,7 +191,7 @@ func (s *stream) Close(ignoreFinish bool) {
 
 	for _, stream := range s.streams {
 		if stream != nil {
-			s.CloseWithVbId(*stream, ignoreFinish)
+			s.CloseWithVbID(*stream, ignoreFinish)
 		}
 	}
 

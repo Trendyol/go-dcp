@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+
 	dcpModel "github.com/Trendyol/go-dcp-client/model"
 	"github.com/go-logr/logr"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,6 @@ func (le *client) AddLabel(key string, value string) {
 		types.MergePatchType, []byte(`{"metadata":{"labels":{"`+key+`":"`+value+`"}}}`),
 		metaV1.PatchOptions{},
 	)
-
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +44,6 @@ func (le *client) RemoveLabel(key string) {
 		types.MergePatchType, []byte(`{"metadata":{"labels":{"`+key+`":null}}}`),
 		metaV1.PatchOptions{},
 	)
-
 	if err != nil {
 		panic(err)
 	}
@@ -54,7 +53,6 @@ func NewClient(myIdentity *dcpModel.Identity, namespace string) Client {
 	klog.SetLogger(logr.Discard())
 
 	kubernetesConfig, err := rest.InClusterConfig()
-
 	if err != nil {
 		panic(err)
 	}

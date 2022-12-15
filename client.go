@@ -1,12 +1,14 @@
 package godcpclient
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
-	"log"
-	"time"
 )
 
 type Client interface {
@@ -16,12 +18,18 @@ type Client interface {
 	Close() error
 	DcpConnect() error
 	DcpClose() error
-	GetBucketUuid() string
+	GetBucketUUID() string
 	GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error)
 	GetNumVBuckets() int
 	GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error)
-	OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *ObserverState, observer Observer, callback gocbcore.OpenStreamCallback) error
-	CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback) error
+	OpenStream(
+		vbID uint16,
+		vbUUID gocbcore.VbUUID,
+		observerState *ObserverState,
+		observer Observer,
+		callback gocbcore.OpenStreamCallback,
+	) error
+	CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error
 }
 
 type client struct {
@@ -31,7 +39,7 @@ type client struct {
 }
 
 func (s *client) Ping() (bool, error) {
-	opm := NewAsyncOp(nil)
+	opm := NewAsyncOp(context.Background())
 
 	errorCh := make(chan error)
 	successCh := make(chan bool)
@@ -90,7 +98,6 @@ func (s *client) Connect() error {
 			},
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -152,7 +159,6 @@ func (s *client) DcpConnect() error {
 		helpers.GetDcpStreamName(s.config.Dcp.Group.Name),
 		memd.DcpOpenFlagProducer,
 	)
-
 	if err != nil {
 		return err
 	}
@@ -188,7 +194,7 @@ func (s *client) DcpClose() error {
 	return s.dcpAgent.Close()
 }
 
-func (s *client) GetBucketUuid() string {
+func (s *client) GetBucketUUID() string {
 	snapshot, err := s.dcpAgent.ConfigSnapshot()
 
 	if err == nil {
@@ -204,13 +210,11 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 	}
 
 	snapshot, err := s.dcpAgent.ConfigSnapshot()
-
 	if err != nil {
 		return nil, err
 	}
 
 	numNodes, err := snapshot.NumServers()
-
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +222,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 	seqNos := make(map[uint16]gocbcore.VbSeqNoEntry)
 
 	for i := 1; i <= numNodes; i++ {
-		opm := NewAsyncOp(nil)
+		opm := NewAsyncOp(context.Background())
 
 		op, err := s.dcpAgent.GetVbucketSeqnos(
 			i,
@@ -232,7 +236,6 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 				opm.Resolve()
 			},
 		)
-
 		if err != nil {
 			return nil, err
 		}
@@ -248,31 +251,30 @@ func (s *client) GetNumVBuckets() int {
 		panic(fmt.Errorf("please connect to the dcp first"))
 	}
 
+	var err error
+
 	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
 		if vBuckets, err := snapshot.NumVbuckets(); err == nil {
 			return vBuckets
-		} else {
-			panic(err)
 		}
-	} else {
-		panic(err)
 	}
+
+	panic(err)
 }
 
 func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error) {
 	failoverLogs := make(map[uint16][]gocbcore.FailoverEntry)
 
-	for _, vbId := range vbIds {
-		opm := NewAsyncOp(nil)
+	for _, vbID := range vbIds {
+		opm := NewAsyncOp(context.Background())
 
 		op, err := s.dcpAgent.GetFailoverLog(
-			vbId,
+			vbID,
 			func(entries []gocbcore.FailoverEntry, err error) {
-				failoverLogs[vbId] = entries
+				failoverLogs[vbID] = entries
 
 				opm.Resolve()
 			})
-
 		if err != nil {
 			return nil, err
 		}
@@ -283,13 +285,19 @@ func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.Failover
 	return failoverLogs, nil
 }
 
-func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *ObserverState, observer Observer, callback gocbcore.OpenStreamCallback) error {
-	opm := NewAsyncOp(nil)
+func (s *client) OpenStream(
+	vbID uint16,
+	vbUUID gocbcore.VbUUID,
+	observerState *ObserverState,
+	observer Observer,
+	callback gocbcore.OpenStreamCallback,
+) error {
+	opm := NewAsyncOp(context.Background())
 
 	op, err := s.dcpAgent.OpenStream(
-		vbId,
+		vbID,
 		memd.DcpStreamAddFlagActiveOnly,
-		vbUuid,
+		vbUUID,
 		gocbcore.SeqNo(observerState.SeqNo),
 		0xffffffffffffffff,
 		gocbcore.SeqNo(observerState.StartSeqNo),
@@ -302,7 +310,6 @@ func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *
 			callback(entries, err)
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -310,11 +317,11 @@ func (s *client) OpenStream(vbId uint16, vbUuid gocbcore.VbUUID, observerState *
 	return opm.Wait(op, err)
 }
 
-func (s *client) CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback) error {
-	opm := NewAsyncOp(nil)
+func (s *client) CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error {
+	opm := NewAsyncOp(context.Background())
 
 	op, err := s.dcpAgent.CloseStream(
-		vbId,
+		vbID,
 		gocbcore.CloseStreamOptions{},
 		func(err error) {
 			opm.Resolve()
@@ -322,7 +329,6 @@ func (s *client) CloseStream(vbId uint16, callback gocbcore.CloseStreamCallback)
 			callback(err)
 		},
 	)
-
 	if err != nil {
 		return err
 	}

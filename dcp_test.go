@@ -2,20 +2,22 @@ package godcpclient
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/couchbase/gocbcore/v10"
-	"github.com/stretchr/testify/assert"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
 	"math"
-	"math/rand"
+	"math/big"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/couchbase/gocbcore/v10"
+	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func createConfigFile(t *testing.T) (string, func()) {
@@ -41,7 +43,6 @@ leaderElector:
   enabled: false`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
-
 	if err != nil {
 		t.Error(err)
 	}
@@ -72,17 +73,16 @@ func setupContainer(t *testing.T, config helpers.Config) func() {
 		},
 		Started: true,
 	})
-
 	if err != nil {
 		t.Error(err)
 	}
 
 	return func() {
-		defer container.Terminate(ctx)
+		_ = container.Terminate(ctx)
 	}
 }
 
-func insertDataToContainer(t *testing.T, mockDataSize int, config helpers.Config) {
+func insertDataToContainer(t *testing.T, mockDataSize int64, config helpers.Config) {
 	client := NewClient(config)
 
 	_ = client.Connect()
@@ -104,7 +104,7 @@ func insertDataToContainer(t *testing.T, mockDataSize int, config helpers.Config
 			go func(i int) {
 				ch := make(chan error)
 
-				opm := NewAsyncOp(nil)
+				opm := NewAsyncOp(context.Background())
 
 				op, err := client.GetAgent().Set(gocbcore.SetOptions{
 					Key:   []byte(fmt.Sprintf("my_key_%v", i)),
@@ -138,7 +138,12 @@ func insertDataToContainer(t *testing.T, mockDataSize int, config helpers.Config
 }
 
 func TestDcp(t *testing.T) {
-	mockDataSize := rand.Intn(24000-12000) + 12000
+	b, err := rand.Int(rand.Reader, big.NewInt(24000-12000))
+	if err != nil {
+		t.Error(err)
+	}
+
+	mockDataSize := b.Int64() + 12000
 
 	configPath, configFileClean := createConfigFile(t)
 	defer configFileClean()
@@ -151,9 +156,8 @@ func TestDcp(t *testing.T) {
 	insertDataToContainer(t, mockDataSize, config)
 
 	var dcp Dcp
-	var err error
 
-	counter := 0
+	var counter int64
 	lock := sync.Mutex{}
 
 	dcp, err = NewDcp(configPath, func(event interface{}, err error) {

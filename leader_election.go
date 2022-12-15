@@ -3,6 +3,11 @@ package godcpclient
 import (
 	"context"
 	"fmt"
+	"log"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
@@ -12,10 +17,6 @@ import (
 	rpcServer "github.com/Trendyol/go-dcp-client/rpc/server"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
-	"log"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type LeaderElection interface {
@@ -66,8 +67,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
 	l.serviceDiscovery.RemoveAll()
 	l.serviceDiscovery.RemoveLeader()
 
-	leaderClient, err := rpcClient.NewClient(l.config.Rpc.Port, l.myIdentity, leaderIdentity)
-
+	leaderClient, err := rpcClient.NewClient(l.config.RPC.Port, l.myIdentity, leaderIdentity)
 	if err != nil {
 		return
 	}
@@ -86,7 +86,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
 }
 
 func (l *leaderElection) Start() {
-	l.rpcServer = rpcServer.NewServer(l.config.Rpc.Port, l.myIdentity, l.serviceDiscovery)
+	l.rpcServer = rpcServer.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
 	if l.config.Type == helpers.KubernetesLeaderElectionType {
@@ -116,24 +116,27 @@ func (l *leaderElection) Stop() {
 
 func (l *leaderElection) watchStability() {
 	go func() {
-		for {
-			select {
-			case result := <-l.stabilityCh:
-				if l.stable != result {
-					l.stable = result
-					log.Printf("stability changed: %v", l.stable)
-				}
+		for result := range l.stabilityCh {
+			if l.stable != result {
+				l.stable = result
+				log.Printf("stability changed: %v", l.stable)
+			}
 
-				if atomic.LoadUint32(&l.initialized) != 1 {
-					l.initializedCh <- l.stable
-					atomic.StoreUint32(&l.initialized, 1)
-				}
+			if atomic.LoadUint32(&l.initialized) != 1 {
+				l.initializedCh <- l.stable
+				atomic.StoreUint32(&l.initialized, 1)
 			}
 		}
 	}()
 }
 
-func NewLeaderElection(config helpers.ConfigLeaderElection, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery, myIdentity *model.Identity, kubernetesClient kubernetes.Client) LeaderElection {
+func NewLeaderElection(
+	config helpers.ConfigLeaderElection,
+	stream Stream,
+	serviceDiscovery servicediscovery.ServiceDiscovery,
+	myIdentity *model.Identity,
+	kubernetesClient kubernetes.Client,
+) LeaderElection {
 	return &leaderElection{
 		config:           config,
 		stream:           stream,

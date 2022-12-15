@@ -14,7 +14,6 @@ type StatefulSetInfo struct {
 
 func NewStatefulSetInfoFromHostname() (*StatefulSetInfo, error) {
 	hostname, err := os.Hostname()
-
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +26,6 @@ func NewStatefulSetInfoFromHostname() (*StatefulSetInfo, error) {
 
 	name := hostname[:separatorIndex]
 	podOrdinal, err := strconv.Atoi(hostname[separatorIndex+1:])
-
 	if err != nil {
 		return nil, err
 	}

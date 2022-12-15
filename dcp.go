@@ -2,15 +2,16 @@ package godcpclient
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector/model"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 type Dcp interface {
@@ -24,7 +25,7 @@ type dcp struct {
 	listener         Listener
 	stream           Stream
 	config           helpers.Config
-	api              Api
+	api              API
 	leaderElection   LeaderElection
 	vBucketDiscovery VBucketDiscovery
 	serviceDiscovery servicediscovery.ServiceDiscovery
@@ -70,12 +71,12 @@ func (s *dcp) Start() {
 	})
 
 	if s.config.Metric.Enabled {
-		s.api = NewApi(s.config, s.client, s.stream, s.serviceDiscovery)
+		s.api = NewAPI(s.config, s.client, s.stream, s.serviceDiscovery)
 		s.api.Listen()
 	}
 
 	cancelCh := make(chan os.Signal, 1)
-	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT, syscall.SIGKILL)
+	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
 	go func() {
 		s.stream.Wait()
@@ -107,7 +108,6 @@ func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 	client := NewClient(config)
 
 	err := client.Connect()
-
 	if err != nil {
 		return nil, err
 	}
@@ -133,12 +133,11 @@ func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 //	config: path to a configuration file or a configuration struct
 //	listener is a callback function that will be called when a mutation, deletion or expiration event occurs
 func NewDcp(config interface{}, listener Listener) (Dcp, error) {
-	switch config.(type) {
-	case string:
-		return newDcp(helpers.NewConfig(helpers.Name, config.(string)), listener)
-	case helpers.Config:
-		return newDcp(config.(helpers.Config), listener)
-	default:
-		panic("Unknown type")
+	if path, ok := config.(string); ok {
+		return newDcp(helpers.NewConfig(helpers.Name, path), listener)
+	} else if config, ok := config.(helpers.Config); ok {
+		return newDcp(config, listener)
+	} else {
+		return nil, fmt.Errorf("invalid config type")
 	}
 }

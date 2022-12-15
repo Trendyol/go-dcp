@@ -2,11 +2,12 @@ package godcpclient
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	kms "github.com/Trendyol/go-dcp-client/kubernetes/membership"
 	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/membership/info"
-	"log"
 )
 
 type VBucketDiscovery interface {
@@ -30,7 +31,12 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	receivedInfo := s.membership.GetInfo()
 
 	readyToStreamVBuckets := helpers.ChunkSlice[uint16](vBuckets, receivedInfo.TotalMembers)[receivedInfo.MemberNumber-1]
-	log.Printf("ready to stream member number: %v, vBuckets range: %v-%v", receivedInfo.MemberNumber, readyToStreamVBuckets[0], readyToStreamVBuckets[len(readyToStreamVBuckets)-1])
+	log.Printf(
+		"ready to stream member number: %v, vBuckets range: %v-%v",
+		receivedInfo.MemberNumber,
+		readyToStreamVBuckets[0],
+		readyToStreamVBuckets[len(readyToStreamVBuckets)-1],
+	)
 
 	return readyToStreamVBuckets
 }
@@ -38,13 +44,14 @@ func (s *vBucketDiscovery) Get() []uint16 {
 func NewVBucketDiscovery(config helpers.ConfigDCPGroupMembership, vBucketNumber int, infoHandler info.Handler) VBucketDiscovery {
 	var ms membership.Membership
 
-	if config.Type == helpers.StaticMembershipType {
+	switch {
+	case config.Type == helpers.StaticMembershipType:
 		ms = membership.NewStaticMembership(config)
-	} else if config.Type == helpers.KubernetesStatefulSetMembershipType {
+	case config.Type == helpers.KubernetesStatefulSetMembershipType:
 		ms = kms.NewStatefulSetMembership(config)
-	} else if config.Type == helpers.KubernetesHaMembershipType {
+	case config.Type == helpers.KubernetesHaMembershipType:
 		ms = kms.NewHaMembership(config, infoHandler)
-	} else {
+	default:
 		panic(fmt.Errorf("unknown membership type %s", config.Type))
 	}
 

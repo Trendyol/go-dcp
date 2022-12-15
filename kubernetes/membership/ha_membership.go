@@ -1,10 +1,11 @@
 package membership
 
 import (
+	"time"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/membership/info"
-	"time"
 )
 
 type haMembership struct {

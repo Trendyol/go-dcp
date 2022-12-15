@@ -61,6 +61,7 @@ type checkpoint struct {
 }
 
 func (s *checkpoint) Save(fromSchedule bool) {
+	//TODO review
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 

@@ -74,7 +74,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observer) func(ctx *fiber.Ctx) error {
+func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observer) (func(ctx *fiber.Ctx) error, error) {
 	err := prometheus.DefaultRegisterer.Register(&metricCollector{
 		observer: observer,
 
@@ -117,7 +117,7 @@ func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observe
 	})
 
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
@@ -125,5 +125,5 @@ func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observe
 
 	log.Printf("metric middleware registered on path %s", config.Metric.Path)
 
-	return fiberPrometheus.Middleware
+	return fiberPrometheus.Middleware, nil
 }

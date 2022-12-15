@@ -28,10 +28,10 @@ func (s *api) Listen() {
 		err := s.app.Listen(fmt.Sprintf(":%d", s.config.Api.Port))
 
 		if err != nil {
-			panic(err)
+			log.Printf("api cannot start on port %d, error: %v", s.config.Api.Port, err)
+		} else {
+			log.Printf("api stopped")
 		}
-
-		log.Printf("api stopped")
 	}()
 }
 
@@ -70,7 +70,13 @@ func (s *api) followers(c *fiber.Ctx) error {
 func NewApi(config helpers.Config, client Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) Api {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
-	app.Use(NewMetricMiddleware(app, config, stream.GetObserver()))
+	metricMiddleware, err := NewMetricMiddleware(app, config, stream.GetObserver())
+
+	if err != nil {
+		app.Use(metricMiddleware)
+	} else {
+		log.Printf("metric middleware cannot be initialized, error: %v", err)
+	}
 
 	api := &api{
 		app:              app,

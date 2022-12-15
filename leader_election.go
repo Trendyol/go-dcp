@@ -3,11 +3,12 @@ package godcpclient
 import (
 	"context"
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"

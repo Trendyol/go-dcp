@@ -2,10 +2,11 @@ package godcpclient
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/identity"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"

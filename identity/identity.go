@@ -1,4 +1,4 @@
-package godcpclient
+package identity
 
 import (
 	"encoding/json"

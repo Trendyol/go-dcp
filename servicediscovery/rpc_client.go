@@ -1,8 +1,8 @@
-package rpc
+package servicediscovery
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client"
+	"github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"time"
 
@@ -24,8 +24,8 @@ type client struct {
 	client         *pureRpc.Client
 	port           int
 	connected      bool
-	myIdentity     *godcpclient.Identity
-	targetIdentity *godcpclient.Identity
+	myIdentity     *identity.Identity
+	targetIdentity *identity.Identity
 }
 
 func (c *client) connect() error {
@@ -115,7 +115,7 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 	)
 }
 
-func NewClient(port int, myIdentity *godcpclient.Identity, targetIdentity *godcpclient.Identity) (Client, error) {
+func NewClient(port int, myIdentity *identity.Identity, targetIdentity *identity.Identity) (Client, error) {
 	client := &client{
 		port:           port,
 		myIdentity:     myIdentity,

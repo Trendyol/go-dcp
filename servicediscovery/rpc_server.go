@@ -1,13 +1,10 @@
-package rpc
+package servicediscovery
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client"
+	"github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"net"
-
-	"github.com/Trendyol/go-dcp-client/servicediscovery"
-	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 
 	pureRpc "net/rpc"
 )
@@ -25,8 +22,8 @@ type server struct {
 
 type Handler struct {
 	port             int
-	myIdentity       *godcpclient.Identity
-	serviceDiscovery servicediscovery.ServiceDiscovery
+	myIdentity       *identity.Identity
+	serviceDiscovery ServiceDiscovery
 }
 
 func (rh *Handler) Ping(_ Ping, reply *Pong) error {
@@ -44,7 +41,7 @@ func (rh *Handler) Register(payload Register, reply *bool) error {
 		return err
 	}
 
-	followerService := sdm.NewService(followerClient, false, payload.Identity.Name)
+	followerService := NewService(followerClient, false, payload.Identity.Name)
 	rh.serviceDiscovery.Add(followerService)
 
 	log.Printf("registered client %s", payload.Identity.Name)
@@ -101,7 +98,7 @@ func (s *server) Shutdown() {
 	}
 }
 
-func NewServer(port int, myIdentity *godcpclient.Identity, serviceDiscovery servicediscovery.ServiceDiscovery) Server {
+func NewServer(port int, myIdentity *identity.Identity, serviceDiscovery ServiceDiscovery) Server {
 	return &server{
 		port: port,
 		handler: &Handler{

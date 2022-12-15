@@ -3,7 +3,7 @@ package leaderelector
 import (
 	"context"
 	"fmt"
-	dcpModel "github.com/Trendyol/go-dcp-client"
+	dcpModel "github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"time"
 

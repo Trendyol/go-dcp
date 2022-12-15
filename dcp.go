@@ -2,6 +2,7 @@ package godcpclient
 
 import (
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/identity"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,7 +29,7 @@ type dcp struct {
 	vBucketDiscovery VBucketDiscovery
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	kubernetesClient kubernetes.Client
-	myIdentity       *Identity
+	myIdentity       *identity.Identity
 }
 
 func (s *dcp) Start() {
@@ -36,7 +37,7 @@ func (s *dcp) Start() {
 
 	if s.config.LeaderElection.Enabled {
 		if s.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
-			s.myIdentity = NewIdentityFromEnv()
+			s.myIdentity = identity.NewIdentityFromEnv()
 
 			if namespace, exist := s.config.LeaderElection.Config["leaseLockNamespace"]; exist {
 				s.kubernetesClient = kubernetes.NewClient(s.myIdentity, namespace)

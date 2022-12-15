@@ -1,6 +1,9 @@
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"os"
+)
 
 type Identity struct {
 	IP   string
@@ -29,4 +32,11 @@ func NewIdentityFromStr(str string) *Identity {
 	}
 
 	return &identity
+}
+
+func NewIdentityFromEnv() *Identity {
+	return &Identity{
+		IP:   os.Getenv("POD_IP"),
+		Name: os.Getenv("POD_NAME"),
+	}
 }

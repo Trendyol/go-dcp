@@ -2,7 +2,6 @@ package godcpclient
 
 import (
 	"fmt"
-	klem "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,7 +37,7 @@ func (s *dcp) Start() {
 
 	if s.config.LeaderElection.Enabled {
 		if s.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
-			s.myIdentity = klem.NewIdentityFromEnv()
+			s.myIdentity = model.NewIdentityFromEnv()
 
 			if namespace, exist := s.config.LeaderElection.Config["leaseLockNamespace"]; exist {
 				s.kubernetesClient = kubernetes.NewClient(s.myIdentity, namespace)

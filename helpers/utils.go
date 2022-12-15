@@ -3,8 +3,9 @@ package helpers
 import (
 	"bytes"
 	"fmt"
-	"github.com/google/uuid"
 	"reflect"
+
+	"github.com/google/uuid"
 )
 
 func GetDcpStreamName(groupName string) string {

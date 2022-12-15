@@ -2,9 +2,10 @@ package servicediscovery
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"net"
+
+	"github.com/Trendyol/go-dcp-client/identity"
 
 	pureRpc "net/rpc"
 )

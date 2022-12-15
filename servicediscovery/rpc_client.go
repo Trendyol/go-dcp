@@ -2,9 +2,10 @@ package servicediscovery
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/avast/retry-go/v4"
 

@@ -1,8 +1,9 @@
 package helpers
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsMetadata_ReturnsTrue_WhenStructHasKeyPrefix(t *testing.T) {

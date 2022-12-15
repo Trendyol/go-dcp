@@ -20,16 +20,12 @@ func GetDcpStreamName(groupName string) string {
 }
 
 func IsMetadata(data interface{}) bool {
-	t := reflect.TypeOf(data)
-
-	_, exist := t.FieldByName("Key")
-
-	if exist {
-		key := reflect.ValueOf(data).FieldByName("Key").Bytes()
-		return bytes.HasPrefix(key, []byte(Prefix))
+	value := reflect.ValueOf(data).FieldByName("Key")
+	if !value.IsValid() {
+		return false
 	}
 
-	return false
+	return bytes.HasPrefix(value.Bytes(), []byte(Prefix))
 }
 
 func ChunkSlice[T any](slice []T, chunks int) [][]T {

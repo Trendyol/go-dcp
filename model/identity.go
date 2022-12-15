@@ -16,20 +16,17 @@ func (k *Identity) String() string {
 	return string(str)
 }
 
-func (k *Identity) LoadFromString(str string) {
-	err := json.Unmarshal([]byte(str), k)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (k *Identity) Equal(other *Identity) bool {
 	return k.IP == other.IP && k.Name == other.Name
 }
 
 func NewIdentityFromStr(str string) *Identity {
-	identity := &Identity{}
-	identity.LoadFromString(str)
+	var identity Identity
 
-	return identity
+	err := json.Unmarshal([]byte(str), &identity)
+	if err != nil {
+		panic(err)
+	}
+
+	return &identity
 }

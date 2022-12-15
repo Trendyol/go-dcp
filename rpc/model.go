@@ -1,24 +1,24 @@
 package rpc
 
 import (
-	"github.com/Trendyol/go-dcp-client/model"
+	"github.com/Trendyol/go-dcp-client"
 )
 
 type Register struct {
-	From     model.Identity
-	Identity model.Identity
+	From     godcpclient.Identity
+	Identity godcpclient.Identity
 }
 
 type Ping struct {
-	From model.Identity
+	From godcpclient.Identity
 }
 
 type Pong struct {
-	From model.Identity
+	From godcpclient.Identity
 }
 
 type Rebalance struct {
-	From         model.Identity
+	From         godcpclient.Identity
 	MemberNumber int
 	TotalMembers int
 }

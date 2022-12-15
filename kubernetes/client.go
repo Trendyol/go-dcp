@@ -2,8 +2,8 @@ package kubernetes
 
 import (
 	"context"
+	dcpModel "github.com/Trendyol/go-dcp-client"
 
-	dcpModel "github.com/Trendyol/go-dcp-client/model"
 	"github.com/go-logr/logr"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

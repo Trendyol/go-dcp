@@ -2,10 +2,10 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/Trendyol/go-dcp-client"
 	"log"
 	"net"
 
-	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 
@@ -25,7 +25,7 @@ type server struct {
 
 type Handler struct {
 	port             int
-	myIdentity       *model.Identity
+	myIdentity       *godcpclient.Identity
 	serviceDiscovery servicediscovery.ServiceDiscovery
 }
 
@@ -101,7 +101,7 @@ func (s *server) Shutdown() {
 	}
 }
 
-func NewServer(port int, myIdentity *model.Identity, serviceDiscovery servicediscovery.ServiceDiscovery) Server {
+func NewServer(port int, myIdentity *godcpclient.Identity, serviceDiscovery servicediscovery.ServiceDiscovery) Server {
 	return &server{
 		port: port,
 		handler: &Handler{

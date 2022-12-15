@@ -1,4 +1,4 @@
-package model
+package godcpclient
 
 import (
 	"encoding/json"

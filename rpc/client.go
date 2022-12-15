@@ -2,10 +2,10 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/Trendyol/go-dcp-client"
 	"log"
 	"time"
 
-	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/avast/retry-go/v4"
 
 	pureRpc "net/rpc"
@@ -24,8 +24,8 @@ type client struct {
 	client         *pureRpc.Client
 	port           int
 	connected      bool
-	myIdentity     *model.Identity
-	targetIdentity *model.Identity
+	myIdentity     *godcpclient.Identity
+	targetIdentity *godcpclient.Identity
 }
 
 func (c *client) connect() error {
@@ -115,7 +115,7 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 	)
 }
 
-func NewClient(port int, myIdentity *model.Identity, targetIdentity *model.Identity) (Client, error) {
+func NewClient(port int, myIdentity *godcpclient.Identity, targetIdentity *godcpclient.Identity) (Client, error) {
 	client := &client{
 		port:           port,
 		myIdentity:     myIdentity,

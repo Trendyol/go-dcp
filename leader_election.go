@@ -13,7 +13,6 @@ import (
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"github.com/Trendyol/go-dcp-client/leaderelector"
-	"github.com/Trendyol/go-dcp-client/model"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 )
@@ -33,7 +32,7 @@ type leaderElection struct {
 	initialized      uint32
 	initializedCh    chan bool
 	stabilityCh      chan bool
-	myIdentity       *model.Identity
+	myIdentity       *Identity
 	newLeaderLock    sync.Mutex
 	kubernetesClient kubernetes.Client
 }
@@ -54,7 +53,7 @@ func (l *leaderElection) OnResignLeader() {
 	l.serviceDiscovery.RemoveAll()
 }
 
-func (l *leaderElection) OnBecomeFollower(leaderIdentity *model.Identity) {
+func (l *leaderElection) OnBecomeFollower(leaderIdentity *Identity) {
 	l.newLeaderLock.Lock()
 	defer l.newLeaderLock.Unlock()
 
@@ -133,7 +132,7 @@ func NewLeaderElection(
 	config helpers.ConfigLeaderElection,
 	stream Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	myIdentity *model.Identity,
+	myIdentity *Identity,
 	kubernetesClient kubernetes.Client,
 ) LeaderElection {
 	return &leaderElection{

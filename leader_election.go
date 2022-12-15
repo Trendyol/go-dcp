@@ -12,7 +12,6 @@ import (
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
-	"github.com/Trendyol/go-dcp-client/leaderelector"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	sdm "github.com/Trendyol/go-dcp-client/servicediscovery/model"
 )
@@ -24,7 +23,7 @@ type LeaderElection interface {
 
 type leaderElection struct {
 	config           helpers.ConfigLeaderElection
-	elector          leaderelector.LeaderElector
+	elector          kle.LeaderElector
 	rpcServer        dpcRpcClient.Server
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery

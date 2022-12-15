@@ -9,16 +9,25 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	godcpclient "github.com/Trendyol/go-dcp-client/leaderelector"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
+type LeaderElector interface {
+	Run(ctx context.Context)
+}
+
+type Handler interface {
+	OnBecomeLeader()
+	OnResignLeader()
+	OnBecomeFollower(leaderIdentity *dcpModel.Identity)
+}
+
 type leaderElector struct {
 	client             kubernetes.Client
 	myIdentity         *dcpModel.Identity
-	handler            godcpclient.Handler
+	handler            Handler
 	leaseLockName      string
 	leaseLockNamespace string
 }
@@ -79,8 +88,8 @@ func NewLeaderElector(
 	client kubernetes.Client,
 	config helpers.ConfigLeaderElection,
 	myIdentity *dcpModel.Identity,
-	handler godcpclient.Handler,
-) godcpclient.LeaderElector {
+	handler Handler,
+) LeaderElector {
 	var leaseLockName string
 	var leaseLockNamespace string
 

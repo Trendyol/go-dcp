@@ -3,16 +3,9 @@ package helpers
 import (
 	"bytes"
 	"fmt"
-	"reflect"
-	"strconv"
-
 	"github.com/google/uuid"
+	"reflect"
 )
-
-func GetCheckpointID(vbID uint16, groupName string) string {
-	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
-	return Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbID))
-}
 
 func GetDcpStreamName(groupName string) string {
 	streamName := fmt.Sprintf("%s_%s", groupName, uuid.New().String())

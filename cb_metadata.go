@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -17,7 +18,7 @@ type cbMetadata struct {
 	config helpers.Config
 }
 
-func (s *cbMetadata) upsertXattrs(ctx context.Context, id string, path string, xattrs interface{}) error {
+func (s *cbMetadata) upsertXattrs(ctx context.Context, id []byte, path string, xattrs interface{}) error {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -27,7 +28,7 @@ func (s *cbMetadata) upsertXattrs(ctx context.Context, id string, path string, x
 	ch := make(chan error)
 
 	op, err := s.agent.MutateIn(gocbcore.MutateInOptions{
-		Key: []byte(id),
+		Key: id,
 		Ops: []gocbcore.SubDocOp{
 			{
 				Op:    memd.SubDocOpDictSet,
@@ -54,7 +55,7 @@ func (s *cbMetadata) upsertXattrs(ctx context.Context, id string, path string, x
 	return err
 }
 
-func (s *cbMetadata) deleteDocument(ctx context.Context, id string) {
+func (s *cbMetadata) deleteDocument(ctx context.Context, id []byte) {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -62,7 +63,7 @@ func (s *cbMetadata) deleteDocument(ctx context.Context, id string) {
 	ch := make(chan error)
 
 	op, err := s.agent.Delete(gocbcore.DeleteOptions{
-		Key:      []byte(id),
+		Key:      id,
 		Deadline: deadline,
 	}, func(result *gocbcore.DeleteResult, err error) {
 		opm.Resolve()
@@ -83,7 +84,7 @@ func (s *cbMetadata) deleteDocument(ctx context.Context, id string) {
 	}
 }
 
-func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, bucketUUID string) (CheckpointDocument, error) {
+func (s *cbMetadata) getXattrs(ctx context.Context, id []byte, path string, bucketUUID string) (CheckpointDocument, error) {
 	opm := NewAsyncOp(context.Background())
 
 	deadline, _ := ctx.Deadline()
@@ -92,7 +93,7 @@ func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, buck
 	documentCh := make(chan CheckpointDocument)
 
 	op, err := s.agent.LookupIn(gocbcore.LookupInOptions{
-		Key: []byte(id),
+		Key: id,
 		Ops: []gocbcore.SubDocOp{
 			{
 				Op:    memd.SubDocOpGet,
@@ -132,7 +133,7 @@ func (s *cbMetadata) getXattrs(ctx context.Context, id string, path string, buck
 	return document, err
 }
 
-func (s *cbMetadata) createEmptyDocument(ctx context.Context, id string) error {
+func (s *cbMetadata) createEmptyDocument(ctx context.Context, id []byte) error {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -140,7 +141,7 @@ func (s *cbMetadata) createEmptyDocument(ctx context.Context, id string) error {
 	ch := make(chan error)
 
 	op, err := s.agent.Set(gocbcore.SetOptions{
-		Key:      []byte(id),
+		Key:      id,
 		Value:    []byte{},
 		Flags:    50333696,
 		Deadline: deadline,
@@ -164,7 +165,7 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 	defer cancel()
 
 	for vbID, checkpointDocument := range state {
-		id := helpers.GetCheckpointID(vbID, s.config.Dcp.Group.Name)
+		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 		err := s.upsertXattrs(ctx, id, helpers.Name, checkpointDocument)
 
 		var kvErr *gocbcore.KeyValueError
@@ -190,7 +191,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkpoi
 	state := map[uint16]CheckpointDocument{}
 
 	for _, vbID := range vbIds {
-		id := helpers.GetCheckpointID(vbID, s.config.Dcp.Group.Name)
+		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
 		data, err := s.getXattrs(ctx, id, helpers.Name, bucketUUID)
 
@@ -210,7 +211,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) {
 	defer cancel()
 
 	for _, vbID := range vbIds {
-		id := helpers.GetCheckpointID(vbID, s.config.Dcp.Group.Name)
+		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
 		s.deleteDocument(ctx, id)
 	}
@@ -221,4 +222,9 @@ func NewCBMetadata(agent *gocbcore.Agent, config helpers.Config) Metadata {
 		agent:  agent,
 		config: config,
 	}
+}
+
+func getCheckpointID(vbID uint16, groupName string) []byte {
+	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
+	return []byte(helpers.Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbID)))
 }

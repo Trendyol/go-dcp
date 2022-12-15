@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/Trendyol/go-dcp-client"
 	"log"
+
+	"github.com/Trendyol/go-dcp-client"
 )
 
 func listener(event interface{}, err error) {
@@ -23,7 +24,6 @@ func listener(event interface{}, err error) {
 
 func main() {
 	dcp, err := godcpclient.NewDcp("config.yml", listener)
-
 	if err != nil {
 		panic(err)
 	}

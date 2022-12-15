@@ -3,9 +3,10 @@ package leaderelector
 import (
 	"context"
 	"fmt"
-	dcpModel "github.com/Trendyol/go-dcp-client/identity"
 	"log"
 	"time"
+
+	dcpModel "github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/kubernetes"

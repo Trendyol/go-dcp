@@ -20,7 +20,9 @@ func (h *haMembership) GetInfo() *info.Model {
 }
 
 func NewHaMembership(_ helpers.ConfigDCPGroupMembership, handler info.Handler) membership.Membership {
-	ham := &haMembership{}
+	ham := &haMembership{
+		infoChan: make(chan *info.Model),
+	}
 
 	handler.Subscribe(func(new *info.Model) {
 		ham.info = new

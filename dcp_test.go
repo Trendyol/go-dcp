@@ -42,7 +42,9 @@ metric:
   enabled: true
   path: /metrics
 leaderElector:
-  enabled: false`
+  enabled: false
+logging:
+  level: info`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {

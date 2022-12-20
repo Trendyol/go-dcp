@@ -3,6 +3,8 @@ package identity
 import (
 	"encoding/json"
 	"os"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 )
 
 type Identity struct {
@@ -13,7 +15,7 @@ type Identity struct {
 func (k *Identity) String() string {
 	str, err := json.Marshal(k)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while marshalling identity")
 	}
 
 	return string(str)
@@ -28,7 +30,7 @@ func NewIdentityFromStr(str string) *Identity {
 
 	err := json.Unmarshal([]byte(str), &identity)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while unmarshalling identity")
 	}
 
 	return &identity

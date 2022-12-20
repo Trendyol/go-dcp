@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gookit/config/v2 v2.1.7
 	github.com/prometheus/client_golang v1.14.0
+	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.8.1
 	github.com/testcontainers/testcontainers-go v0.14.0
 	k8s.io/apimachinery v0.22.5

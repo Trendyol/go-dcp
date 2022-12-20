@@ -6,6 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/rs/zerolog"
+
 	"github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -108,7 +111,14 @@ func (s *dcp) Close() {
 func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 	client := NewClient(config)
 
-	err := client.Connect()
+	loggingLevel, err := zerolog.ParseLevel(config.Logging.Level)
+	if err != nil {
+		logger.Panic(err, "invalid logging level")
+	}
+
+	logger.SetLevel(loggingLevel)
+
+	err = client.Connect()
 	if err != nil {
 		return nil, err
 	}

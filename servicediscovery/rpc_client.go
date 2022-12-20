@@ -2,8 +2,9 @@ package servicediscovery
 
 import (
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/identity"
 
@@ -40,7 +41,7 @@ func (c *client) connect() error {
 
 			c.client = client
 			c.connected = true
-			log.Printf("connected to %s as rpc", c.targetIdentity.Name)
+			logger.Debug("connected to %s as rpc", c.targetIdentity.Name)
 
 			return nil
 		},
@@ -55,7 +56,7 @@ func (c *client) Close() error {
 		return nil
 	}
 
-	log.Printf("closing rpc client %s", c.targetIdentity.Name)
+	logger.Debug("closing rpc client %s", c.targetIdentity.Name)
 
 	c.connected = false
 	err := c.client.Close()
@@ -69,7 +70,7 @@ func (c *client) IsConnected() bool {
 }
 
 func (c *client) Reconnect() error {
-	log.Printf("reconnecting rpc client %s", c.targetIdentity.Name)
+	logger.Debug("reconnecting rpc client %s", c.targetIdentity.Name)
 	return c.connect()
 }
 

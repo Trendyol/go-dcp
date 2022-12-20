@@ -1,8 +1,9 @@
 package godcpclient
 
 import (
-	"log"
 	"strconv"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/ansrivas/fiberprometheus/v2"
@@ -124,7 +125,7 @@ func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observe
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
-	log.Printf("metric middleware registered on path %s", config.Metric.Path)
+	logger.Info("metric middleware registered on path %s", config.Metric.Path)
 
 	return fiberPrometheus.Middleware, nil
 }

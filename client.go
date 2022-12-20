@@ -3,8 +3,9 @@ package godcpclient
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
@@ -142,7 +143,7 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 		return nil, err
 	}
 
-	log.Printf("connected to %s, bucket: %s", s.config.Hosts, bucketName)
+	logger.Debug("connected to %s, bucket: %s", s.config.Hosts, bucketName)
 
 	return client, nil
 }
@@ -159,7 +160,7 @@ func (s *client) Connect() error {
 }
 
 func (s *client) Close() error {
-	log.Printf("closing connection to %s", s.config.Hosts)
+	logger.Debug("closing connection to %s", s.config.Hosts)
 	return s.agent.Close()
 }
 
@@ -175,7 +176,7 @@ func (s *client) MetaConnect() error {
 }
 
 func (s *client) MetaClose() error {
-	log.Printf("closing meta connection to %s", s.config.Hosts)
+	logger.Debug("closing meta connection to %s", s.config.Hosts)
 	return s.metaAgent.Close()
 }
 
@@ -234,13 +235,13 @@ func (s *client) DcpConnect() error {
 	}
 
 	s.dcpAgent = client
-	log.Printf("connected to %s as dcp", s.config.Hosts)
+	logger.Debug("connected to %s as dcp", s.config.Hosts)
 
 	return nil
 }
 
 func (s *client) DcpClose() error {
-	log.Printf("closing dcp connection to %s", s.config.Hosts)
+	logger.Debug("closing dcp connection to %s", s.config.Hosts)
 	return s.dcpAgent.Close()
 }
 
@@ -298,7 +299,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 
 func (s *client) GetNumVBuckets() int {
 	if s.dcpAgent == nil {
-		panic(fmt.Errorf("please connect to the dcp first"))
+		logger.Panic(fmt.Errorf("dcp agent is nil"), "please connect to the dcp first")
 	}
 
 	var err error
@@ -309,7 +310,8 @@ func (s *client) GetNumVBuckets() int {
 		}
 	}
 
-	panic(err)
+	logger.Panic(err, "failed to get number of vBuckets")
+	return 0
 }
 
 func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error) {

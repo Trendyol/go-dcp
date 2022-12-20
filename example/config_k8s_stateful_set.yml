@@ -19,3 +19,5 @@ metric:
   path: /metrics
 leaderElection:
   enabled: false
+logging:
+  level: info

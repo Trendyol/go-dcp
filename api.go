@@ -2,7 +2,8 @@ package godcpclient
 
 import (
 	"fmt"
-	"log"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
@@ -24,14 +25,14 @@ type api struct {
 
 func (s *api) Listen() {
 	go func() {
-		log.Printf("api starting on port %d", s.config.API.Port)
+		logger.Info("api starting on port %d", s.config.API.Port)
 
 		err := s.app.Listen(fmt.Sprintf(":%d", s.config.API.Port))
 
 		if err != nil {
-			log.Printf("api cannot start on port %d, error: %v", s.config.API.Port, err)
+			logger.Error(err, "api cannot start on port %d", s.config.API.Port)
 		} else {
-			log.Printf("api stopped")
+			logger.Debug("api stopped")
 		}
 	}()
 }
@@ -39,7 +40,7 @@ func (s *api) Listen() {
 func (s *api) Shutdown() {
 	err := s.app.Shutdown()
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "api cannot be shutdown")
 	}
 }
 
@@ -74,7 +75,7 @@ func NewAPI(config helpers.Config, client Client, stream Stream, serviceDiscover
 	if err == nil {
 		app.Use(metricMiddleware)
 	} else {
-		log.Printf("metric middleware cannot be initialized, error: %v", err)
+		logger.Error(err, "metric middleware cannot be initialized")
 	}
 
 	api := &api{

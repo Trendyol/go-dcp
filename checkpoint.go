@@ -1,9 +1,10 @@
 package godcpclient
 
 import (
-	"log"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
@@ -86,7 +87,7 @@ func (s *checkpoint) Save(fromSchedule bool) {
 	s.metadata.Save(dump, s.bucketUUID)
 
 	if !fromSchedule {
-		log.Printf("saved checkpoint")
+		logger.Debug("saved checkpoint")
 	}
 }
 
@@ -107,14 +108,14 @@ func (s *checkpoint) Load() map[uint16]*ObserverState {
 	}
 
 	s.observer.SetState(observerState)
-	log.Printf("loaded checkpoint")
+	logger.Debug("loaded checkpoint")
 
 	return observerState
 }
 
 func (s *checkpoint) Clear() {
 	s.metadata.Clear(s.vbIds)
-	log.Printf("cleared checkpoint")
+	logger.Debug("cleared checkpoint")
 }
 
 func (s *checkpoint) StartSchedule() {
@@ -124,12 +125,12 @@ func (s *checkpoint) StartSchedule() {
 			s.Save(true)
 		}
 	}()
-	log.Printf("started checkpoint schedule")
+	logger.Debug("started checkpoint schedule")
 }
 
 func (s *checkpoint) StopSchedule() {
 	s.schedule.Stop()
-	log.Printf("stopped checkpoint schedule")
+	logger.Debug("stopped checkpoint schedule")
 }
 
 func NewCheckpoint(

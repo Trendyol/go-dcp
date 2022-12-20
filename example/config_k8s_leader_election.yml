@@ -24,3 +24,5 @@ leaderElection:
     leaseLockNamespace: default
   rpc:
     port: 8081
+logging:
+  level: info

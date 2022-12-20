@@ -3,8 +3,9 @@ package leaderelector
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	dcpModel "github.com/Trendyol/go-dcp-client/identity"
 
@@ -36,14 +37,14 @@ type leaderElector struct {
 func (le *leaderElector) Run(ctx context.Context) {
 	callback := leaderelection.LeaderCallbacks{
 		OnStartedLeading: func(c context.Context) {
-			log.Println("granted to leader")
+			logger.Debug("granted to leader")
 
 			le.client.AddLabel("role", "leader")
 
 			le.handler.OnBecomeLeader()
 		},
 		OnStoppedLeading: func() {
-			log.Println("revoked from leader")
+			logger.Debug("revoked from leader")
 
 			le.client.RemoveLabel("role")
 
@@ -56,7 +57,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 				return
 			}
 
-			log.Println("granted to follower for leader: " + leaderIdentity.Name)
+			logger.Debug("granted to follower for leader: %s", leaderIdentity.Name)
 
 			le.client.AddLabel("role", "follower")
 
@@ -97,13 +98,13 @@ func NewLeaderElector(
 	if val, ok := config.Config["leaseLockName"]; ok {
 		leaseLockName = val
 	} else {
-		panic(fmt.Errorf("leaseLockName is not defined"))
+		logger.Panic(fmt.Errorf("leaseLockName is not defined"), "error while creating leader elector")
 	}
 
 	if val, ok := config.Config["leaseLockNamespace"]; ok {
 		leaseLockNamespace = val
 	} else {
-		panic(fmt.Errorf("leaseLockNamespace is not defined"))
+		logger.Panic(fmt.Errorf("leaseLockNamespace is not defined"), "error while creating leader elector")
 	}
 
 	return &leaderElector{

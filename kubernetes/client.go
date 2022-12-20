@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"context"
 
+	"github.com/Trendyol/go-dcp-client/logger"
+
 	dcpModel "github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/go-logr/logr"
@@ -34,7 +36,7 @@ func (le *client) AddLabel(key string, value string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "failed to add label")
 	}
 }
 
@@ -46,7 +48,7 @@ func (le *client) RemoveLabel(key string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "failed to remove label")
 	}
 }
 
@@ -55,7 +57,7 @@ func NewClient(myIdentity *dcpModel.Identity, namespace string) Client {
 
 	kubernetesConfig, err := rest.InClusterConfig()
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "failed to get kubernetes config")
 	}
 
 	return &client{

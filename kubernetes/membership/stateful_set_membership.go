@@ -1,7 +1,10 @@
 package membership
 
 import (
+	"fmt"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 )
@@ -17,13 +20,16 @@ func (s *statefulSetMembership) GetInfo() *info.Model {
 func NewStatefulSetMembership(config helpers.ConfigDCPGroupMembership) membership.Membership {
 	statefulSetInfo, err := NewStatefulSetInfoFromHostname()
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while creating statefulSet membership")
 	}
 
 	memberNumber := statefulSetInfo.PodOrdinal + 1
 
 	if memberNumber > config.TotalMembers {
-		panic("memberNumber is greater than totalMembers")
+		logger.Panic(
+			fmt.Errorf("memberNumber is greater than totalMembers"),
+			"memberNumber: %v, totalMembers: %v", memberNumber, config.TotalMembers,
+		)
 	}
 
 	return &statefulSetMembership{

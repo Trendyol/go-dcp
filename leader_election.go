@@ -3,10 +3,11 @@ package godcpclient
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/identity"
 
@@ -76,7 +77,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 	err = leaderClient.Register()
 
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while registering leader client")
 	}
 
 	l.stabilityCh <- true
@@ -101,9 +102,9 @@ func (l *leaderElection) Start() {
 
 	if result {
 		timer.Stop()
-		log.Printf("leader election is done, starting stream")
+		logger.Debug("leader election is done, starting stream")
 	} else {
-		panic(fmt.Errorf("leader election timeout"))
+		logger.Panic(fmt.Errorf("timeout"), "leader election failed")
 	}
 }
 
@@ -116,7 +117,7 @@ func (l *leaderElection) watchStability() {
 		for result := range l.stabilityCh {
 			if l.stable != result {
 				l.stable = result
-				log.Printf("stability changed: %v", l.stable)
+				logger.Debug("stability changed: %v", l.stable)
 			}
 
 			if atomic.LoadUint32(&l.initialized) != 1 {

@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
@@ -178,7 +179,7 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 		}
 
 		if err != nil {
-			log.Printf("error while saving checkpoint document: %v", err)
+			logger.Error(err, "error while saving checkpoint document")
 			return
 		}
 	}
@@ -199,7 +200,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkpoi
 		if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 			state[vbID] = data
 		} else {
-			panic(err)
+			logger.Panic(err, "error while loading checkpoint document")
 		}
 	}
 

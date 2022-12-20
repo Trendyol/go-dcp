@@ -1,8 +1,7 @@
 package helpers
 
 import (
-	"log"
-
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/gookit/config/v2"
 	"github.com/gookit/config/v2/yamlv3"
 )
@@ -42,6 +41,10 @@ type ConfigRPC struct {
 	Port int `yaml:"port"`
 }
 
+type ConfigLogging struct {
+	Level string `yaml:"level" default:"info"`
+}
+
 type Config struct {
 	Hosts          []string             `yaml:"hosts"`
 	Username       string               `yaml:"username"`
@@ -54,6 +57,7 @@ type Config struct {
 	API            ConfigAPI            `yaml:"api"`
 	Metric         ConfigMetric         `yaml:"metric"`
 	LeaderElection ConfigLeaderElection `yaml:"leaderElector"`
+	Logging        ConfigLogging        `yaml:"logging"`
 }
 
 func Options(opts *config.Options) {
@@ -68,17 +72,17 @@ func NewConfig(name string, filePath string) Config {
 
 	err := conf.LoadFiles(filePath)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "cannot load config file")
 	}
 
 	_config := Config{}
 	err = conf.Decode(&_config)
 
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "cannot decode config file")
 	}
 
-	log.Printf("config loaded from file: %v", filePath)
+	logger.Debug("config loaded from file: %v", filePath)
 
 	return _config
 }

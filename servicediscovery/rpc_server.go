@@ -2,8 +2,9 @@ package servicediscovery
 
 import (
 	"fmt"
-	"log"
 	"net"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/identity"
 
@@ -45,7 +46,7 @@ func (rh *Handler) Register(payload Register, reply *bool) error {
 	followerService := NewService(followerClient, false, payload.Identity.Name)
 	rh.serviceDiscovery.Add(followerService)
 
-	log.Printf("registered client %s", payload.Identity.Name)
+	logger.Debug("registered client %s", payload.Identity.Name)
 
 	*reply = true
 
@@ -65,22 +66,22 @@ func (s *server) Listen() {
 
 	err := server.Register(s.handler)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while registering rpc handler")
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while listening rpc server")
 	}
 
 	s.listener = listener
-	log.Printf("rpc server started on port %d", s.port)
+	logger.Debug("rpc server started on port %d", s.port)
 
 	go func() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				log.Printf("rpc server error: %v", err)
+				logger.Error(err, "rpc server error")
 
 				break
 			}
@@ -88,14 +89,14 @@ func (s *server) Listen() {
 			go server.ServeConn(conn)
 		}
 
-		log.Printf("rpc server stopped")
+		logger.Debug("rpc server stopped")
 	}()
 }
 
 func (s *server) Shutdown() {
 	err := s.listener.Close()
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "error while closing rpc server")
 	}
 }
 

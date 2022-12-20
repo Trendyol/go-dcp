@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 
+	"github.com/Trendyol/go-dcp-client/logger"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 )
 
@@ -29,7 +31,7 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkp
 				state[vbID] = NewEmptyCheckpointDocument(bucketUUID)
 			}
 		} else {
-			panic(err)
+			logger.Panic(err, "error while loading checkpoint document")
 		}
 	} else {
 		_ = json.Unmarshal(file, &state)

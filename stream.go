@@ -1,9 +1,10 @@
 package godcpclient
 
 import (
-	"log"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
@@ -65,7 +66,7 @@ func (s *stream) Open() {
 	if s.client.IsCollectionModeEnabled() {
 		id, err := s.client.GetCollectionID(s.config.ScopeName, s.config.CollectionName)
 		if err != nil {
-			panic(err)
+			logger.Panic(err, "cannot get collection id")
 		}
 
 		collectionID = &id
@@ -78,12 +79,12 @@ func (s *stream) Open() {
 
 	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "cannot get failover logs")
 	}
 
 	vbSeqNos, err := s.client.GetVBucketSeqNos()
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "cannot get vBucket seq nos")
 	}
 
 	s.finishedStreams = sync.WaitGroup{}
@@ -112,11 +113,11 @@ func (s *stream) Open() {
 				},
 			)
 			if err != nil {
-				panic(err)
+				logger.Panic(err, "cannot open stream, vbID: %d", innerVbId)
 			}
 
 			if err = <-ch; err != nil {
-				panic(err)
+				logger.Panic(err, "cannot open stream, vbID: %d", innerVbId)
 			}
 
 			s.streamsLock.Lock()
@@ -128,7 +129,7 @@ func (s *stream) Open() {
 		}(vbID)
 	}
 	openWg.Wait()
-	log.Printf("all streams are opened")
+	logger.Debug("all streams are opened")
 	s.checkpoint.StartSchedule()
 }
 
@@ -140,7 +141,7 @@ func (s *stream) Rebalance() {
 	s.rebalanceTimer = time.AfterFunc(time.Second*10, func() {
 		s.Pause()
 		s.Resume()
-		log.Printf("rebalance is finished")
+		logger.Debug("rebalance is finished")
 	})
 }
 
@@ -155,7 +156,7 @@ func (s *stream) Resume() {
 
 func (s *stream) Wait() {
 	s.finishedStreams.Wait()
-	log.Printf("all streams are finished")
+	logger.Debug("all streams are finished")
 }
 
 func (s *stream) Save() {
@@ -184,11 +185,11 @@ func (s *stream) CloseWithVbID(vbID uint16, ignoreFinish bool) {
 		ch <- err
 	})
 	if err != nil {
-		panic(err)
+		logger.Panic(err, "cannot close stream, vbID: %d", vbID)
 	}
 
 	if err = <-ch; err != nil {
-		panic(err)
+		logger.Panic(err, "cannot close stream, vbID: %d", vbID)
 	}
 
 	s.CleanStreamOfVbID(vbID, ignoreFinish)
@@ -205,7 +206,7 @@ func (s *stream) Close(ignoreFinish bool) {
 		}
 	}
 
-	log.Printf("all streams are closed")
+	logger.Debug("all streams are closed")
 }
 
 func (s *stream) GetObserver() Observer {

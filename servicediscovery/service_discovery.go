@@ -2,10 +2,11 @@ package servicediscovery
 
 import (
 	"fmt"
-	"log"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/membership/info"
 )
@@ -110,7 +111,7 @@ func (s *serviceDiscovery) StartHealthCheck() {
 			s.servicesLock.Lock()
 
 			s.healthCheckToService(s.leaderService, func() {
-				log.Println("leader is down")
+				logger.Error(fmt.Errorf("leader is down"), "health check failed for leader")
 
 				tempLeaderService := s.leaderService
 
@@ -127,7 +128,7 @@ func (s *serviceDiscovery) StartHealthCheck() {
 				s.healthCheckToService(service, func() {
 					s.Remove(name)
 
-					log.Printf("client %s disconnected", name)
+					logger.Debug("client %s disconnected", name)
 				})
 			}
 
@@ -159,7 +160,7 @@ func (s *serviceDiscovery) StartRebalance() {
 			for index, name := range names {
 				if service, ok := s.services[name]; ok {
 					if err := service.Client.Rebalance(index+2, totalMembers); err != nil {
-						log.Printf("rebalance failed for %s", name)
+						logger.Error(err, "rebalance failed for %s", name)
 					}
 				}
 			}
@@ -196,7 +197,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 	if newInfo.IsChanged(s.info) {
 		s.info = newInfo
 
-		log.Printf("new info arrived, member number: %d, total members: %d", memberNumber, totalMembers)
+		logger.Debug("new info arrived, member number: %d, total members: %d", memberNumber, totalMembers)
 
 		s.infoHandler.OnModelChange(newInfo)
 	}

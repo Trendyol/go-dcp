@@ -17,3 +17,5 @@ leaderElection:
   config:
     leaseLockName: group-name-lock
     leaseLockNamespace: default
+logging:
+  level: debug

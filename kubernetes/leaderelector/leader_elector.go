@@ -78,9 +78,9 @@ func (le *leaderElector) Run(ctx context.Context) {
 				},
 			},
 			ReleaseOnCancel: true,
-			LeaseDuration:   15 * time.Second,
-			RenewDeadline:   10 * time.Second,
-			RetryPeriod:     2 * time.Second,
+			LeaseDuration:   8 * time.Second,
+			RenewDeadline:   5 * time.Second,
+			RetryPeriod:     1 * time.Second,
 			Callbacks:       callback,
 		})
 	}()

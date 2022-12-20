@@ -2,10 +2,8 @@ package godcpclient
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -30,7 +28,6 @@ type leaderElection struct {
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	stable           bool
 	initialized      uint32
-	initializedCh    chan bool
 	stabilityCh      chan bool
 	myIdentity       *identity.Identity
 	newLeaderLock    sync.Mutex
@@ -93,19 +90,6 @@ func (l *leaderElection) Start() {
 
 	l.elector.Run(context.Background())
 	l.watchStability()
-
-	timer := time.AfterFunc(10*time.Second, func() {
-		l.initializedCh <- false
-	})
-
-	result := <-l.initializedCh
-
-	if result {
-		timer.Stop()
-		logger.Debug("leader election is done, starting stream")
-	} else {
-		logger.Panic(fmt.Errorf("timeout"), "leader election failed")
-	}
 }
 
 func (l *leaderElection) Stop() {
@@ -121,7 +105,6 @@ func (l *leaderElection) watchStability() {
 			}
 
 			if atomic.LoadUint32(&l.initialized) != 1 {
-				l.initializedCh <- l.stable
 				atomic.StoreUint32(&l.initialized, 1)
 			}
 		}
@@ -139,7 +122,6 @@ func NewLeaderElection(
 		config:           config,
 		stream:           stream,
 		serviceDiscovery: serviceDiscovery,
-		initializedCh:    make(chan bool, 1),
 		stabilityCh:      make(chan bool),
 		newLeaderLock:    sync.Mutex{},
 		myIdentity:       myIdentity,

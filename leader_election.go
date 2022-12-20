@@ -5,12 +5,14 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/Trendyol/go-dcp-client/kubernetes"
+	"github.com/Trendyol/go-dcp-client/membership/info"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/identity"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/kubernetes"
 	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
@@ -31,7 +33,7 @@ type leaderElection struct {
 	stabilityCh      chan bool
 	myIdentity       *identity.Identity
 	newLeaderLock    sync.Mutex
-	kubernetesClient kubernetes.Client
+	infoHandler      info.Handler
 }
 
 func (l *leaderElection) OnBecomeLeader() {
@@ -85,7 +87,8 @@ func (l *leaderElection) Start() {
 	l.rpcServer.Listen()
 
 	if l.config.Type == helpers.KubernetesLeaderElectionType {
-		l.elector = kle.NewLeaderElector(l.kubernetesClient, l.config, l.myIdentity, l)
+		kubernetesClient := kubernetes.NewClient(l.myIdentity)
+		l.elector = kle.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
 	}
 
 	l.elector.Run(context.Background())
@@ -115,8 +118,7 @@ func NewLeaderElection(
 	config helpers.ConfigLeaderElection,
 	stream Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	myIdentity *identity.Identity,
-	kubernetesClient kubernetes.Client,
+	infoHandler info.Handler,
 ) LeaderElection {
 	return &leaderElection{
 		config:           config,
@@ -124,7 +126,7 @@ func NewLeaderElection(
 		serviceDiscovery: serviceDiscovery,
 		stabilityCh:      make(chan bool),
 		newLeaderLock:    sync.Mutex{},
-		myIdentity:       myIdentity,
-		kubernetesClient: kubernetesClient,
+		myIdentity:       identity.NewIdentityFromEnv(),
+		infoHandler:      infoHandler,
 	}
 }

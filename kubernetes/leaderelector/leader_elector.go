@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/membership/info"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	dcpModel "github.com/Trendyol/go-dcp-client/identity"
@@ -39,14 +41,14 @@ func (le *leaderElector) Run(ctx context.Context) {
 		OnStartedLeading: func(c context.Context) {
 			logger.Debug("granted to leader")
 
-			le.client.AddLabel("role", "leader")
+			le.client.AddLabel(le.leaseLockNamespace, "role", "leader")
 
 			le.handler.OnBecomeLeader()
 		},
 		OnStoppedLeading: func() {
 			logger.Debug("revoked from leader")
 
-			le.client.RemoveLabel("role")
+			le.client.RemoveLabel(le.leaseLockNamespace, "role")
 
 			le.handler.OnResignLeader()
 		},
@@ -59,7 +61,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 
 			logger.Debug("granted to follower for leader: %s", leaderIdentity.Name)
 
-			le.client.AddLabel("role", "follower")
+			le.client.AddLabel(le.leaseLockNamespace, "role", "follower")
 
 			le.handler.OnBecomeFollower(leaderIdentity)
 		},
@@ -91,6 +93,7 @@ func NewLeaderElector(
 	config helpers.ConfigLeaderElection,
 	myIdentity *dcpModel.Identity,
 	handler Handler,
+	infoHandler info.Handler,
 ) LeaderElector {
 	var leaseLockName string
 	var leaseLockNamespace string
@@ -107,11 +110,17 @@ func NewLeaderElector(
 		logger.Panic(fmt.Errorf("leaseLockNamespace is not defined"), "error while creating leader elector")
 	}
 
-	return &leaderElector{
+	le := &leaderElector{
 		client:             client,
 		myIdentity:         myIdentity,
 		handler:            handler,
 		leaseLockName:      leaseLockName,
 		leaseLockNamespace: leaseLockNamespace,
 	}
+
+	infoHandler.Subscribe(func(new *info.Model) {
+		client.AddLabel(leaseLockNamespace, "member", fmt.Sprintf("%v_%v", new.MemberNumber, new.TotalMembers))
+	})
+
+	return le
 }

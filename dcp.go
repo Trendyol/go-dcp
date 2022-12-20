@@ -9,10 +9,7 @@ import (
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/rs/zerolog"
 
-	"github.com/Trendyol/go-dcp-client/identity"
-
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/kubernetes"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
@@ -32,25 +29,10 @@ type dcp struct {
 	leaderElection   LeaderElection
 	vBucketDiscovery VBucketDiscovery
 	serviceDiscovery servicediscovery.ServiceDiscovery
-	kubernetesClient kubernetes.Client
-	myIdentity       *identity.Identity
 }
 
 func (s *dcp) Start() {
 	infoHandler := info.NewHandler()
-
-	if s.config.LeaderElection.Enabled {
-		if s.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
-			s.myIdentity = identity.NewIdentityFromEnv()
-
-			if namespace, exist := s.config.LeaderElection.Config["leaseLockNamespace"]; exist {
-				s.kubernetesClient = kubernetes.NewClient(s.myIdentity, namespace)
-				infoHandler.Subscribe(func(new *info.Model) {
-					s.kubernetesClient.AddLabel("member", fmt.Sprintf("%v_%v", new.MemberNumber, new.TotalMembers))
-				})
-			}
-		}
-	}
 
 	s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
 	s.serviceDiscovery.StartHealthCheck()
@@ -63,7 +45,7 @@ func (s *dcp) Start() {
 	s.stream = NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener)
 
 	if s.config.LeaderElection.Enabled {
-		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.stream, s.serviceDiscovery, s.myIdentity, s.kubernetesClient)
+		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.stream, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
 	}
 

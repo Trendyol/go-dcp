@@ -18,18 +18,17 @@ import (
 
 type Client interface {
 	CoordinationV1() v1.CoordinationV1Interface
-	AddLabel(key string, value string)
-	RemoveLabel(key string)
+	AddLabel(namespace string, key string, value string)
+	RemoveLabel(namespace string, key string)
 }
 
 type client struct {
 	myIdentity *dcpModel.Identity
-	namespace  string
 	*clientSet.Clientset
 }
 
-func (le *client) AddLabel(key string, value string) {
-	_, err := le.CoreV1().Pods(le.namespace).Patch(
+func (le *client) AddLabel(namespace string, key string, value string) {
+	_, err := le.CoreV1().Pods(namespace).Patch(
 		context.Background(),
 		le.myIdentity.Name,
 		types.MergePatchType, []byte(`{"metadata":{"labels":{"`+key+`":"`+value+`"}}}`),
@@ -40,8 +39,8 @@ func (le *client) AddLabel(key string, value string) {
 	}
 }
 
-func (le *client) RemoveLabel(key string) {
-	_, err := le.CoreV1().Pods(le.namespace).Patch(
+func (le *client) RemoveLabel(namespace string, key string) {
+	_, err := le.CoreV1().Pods(namespace).Patch(
 		context.Background(),
 		le.myIdentity.Name,
 		types.MergePatchType, []byte(`{"metadata":{"labels":{"`+key+`":null}}}`),
@@ -52,7 +51,7 @@ func (le *client) RemoveLabel(key string) {
 	}
 }
 
-func NewClient(myIdentity *dcpModel.Identity, namespace string) Client {
+func NewClient(myIdentity *dcpModel.Identity) Client {
 	klog.SetLogger(logr.Discard())
 
 	kubernetesConfig, err := rest.InClusterConfig()
@@ -62,7 +61,6 @@ func NewClient(myIdentity *dcpModel.Identity, namespace string) Client {
 
 	return &client{
 		myIdentity: myIdentity,
-		namespace:  namespace,
 		Clientset:  clientSet.NewForConfigOrDie(kubernetesConfig),
 	}
 }

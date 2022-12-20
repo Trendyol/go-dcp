@@ -127,10 +127,8 @@ func (s *stream) Open() {
 			openWg.Done()
 		}(vbID)
 	}
-
 	openWg.Wait()
 	log.Printf("all streams are opened")
-
 	s.checkpoint.StartSchedule()
 }
 

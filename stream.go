@@ -60,9 +60,15 @@ func (s *stream) listener(event interface{}, err error) {
 }
 
 func (s *stream) Open() {
-	collectionID, err := s.client.GetCollectionID(s.config.ScopeName, s.config.CollectionName)
-	if err != nil {
-		panic(err)
+	var collectionID *uint32
+
+	if s.client.IsCollectionModeEnabled() {
+		id, err := s.client.GetCollectionID(s.config.ScopeName, s.config.CollectionName)
+		if err != nil {
+			panic(err)
+		}
+
+		collectionID = &id
 	}
 
 	vbIds := s.vBucketDiscovery.Get()

@@ -47,8 +47,8 @@ type Config struct {
 	Username       string               `yaml:"username"`
 	Password       string               `yaml:"password"`
 	BucketName     string               `yaml:"bucketName"`
-	ScopeName      string               `yaml:"scopeName"`
-	CollectionName string               `yaml:"collectionName"`
+	ScopeName      string               `yaml:"scopeName" default:"_default"`
+	CollectionName string               `yaml:"collectionName" default:"_default"`
 	MetadataBucket string               `yaml:"metadataBucket"`
 	Dcp            ConfigDCP            `yaml:"dcp"`
 	API            ConfigAPI            `yaml:"api"`
@@ -60,6 +60,7 @@ func Options(opts *config.Options) {
 	opts.ParseTime = true
 	opts.Readonly = true
 	opts.EnableCache = true
+	opts.ParseDefault = true
 }
 
 func NewConfig(name string, filePath string) Config {

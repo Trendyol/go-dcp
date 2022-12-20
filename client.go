@@ -28,20 +28,26 @@ type Client interface {
 	OpenStream(
 		vbID uint16,
 		vbUUID gocbcore.VbUUID,
-		collectionID uint32,
+		collectionID *uint32,
 		observerState *ObserverState,
 		observer Observer,
 		callback gocbcore.OpenStreamCallback,
 	) error
 	CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error
 	GetCollectionID(scopeName string, collectionName string) (uint32, error)
+	IsCollectionModeEnabled() bool
 }
 
 type client struct {
-	agent     *gocbcore.Agent
-	metaAgent *gocbcore.Agent
-	dcpAgent  *gocbcore.DCPAgent
-	config    helpers.Config
+	agent                   *gocbcore.Agent
+	metaAgent               *gocbcore.Agent
+	dcpAgent                *gocbcore.DCPAgent
+	config                  helpers.Config
+	isCollectionModeEnabled bool
+}
+
+func (s *client) IsCollectionModeEnabled() bool {
+	return s.isCollectionModeEnabled
 }
 
 func (s *client) Ping() (bool, error) {
@@ -194,6 +200,8 @@ func (s *client) DcpConnect() error {
 		agentConfig.IoConfig = gocbcore.IoConfig{
 			UseCollections: true,
 		}
+
+		s.isCollectionModeEnabled = true
 	}
 
 	client, err := gocbcore.CreateDcpAgent(
@@ -330,7 +338,7 @@ func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.Failover
 func (s *client) OpenStream(
 	vbID uint16,
 	vbUUID gocbcore.VbUUID,
-	collectionID uint32,
+	collectionID *uint32,
 	observerState *ObserverState,
 	observer Observer,
 	callback gocbcore.OpenStreamCallback,
@@ -339,9 +347,9 @@ func (s *client) OpenStream(
 
 	openStreamOptions := gocbcore.OpenStreamOptions{}
 
-	if s.dcpAgent.HasCollectionsSupport() {
+	if collectionID != nil && s.dcpAgent.HasCollectionsSupport() {
 		openStreamOptions.FilterOptions = &gocbcore.OpenStreamFilterOptions{
-			CollectionIDs: []uint32{collectionID},
+			CollectionIDs: []uint32{*collectionID},
 		}
 	}
 

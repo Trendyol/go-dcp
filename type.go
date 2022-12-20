@@ -2,9 +2,17 @@ package godcpclient
 
 import "github.com/couchbase/gocbcore/v10"
 
+type InternalDcpMutation struct {
+	gocbcore.DcpMutation
+}
+
+func (i *InternalDcpMutation) IsCreated() bool {
+	return i.RevNo == 1
+}
+
 type (
 	DcpSnapshotMarker         = gocbcore.DcpSnapshotMarker
-	DcpMutation               = gocbcore.DcpMutation
+	DcpMutation               = InternalDcpMutation
 	DcpDeletion               = gocbcore.DcpDeletion
 	DcpExpiration             = gocbcore.DcpExpiration
 	DcpStreamEnd              = gocbcore.DcpStreamEnd

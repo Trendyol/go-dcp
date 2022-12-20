@@ -8,4 +8,6 @@ const (
 	KubernetesStatefulSetMembershipType = "kubernetesStatefulSet"
 	KubernetesHaMembershipType          = "kubernetesHa"
 	KubernetesLeaderElectionType        = "kubernetes"
+	DefaultScopeName                    = "_default"
+	DefaultCollectionName               = "_default"
 )

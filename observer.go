@@ -2,11 +2,13 @@ package godcpclient
 
 import (
 	"sync"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 type Observer interface {
 	SnapshotMarker(marker DcpSnapshotMarker)
-	Mutation(mutation DcpMutation)
+	Mutation(mutation gocbcore.DcpMutation)
 	Deletion(deletion DcpDeletion)
 	Expiration(expiration DcpExpiration)
 	End(dcpEnd DcpStreamEnd, err error)
@@ -64,7 +66,7 @@ func (so *observer) SnapshotMarker(marker DcpSnapshotMarker) {
 	}
 }
 
-func (so *observer) Mutation(mutation DcpMutation) {
+func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 	so.stateLock.Lock()
 
 	so.state[mutation.VbID].SeqNo = mutation.SeqNo
@@ -72,7 +74,7 @@ func (so *observer) Mutation(mutation DcpMutation) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(mutation, nil)
+		so.listener(InternalDcpMutation{mutation}, nil)
 	}
 
 	so.metricLock.Lock()

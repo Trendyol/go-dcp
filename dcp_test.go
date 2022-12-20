@@ -26,6 +26,8 @@ func createConfigFile(t *testing.T) (string, func()) {
 username: Administrator
 password: password
 bucketName: sample
+scopeName: _default
+collectionName: _default
 metadataBucket: sample
 dcp:
   group:

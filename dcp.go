@@ -94,13 +94,14 @@ func (s *dcp) Close() {
 		s.leaderElection.Stop()
 	}
 
-	if s.config.Metric.Enabled {
+	if s.api != nil && s.config.Metric.Enabled {
 		s.api.Shutdown()
 	}
 
 	s.stream.Save()
 	s.stream.Close(false)
 	s.client.DcpClose()
+	s.client.MetaClose()
 	s.client.Close()
 }
 
@@ -112,13 +113,18 @@ func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 		return nil, err
 	}
 
+	err = client.MetaConnect()
+	if err != nil {
+		return nil, err
+	}
+
 	err = client.DcpConnect()
 
 	if err != nil {
 		return nil, err
 	}
 
-	metadata := NewCBMetadata(client.GetAgent(), config)
+	metadata := NewCBMetadata(client.GetMetaAgent(), config)
 
 	return &dcp{
 		client:   client,

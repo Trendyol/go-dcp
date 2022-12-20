@@ -71,7 +71,7 @@ func NewAPI(config helpers.Config, client Client, stream Stream, serviceDiscover
 
 	metricMiddleware, err := NewMetricMiddleware(app, config, stream.GetObserver())
 
-	if err != nil {
+	if err == nil {
 		app.Use(metricMiddleware)
 	} else {
 		log.Printf("metric middleware cannot be initialized, error: %v", err)

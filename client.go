@@ -14,8 +14,11 @@ import (
 type Client interface {
 	Ping() (bool, error)
 	GetAgent() *gocbcore.Agent
+	GetMetaAgent() *gocbcore.Agent
 	Connect() error
 	Close() error
+	MetaConnect() error
+	MetaClose() error
 	DcpConnect() error
 	DcpClose() error
 	GetBucketUUID() string
@@ -25,17 +28,20 @@ type Client interface {
 	OpenStream(
 		vbID uint16,
 		vbUUID gocbcore.VbUUID,
+		collectionID uint32,
 		observerState *ObserverState,
 		observer Observer,
 		callback gocbcore.OpenStreamCallback,
 	) error
 	CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error
+	GetCollectionID(scopeName string, collectionName string) (uint32, error)
 }
 
 type client struct {
-	agent    *gocbcore.Agent
-	dcpAgent *gocbcore.DCPAgent
-	config   helpers.Config
+	agent     *gocbcore.Agent
+	metaAgent *gocbcore.Agent
+	dcpAgent  *gocbcore.DCPAgent
+	config    helpers.Config
 }
 
 func (s *client) Ping() (bool, error) {
@@ -80,10 +86,14 @@ func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
 }
 
-func (s *client) Connect() error {
+func (s *client) GetMetaAgent() *gocbcore.Agent {
+	return s.metaAgent
+}
+
+func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
-			BucketName: s.config.MetadataBucket,
+			BucketName: bucketName,
 			SeedConfig: gocbcore.SeedConfig{
 				HTTPAddrs: s.config.Hosts,
 			},
@@ -99,7 +109,7 @@ func (s *client) Connect() error {
 		},
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	ch := make(chan error)
@@ -115,21 +125,29 @@ func (s *client) Connect() error {
 	)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = <-ch; err != nil {
-		return err
+		return nil, err
 	}
 
-	s.agent = client
-	log.Printf("connected to %s", s.config.Hosts)
+	if err != nil {
+		return nil, err
+	}
 
-	_, err = s.Ping()
+	log.Printf("connected to %s, bucket: %s", s.config.Hosts, bucketName)
 
+	return client, nil
+}
+
+func (s *client) Connect() error {
+	agent, err := s.connect(s.config.BucketName)
 	if err != nil {
 		return err
 	}
+
+	s.agent = agent
 
 	return nil
 }
@@ -139,23 +157,47 @@ func (s *client) Close() error {
 	return s.agent.Close()
 }
 
+func (s *client) MetaConnect() error {
+	agent, err := s.connect(s.config.MetadataBucket)
+	if err != nil {
+		return err
+	}
+
+	s.metaAgent = agent
+
+	return nil
+}
+
+func (s *client) MetaClose() error {
+	log.Printf("closing meta connection to %s", s.config.Hosts)
+	return s.metaAgent.Close()
+}
+
 func (s *client) DcpConnect() error {
-	client, err := gocbcore.CreateDcpAgent(
-		&gocbcore.DCPAgentConfig{
-			BucketName: s.config.BucketName,
-			SeedConfig: gocbcore.SeedConfig{
-				HTTPAddrs: s.config.Hosts,
-			},
-			SecurityConfig: gocbcore.SecurityConfig{
-				Auth: gocbcore.PasswordAuthProvider{
-					Username: s.config.Username,
-					Password: s.config.Password,
-				},
-			},
-			CompressionConfig: gocbcore.CompressionConfig{
-				Enabled: true,
+	agentConfig := &gocbcore.DCPAgentConfig{
+		BucketName: s.config.BucketName,
+		SeedConfig: gocbcore.SeedConfig{
+			HTTPAddrs: s.config.Hosts,
+		},
+		SecurityConfig: gocbcore.SecurityConfig{
+			Auth: gocbcore.PasswordAuthProvider{
+				Username: s.config.Username,
+				Password: s.config.Password,
 			},
 		},
+		CompressionConfig: gocbcore.CompressionConfig{
+			Enabled: true,
+		},
+	}
+
+	if s.config.ScopeName != helpers.DefaultScopeName || s.config.CollectionName != helpers.DefaultCollectionName {
+		agentConfig.IoConfig = gocbcore.IoConfig{
+			UseCollections: true,
+		}
+	}
+
+	client, err := gocbcore.CreateDcpAgent(
+		agentConfig,
 		helpers.GetDcpStreamName(s.config.Dcp.Group.Name),
 		memd.DcpOpenFlagProducer,
 	)
@@ -288,11 +330,20 @@ func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.Failover
 func (s *client) OpenStream(
 	vbID uint16,
 	vbUUID gocbcore.VbUUID,
+	collectionID uint32,
 	observerState *ObserverState,
 	observer Observer,
 	callback gocbcore.OpenStreamCallback,
 ) error {
 	opm := NewAsyncOp(context.Background())
+
+	openStreamOptions := gocbcore.OpenStreamOptions{}
+
+	if s.dcpAgent.HasCollectionsSupport() {
+		openStreamOptions.FilterOptions = &gocbcore.OpenStreamFilterOptions{
+			CollectionIDs: []uint32{collectionID},
+		}
+	}
 
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
@@ -303,7 +354,7 @@ func (s *client) OpenStream(
 		gocbcore.SeqNo(observerState.StartSeqNo),
 		gocbcore.SeqNo(observerState.EndSeqNo),
 		observer,
-		gocbcore.OpenStreamOptions{},
+		openStreamOptions,
 		func(entries []gocbcore.FailoverEntry, err error) {
 			opm.Resolve()
 
@@ -334,6 +385,39 @@ func (s *client) CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback)
 	}
 
 	return opm.Wait(op, err)
+}
+
+func (s *client) GetCollectionID(scopeName string, collectionName string) (uint32, error) {
+	ctx := context.Background()
+	opm := NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	ch := make(chan error)
+	var collectionID uint32
+	op, err := s.agent.GetCollectionID(
+		scopeName,
+		collectionName,
+		gocbcore.GetCollectionIDOptions{
+			Deadline: deadline,
+		},
+		func(result *gocbcore.GetCollectionIDResult, err error) {
+			if err == nil {
+				collectionID = result.CollectionID
+			}
+
+			opm.Resolve()
+
+			ch <- err
+		},
+	)
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return collectionID, err
+	}
+
+	return collectionID, <-ch
 }
 
 func NewClient(config helpers.Config) Client {

@@ -60,6 +60,11 @@ func (s *stream) listener(event interface{}, err error) {
 }
 
 func (s *stream) Open() {
+	collectionID, err := s.client.GetCollectionID(s.config.ScopeName, s.config.CollectionName)
+	if err != nil {
+		panic(err)
+	}
+
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
 
@@ -93,6 +98,7 @@ func (s *stream) Open() {
 			err := s.client.OpenStream(
 				innerVbId,
 				failoverLogs[innerVbId][0].VbUUID,
+				collectionID,
 				observerState[innerVbId],
 				s.observer,
 				func(entries []gocbcore.FailoverEntry, err error) {

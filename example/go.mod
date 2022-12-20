@@ -2,7 +2,7 @@ module example
 
 go 1.19
 
-require github.com/Trendyol/go-dcp-client v0.0.1
+require github.com/Trendyol/go-dcp-client v0.0.2
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect

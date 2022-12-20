@@ -47,8 +47,8 @@ github.com/Microsoft/hcsshim v0.9.4 h1:mnUj0ivWy6UzbB1uLFqKR6F+ZyiDc7j4iGgHTpO+5
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/Trendyol/go-dcp-client v0.0.1 h1:lfyNdg4+R2Fq4tNb5eHmYv99RhgXYgBclzoNpVAP/N8=
-github.com/Trendyol/go-dcp-client v0.0.1/go.mod h1:Q/INu/rJfByM2tTnGq/MHfy/O69hq9UNPgkGdXHtA+s=
+github.com/Trendyol/go-dcp-client v0.0.2 h1:gnytnPgzt61DllOLgkV9mV9sQQwVtfoCUPgFMtw1n0k=
+github.com/Trendyol/go-dcp-client v0.0.2/go.mod h1:3kQwijdcMStbHcoLAImV8EfrVKBas0jfRCXK0AUSGLw=
 github.com/agext/levenshtein v1.2.1/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=

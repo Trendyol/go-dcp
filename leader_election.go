@@ -94,7 +94,7 @@ func (l *leaderElection) Start() {
 	l.elector.Run(context.Background())
 	l.watchStability()
 
-	timer := time.AfterFunc(30*time.Second, func() {
+	timer := time.AfterFunc(10*time.Second, func() {
 		l.initializedCh <- false
 	})
 

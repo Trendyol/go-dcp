@@ -40,15 +40,13 @@ github.com/Azure/go-autorest/autorest/mocks v0.4.1/go.mod h1:LTp+uSrOhSkaKrUy935
 github.com/Azure/go-autorest/logger v0.2.1/go.mod h1:T9E3cAhj2VqvPOtCYAvby9aBXkZmbF5NWuPV8+WeEW8=
 github.com/Azure/go-autorest/tracing v0.6.0/go.mod h1:+vhtPC754Xsa23ID7GlGsrdKBpUA79WCAKPPZVC2DeU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/BurntSushi/toml v1.2.0/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
+github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/Microsoft/go-winio v0.5.2 h1:a9IhgEQBCUEk6QCdml9CiJGhAws+YwffDHEMp1VMrpA=
 github.com/Microsoft/hcsshim v0.9.4 h1:mnUj0ivWy6UzbB1uLFqKR6F+ZyiDc7j4iGgHTpO+5+I=
 github.com/NYTimes/gziphandler v0.0.0-20170623195520-56545f4a5d46/go.mod h1:3wb06e3pkSAbeQ52E9H9iFoQsEEwGN64994WTCIhntQ=
 github.com/PuerkitoBio/purell v1.1.1/go.mod h1:c11w/QuzBsJSee3cPx9rAFu61PvFxuPbtSwDGJws/X0=
 github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdkoq3SwY9Y+13GIhn11/XLaGBb4BfwItxLd5jeuXE=
-github.com/Trendyol/go-dcp-client v0.0.2 h1:gnytnPgzt61DllOLgkV9mV9sQQwVtfoCUPgFMtw1n0k=
-github.com/Trendyol/go-dcp-client v0.0.2/go.mod h1:3kQwijdcMStbHcoLAImV8EfrVKBas0jfRCXK0AUSGLw=
 github.com/agext/levenshtein v1.2.1/go.mod h1:JEDfjyjHDjOF/1e4FlBE/PkbqA9OfWu2ki2W0IB5558=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
@@ -209,8 +207,8 @@ github.com/googleapis/gnostic v0.5.5 h1:9fHAtK0uDfpveeqqo1hkEZJcFvYXAiCN3UutL8F9
 github.com/googleapis/gnostic v0.5.5/go.mod h1:7+EbHbldMins07ALC74bsA81Ovc97DwqyJO1AENw9kA=
 github.com/gookit/color v1.5.2 h1:uLnfXcaFjlrDnQDT+NCBcfhrXqYTx/rcCa6xn01Y8yI=
 github.com/gookit/color v1.5.2/go.mod h1:w8h4bGiHeeBpvQVePTutdbERIUf3oJE5lZ8HM0UgXyg=
-github.com/gookit/config/v2 v2.1.7 h1:pxIXnHEoeUv6DtbUl4qj8gE3YxgWPjuuB9wiKur9JE0=
-github.com/gookit/config/v2 v2.1.7/go.mod h1:Rlm83qfFCyrJ+8O3iTx2xUvflOTBrCuLcaT65fytENA=
+github.com/gookit/config/v2 v2.1.8 h1:fH8NKzOLlQ2Ud65Czy5Tq+t1I8U7M9BmIPgVFQ4T9UQ=
+github.com/gookit/config/v2 v2.1.8/go.mod h1:AP8Obh1AKx1pFkBNE2EghDb1ei2/fG33ULfkzuw4s0c=
 github.com/gookit/goutil v0.5.14/go.mod h1:ozPE16eJS9f89aVbVk05ocEJsia3KPrYUqPTs8GvUTw=
 github.com/gookit/goutil v0.5.15 h1:FaRyj0uVqi7j92QHsG+2Sc1VZ7/7ma77UD3/wBpwyTc=
 github.com/gookit/goutil v0.5.15/go.mod h1:ozPE16eJS9f89aVbVk05ocEJsia3KPrYUqPTs8GvUTw=

@@ -11,18 +11,9 @@ dcp:
     name: groupName
     membership:
       type: kubernetesHa
-api:
-  port: 8080
-metric:
-  enabled: true
-  path: /metrics
 leaderElection:
   enabled: true
   type: kubernetes
   config:
     leaseLockName: group-name-lock
     leaseLockNamespace: default
-  rpc:
-    port: 8081
-logging:
-  level: info

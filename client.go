@@ -122,7 +122,7 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(time.Second*10),
+		time.Now().Add(time.Second*5),
 		gocbcore.WaitUntilReadyOptions{
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},
@@ -143,8 +143,6 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 		return nil, err
 	}
 
-	logger.Debug("connected to %s, bucket: %s", s.config.Hosts, bucketName)
-
 	return client, nil
 }
 
@@ -155,6 +153,8 @@ func (s *client) Connect() error {
 	}
 
 	s.agent = agent
+
+	logger.Debug("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
@@ -171,6 +171,8 @@ func (s *client) MetaConnect() error {
 	}
 
 	s.metaAgent = agent
+
+	logger.Debug("connected to %s, meta bucket: %s", s.config.Hosts, s.config.MetadataBucket)
 
 	return nil
 }
@@ -217,7 +219,7 @@ func (s *client) DcpConnect() error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(time.Second*10),
+		time.Now().Add(time.Second*5),
 		gocbcore.WaitUntilReadyOptions{
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},
@@ -235,7 +237,7 @@ func (s *client) DcpConnect() error {
 	}
 
 	s.dcpAgent = client
-	logger.Debug("connected to %s as dcp", s.config.Hosts)
+	logger.Debug("connected to %s as dcp, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }

@@ -35,16 +35,7 @@ dcp:
     membership:
       type: static
       memberNumber: 1
-      totalMembers: 1
-api:
-  port: 8080
-metric:
-  enabled: true
-  path: /metrics
-leaderElector:
-  enabled: false
-logging:
-  level: info`
+      totalMembers: 1`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {
@@ -68,7 +59,7 @@ func setupContainer(t *testing.T, config helpers.Config) func() {
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
 			ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
-			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
+			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(20 * time.Second),
 			Env: map[string]string{
 				"USERNAME":    config.Username,
 				"PASSWORD":    config.Password,

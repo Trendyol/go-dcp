@@ -104,7 +104,7 @@ func (s *serviceDiscovery) healthCheckToService(service *Service, errorCallback 
 }
 
 func (s *serviceDiscovery) StartHealthCheck() {
-	s.healthCheckSchedule = time.NewTicker(10 * time.Second)
+	s.healthCheckSchedule = time.NewTicker(5 * time.Second)
 
 	go func() {
 		for range s.healthCheckSchedule.C {
@@ -142,7 +142,7 @@ func (s *serviceDiscovery) StopHealthCheck() {
 }
 
 func (s *serviceDiscovery) StartRebalance() {
-	s.rebalanceSchedule = time.NewTicker(10 * time.Second)
+	s.rebalanceSchedule = time.NewTicker(5 * time.Second)
 
 	go func() {
 		for range s.rebalanceSchedule.C {

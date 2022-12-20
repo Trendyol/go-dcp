@@ -9,7 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.2
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/google/uuid v1.3.0
-	github.com/gookit/config/v2 v2.1.7
+	github.com/gookit/config/v2 v2.1.8
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.8.1

@@ -162,7 +162,7 @@ func (s *cbMetadata) createEmptyDocument(ctx context.Context, id []byte) error {
 }
 
 func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	for vbID, checkpointDocument := range state {
@@ -186,7 +186,7 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) {
 }
 
 func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]CheckpointDocument {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	state := map[uint16]CheckpointDocument{}
@@ -208,7 +208,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkpoi
 }
 
 func (s *cbMetadata) Clear(vbIds []uint16) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 
 	for _, vbID := range vbIds {

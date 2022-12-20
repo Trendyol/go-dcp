@@ -138,7 +138,7 @@ func (s *stream) Rebalance() {
 		s.rebalanceTimer.Stop()
 	}
 
-	s.rebalanceTimer = time.AfterFunc(time.Second*10, func() {
+	s.rebalanceTimer = time.AfterFunc(time.Second*5, func() {
 		s.Pause()
 		s.Resume()
 		logger.Debug("rebalance is finished")
@@ -161,7 +161,7 @@ func (s *stream) Wait() {
 
 func (s *stream) Save() {
 	if s.checkpoint != nil {
-		s.checkpoint.Save(false)
+		s.checkpoint.Save()
 	}
 }
 

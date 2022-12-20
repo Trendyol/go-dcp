@@ -1,6 +1,8 @@
 package helpers
 
 import (
+	"time"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/gookit/config/v2"
 	"github.com/gookit/config/v2/yamlv3"
@@ -22,27 +24,32 @@ type ConfigDCP struct {
 }
 
 type ConfigAPI struct {
-	Port int `yaml:"port"`
+	Port int `yaml:"port" default:"8080"`
 }
 
 type ConfigMetric struct {
-	Enabled bool   `yaml:"enabled"`
-	Path    string `yaml:"path"`
+	Enabled bool   `yaml:"enabled" default:"true"`
+	Path    string `yaml:"path" default:"/metrics"`
 }
 
 type ConfigLeaderElection struct {
-	Enabled bool              `yaml:"enabled"`
+	Enabled bool              `yaml:"enabled" default:"false"`
 	Type    string            `yaml:"type"`
 	Config  map[string]string `yaml:"config"`
 	RPC     ConfigRPC         `yaml:"rpc"`
 }
 
 type ConfigRPC struct {
-	Port int `yaml:"port"`
+	Port int `yaml:"port" default:"8081"`
 }
 
 type ConfigLogging struct {
 	Level string `yaml:"level" default:"info"`
+}
+
+type ConfigCheckpoint struct {
+	Type     string        `yaml:"type" default:"auto"`
+	Interval time.Duration `yaml:"interval"`
 }
 
 type Config struct {
@@ -58,6 +65,7 @@ type Config struct {
 	Metric         ConfigMetric         `yaml:"metric"`
 	LeaderElection ConfigLeaderElection `yaml:"leaderElector"`
 	Logging        ConfigLogging        `yaml:"logging"`
+	Checkpoint     ConfigCheckpoint     `yaml:"checkpoint"`
 }
 
 func Options(opts *config.Options) {
@@ -65,6 +73,12 @@ func Options(opts *config.Options) {
 	opts.Readonly = true
 	opts.EnableCache = true
 	opts.ParseDefault = true
+}
+
+func applyUnhandledDefaults(_config *Config) {
+	if _config.Checkpoint.Interval == 0 {
+		_config.Checkpoint.Interval = 5 * time.Second
+	}
 }
 
 func NewConfig(name string, filePath string) Config {
@@ -83,6 +97,8 @@ func NewConfig(name string, filePath string) Config {
 	}
 
 	logger.Debug("config loaded from file: %v", filePath)
+
+	applyUnhandledDefaults(&_config)
 
 	return _config
 }

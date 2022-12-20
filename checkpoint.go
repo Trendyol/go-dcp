@@ -11,7 +11,7 @@ import (
 )
 
 type Checkpoint interface {
-	Save(fromSchedule bool)
+	Save()
 	Load() map[uint16]*ObserverState
 	Clear()
 	StartSchedule()
@@ -61,8 +61,7 @@ type checkpoint struct {
 	config       helpers.Config
 }
 
-func (s *checkpoint) Save(fromSchedule bool) {
-	// TODO: review
+func (s *checkpoint) Save() {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
@@ -86,9 +85,7 @@ func (s *checkpoint) Save(fromSchedule bool) {
 
 	s.metadata.Save(dump, s.bucketUUID)
 
-	if !fromSchedule {
-		logger.Debug("saved checkpoint")
-	}
+	logger.Debug("saved checkpoint")
 }
 
 func (s *checkpoint) Load() map[uint16]*ObserverState {
@@ -119,16 +116,24 @@ func (s *checkpoint) Clear() {
 }
 
 func (s *checkpoint) StartSchedule() {
+	if s.config.Checkpoint.Type != helpers.CheckpointTypeAuto {
+		return
+	}
+
 	go func() {
-		s.schedule = time.NewTicker(10 * time.Second)
+		s.schedule = time.NewTicker(s.config.Checkpoint.Interval)
 		for range s.schedule.C {
-			s.Save(true)
+			s.Save()
 		}
 	}()
 	logger.Debug("started checkpoint schedule")
 }
 
 func (s *checkpoint) StopSchedule() {
+	if s.config.Checkpoint.Type != helpers.CheckpointTypeAuto {
+		return
+	}
+
 	s.schedule.Stop()
 	logger.Debug("stopped checkpoint schedule")
 }

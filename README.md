@@ -89,18 +89,23 @@ $ go get github.com/Trendyol/go-dcp-client
 | `username`                          | string                      | yes         |
 | `password`                          | string                      | yes         |
 | `bucketName`                        | string                      | yes         |
+| `scopeName`                         | string                      | no          |
+| `collectionName`                    | string                      | no          |
 | `metadataBucket`                    | string                      | yes         |
 | `dcp.group.name`                    | string                      | yes         |
 | `dcp.group.membership.type`         | string                      | yes         |
 | `dcp.group.membership.memberNumber` | integer                     | no          |
 | `dcp.group.membership.totalMembers` | integer                     | no          |
-| `api.port`                          | integer                     | yes         |
-| `metric.enabled`                    | boolean *(true/false)*      | yes         |
-| `metric.path`                       | string                      | yes         |
-| `leaderElection.enabled`            | boolean *(true/false)*      | yes         |
+| `api.port`                          | integer                     | no          |
+| `metric.enabled`                    | boolean *(true/false)*      | no          |
+| `metric.path`                       | string                      | no          |
+| `leaderElection.enabled`            | boolean *(true/false)*      | no          |
 | `leaderElection.type`               | string                      | no          |
 | `leaderElection.config`             | string/string key value map | no          |
 | `leaderElection.rpc.port`           | integer                     | no          |
+| `logger.level`                      | string                      | no          |
+| `checkpoint.type`                   | string                      | no          |
+| `checkpoint.interval`               | integer                     | no          |
 
 ---
 

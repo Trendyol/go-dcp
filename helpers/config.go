@@ -79,6 +79,10 @@ func applyUnhandledDefaults(_config *Config) {
 	if _config.Checkpoint.Interval == 0 {
 		_config.Checkpoint.Interval = 5 * time.Second
 	}
+
+	if _config.MetadataBucket == "" {
+		_config.MetadataBucket = _config.BucketName
+	}
 }
 
 func NewConfig(name string, filePath string) Config {

@@ -3,9 +3,6 @@ hosts:
 username: user
 password: password
 bucketName: dcp-test
-scopeName: _default
-collectionName: _default
-metadataBucket: dcp-test-meta
 dcp:
   group:
     name: groupName

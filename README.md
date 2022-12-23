@@ -91,7 +91,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `bucketName`                        | string                      | yes         |
 | `scopeName`                         | string                      | no          |
 | `collectionName`                    | string                      | no          |
-| `metadataBucket`                    | string                      | yes         |
+| `metadataBucket`                    | string                      | no          |
 | `dcp.group.name`                    | string                      | yes         |
 | `dcp.group.membership.type`         | string                      | yes         |
 | `dcp.group.membership.memberNumber` | integer                     | no          |

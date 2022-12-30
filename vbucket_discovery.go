@@ -15,10 +15,10 @@ type VBucketDiscovery interface {
 }
 
 type vBucketDiscovery struct {
-	vBucketNumber int
-	config        helpers.ConfigDCPGroupMembership
 	infoHandler   info.Handler
 	membership    membership.Membership
+	config        helpers.ConfigDCPGroupMembership
+	vBucketNumber int
 }
 
 func (s *vBucketDiscovery) Get() []uint16 {

@@ -30,8 +30,8 @@ type checkpointDocumentCheckpoint struct {
 }
 
 type CheckpointDocument struct {
-	Checkpoint checkpointDocumentCheckpoint `json:"checkpoint"`
 	BucketUUID string                       `json:"bucketUuid"`
+	Checkpoint checkpointDocumentCheckpoint `json:"checkpoint"`
 }
 
 func NewEmptyCheckpointDocument(bucketUUID string) CheckpointDocument {
@@ -50,15 +50,15 @@ func NewEmptyCheckpointDocument(bucketUUID string) CheckpointDocument {
 
 type checkpoint struct {
 	observer     Observer
-	vbIds        []uint16
+	metadata     Metadata
 	failoverLogs map[uint16][]gocbcore.FailoverEntry
 	vbSeqNos     map[uint16]gocbcore.VbSeqNoEntry
-	metadata     Metadata
+	schedule     *time.Ticker
 	bucketUUID   string
+	config       helpers.Config
+	vbIds        []uint16
 	saveLock     sync.Mutex
 	loadLock     sync.Mutex
-	schedule     *time.Ticker
-	config       helpers.Config
 }
 
 func (s *checkpoint) Save() {

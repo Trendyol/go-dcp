@@ -22,24 +22,17 @@ type Stream interface {
 }
 
 type stream struct {
-	client     Client
-	Metadata   Metadata
-	checkpoint Checkpoint
-
-	finishedStreams sync.WaitGroup
-
-	listeners []Listener
-
-	streamsLock sync.Mutex
-	streams     map[uint16]*uint16
-
-	config helpers.Config
-
-	observer Observer
-
+	client           Client
+	Metadata         Metadata
+	checkpoint       Checkpoint
+	observer         Observer
 	vBucketDiscovery VBucketDiscovery
-
-	rebalanceTimer *time.Timer
+	streams          map[uint16]*uint16
+	rebalanceTimer   *time.Timer
+	config           helpers.Config
+	listeners        []Listener
+	finishedStreams  sync.WaitGroup
+	streamsLock      sync.Mutex
 }
 
 func (s *stream) listener(event interface{}, err error) {

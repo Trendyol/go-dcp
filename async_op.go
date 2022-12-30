@@ -13,9 +13,9 @@ type AsyncOp interface {
 }
 
 type asyncOp struct {
+	ctx         context.Context
 	signal      chan struct{}
 	wasResolved bool
-	ctx         context.Context
 }
 
 func (m *asyncOp) Reject() {

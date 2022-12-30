@@ -23,17 +23,17 @@ type LeaderElection interface {
 }
 
 type leaderElection struct {
-	config           helpers.ConfigLeaderElection
 	elector          kle.LeaderElector
 	rpcServer        servicediscovery.Server
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
-	stable           bool
-	initialized      uint32
+	infoHandler      info.Handler
 	stabilityCh      chan bool
 	myIdentity       *identity.Identity
+	config           helpers.ConfigLeaderElection
 	newLeaderLock    sync.Mutex
-	infoHandler      info.Handler
+	initialized      uint32
+	stable           bool
 }
 
 func (l *leaderElection) OnBecomeLeader() {

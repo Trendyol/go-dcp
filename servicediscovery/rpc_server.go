@@ -17,15 +17,15 @@ type Server interface {
 }
 
 type server struct {
-	port     int
 	listener net.Listener
 	handler  *Handler
+	port     int
 }
 
 type Handler struct {
-	port             int
-	myIdentity       *identity.Identity
 	serviceDiscovery ServiceDiscovery
+	myIdentity       *identity.Identity
+	port             int
 }
 
 func (rh *Handler) Ping(_ Ping, reply *Pong) error {

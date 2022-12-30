@@ -9,8 +9,8 @@ import (
 type Observer interface {
 	SnapshotMarker(marker DcpSnapshotMarker)
 	Mutation(mutation gocbcore.DcpMutation)
-	Deletion(deletion gocbcore.DcpDeletion)
-	Expiration(expiration gocbcore.DcpExpiration)
+	Deletion(deletion DcpDeletion)
+	Expiration(expiration DcpExpiration)
 	End(dcpEnd DcpStreamEnd, err error)
 	CreateCollection(creation DcpCollectionCreation)
 	DeleteCollection(deletion DcpCollectionDeletion)
@@ -38,25 +38,12 @@ type ObserverState struct {
 }
 
 type observer struct {
-	stateLock sync.Mutex
-	state     map[uint16]*ObserverState
-
-	metricLock sync.Mutex
+	state      map[uint16]*ObserverState
+	listener   Listener
+	vbIds      []uint16
 	metric     ObserverMetric
-
-	listener Listener
-
-	vbIds []uint16
-
-	collectionIDs map[uint32]string
-}
-
-func (so *observer) convertToCollectionName(collectionID uint32) *string {
-	if name, ok := so.collectionIDs[collectionID]; ok {
-		return &name
-	}
-
-	return nil
+	stateLock  sync.Mutex
+	metricLock sync.Mutex
 }
 
 func (so *observer) SnapshotMarker(marker DcpSnapshotMarker) {
@@ -84,10 +71,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(InternalDcpMutation{
-			DcpMutation:    mutation,
-			CollectionName: so.convertToCollectionName(mutation.CollectionID),
-		}, nil)
+		so.listener(InternalDcpMutation{mutation}, nil)
 	}
 
 	so.metricLock.Lock()
@@ -97,7 +81,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 	so.metricLock.Unlock()
 }
 
-func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
+func (so *observer) Deletion(deletion DcpDeletion) {
 	so.stateLock.Lock()
 
 	so.state[deletion.VbID].SeqNo = deletion.SeqNo
@@ -105,10 +89,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(InternalDcpDeletion{
-			DcpDeletion:    deletion,
-			CollectionName: so.convertToCollectionName(deletion.CollectionID),
-		}, nil)
+		so.listener(deletion, nil)
 	}
 
 	so.metricLock.Lock()
@@ -118,7 +99,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 	so.metricLock.Unlock()
 }
 
-func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
+func (so *observer) Expiration(expiration DcpExpiration) {
 	so.stateLock.Lock()
 
 	so.state[expiration.VbID].SeqNo = expiration.SeqNo
@@ -126,10 +107,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 	so.stateLock.Unlock()
 
 	if so.listener != nil {
-		so.listener(InternalDcpExpiration{
-			DcpExpiration:  expiration,
-			CollectionName: so.convertToCollectionName(expiration.CollectionID),
-		}, nil)
+		so.listener(expiration, nil)
 	}
 
 	so.metricLock.Lock()
@@ -220,7 +198,7 @@ func (so *observer) GetMetric() ObserverMetric {
 	return so.metric
 }
 
-func NewObserver(vbIds []uint16, listener Listener, collectionIDs map[uint32]string) Observer {
+func NewObserver(vbIds []uint16, listener Listener) Observer {
 	return &observer{
 		stateLock: sync.Mutex{},
 		state:     map[uint16]*ObserverState{},
@@ -231,7 +209,5 @@ func NewObserver(vbIds []uint16, listener Listener, collectionIDs map[uint32]str
 		listener: listener,
 
 		vbIds: vbIds,
-
-		collectionIDs: collectionIDs,
 	}
 }

@@ -24,10 +24,10 @@ type Client interface {
 
 type client struct {
 	client         *pureRpc.Client
-	port           int
-	connected      bool
 	myIdentity     *identity.Identity
 	targetIdentity *identity.Identity
+	port           int
+	connected      bool
 }
 
 func (c *client) connect() error {

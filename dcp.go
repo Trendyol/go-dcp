@@ -22,13 +22,13 @@ type Dcp interface {
 type dcp struct {
 	client           Client
 	metadata         Metadata
-	listener         Listener
 	stream           Stream
-	config           helpers.Config
 	api              API
 	leaderElection   LeaderElection
 	vBucketDiscovery VBucketDiscovery
 	serviceDiscovery servicediscovery.ServiceDiscovery
+	listener         Listener
+	config           helpers.Config
 }
 
 func (s *dcp) Start() {

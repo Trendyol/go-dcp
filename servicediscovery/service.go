@@ -2,8 +2,8 @@ package servicediscovery
 
 type Service struct {
 	Client   Client
-	IsLeader bool
 	Name     string
+	IsLeader bool
 }
 
 func NewService(client Client, isLeader bool, name string) *Service {

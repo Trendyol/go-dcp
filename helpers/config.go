@@ -28,15 +28,15 @@ type ConfigAPI struct {
 }
 
 type ConfigMetric struct {
-	Enabled bool   `yaml:"enabled" default:"true"`
 	Path    string `yaml:"path" default:"/metrics"`
+	Enabled bool   `yaml:"enabled" default:"true"`
 }
 
 type ConfigLeaderElection struct {
-	Enabled bool              `yaml:"enabled" default:"false"`
-	Type    string            `yaml:"type"`
 	Config  map[string]string `yaml:"config"`
+	Type    string            `yaml:"type"`
 	RPC     ConfigRPC         `yaml:"rpc"`
+	Enabled bool              `yaml:"enabled" default:"false"`
 }
 
 type ConfigRPC struct {
@@ -53,19 +53,19 @@ type ConfigCheckpoint struct {
 }
 
 type Config struct {
-	Hosts           []string             `yaml:"hosts"`
-	Username        string               `yaml:"username"`
-	Password        string               `yaml:"password"`
+	LeaderElection  ConfigLeaderElection `yaml:"leaderElector"`
+	Metric          ConfigMetric         `yaml:"metric"`
 	BucketName      string               `yaml:"bucketName"`
 	ScopeName       string               `yaml:"scopeName" default:"_default"`
 	CollectionNames []string             `yaml:"collectionNames"`
 	MetadataBucket  string               `yaml:"metadataBucket"`
+	Password        string               `yaml:"password"`
+	Username        string               `yaml:"username"`
+	Logging         ConfigLogging        `yaml:"logging"`
+	Hosts           []string             `yaml:"hosts"`
+	Checkpoint      ConfigCheckpoint     `yaml:"checkpoint"`
 	Dcp             ConfigDCP            `yaml:"dcp"`
 	API             ConfigAPI            `yaml:"api"`
-	Metric          ConfigMetric         `yaml:"metric"`
-	LeaderElection  ConfigLeaderElection `yaml:"leaderElector"`
-	Logging         ConfigLogging        `yaml:"logging"`
-	Checkpoint      ConfigCheckpoint     `yaml:"checkpoint"`
 }
 
 func (c *Config) IsCollectionModeEnabled() bool {
@@ -89,7 +89,7 @@ func applyUnhandledDefaults(_config *Config) {
 	}
 
 	if _config.CollectionNames == nil {
-		_config.CollectionNames = []string{"_default"}
+		_config.CollectionNames = []string{DefaultCollectionName}
 	}
 }
 

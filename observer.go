@@ -38,17 +38,13 @@ type ObserverState struct {
 }
 
 type observer struct {
-	stateLock sync.Mutex
-	state     map[uint16]*ObserverState
-
-	metricLock sync.Mutex
-	metric     ObserverMetric
-
-	listener Listener
-
-	vbIds []uint16
-
+	state         map[uint16]*ObserverState
 	collectionIDs map[uint32]string
+	listener      Listener
+	vbIds         []uint16
+	metric        ObserverMetric
+	stateLock     sync.Mutex
+	metricLock    sync.Mutex
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) *string {

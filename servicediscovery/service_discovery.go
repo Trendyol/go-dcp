@@ -29,14 +29,14 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
+	infoHandler         info.Handler
 	leaderService       *Service
 	services            map[string]*Service
 	healthCheckSchedule *time.Ticker
 	rebalanceSchedule   *time.Ticker
 	info                *info.Model
-	infoHandler         info.Handler
-	amILeader           bool
 	servicesLock        *sync.RWMutex
+	amILeader           bool
 }
 
 func (s *serviceDiscovery) Add(service *Service) {

@@ -16,11 +16,11 @@ type API interface {
 }
 
 type api struct {
-	app              *fiber.App
-	config           helpers.Config
 	client           Client
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
+	app              *fiber.App
+	config           helpers.Config
 }
 
 func (s *api) Listen() {

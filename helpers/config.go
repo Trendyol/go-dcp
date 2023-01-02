@@ -58,7 +58,7 @@ type Config struct {
 	Password        string               `yaml:"password"`
 	BucketName      string               `yaml:"bucketName"`
 	ScopeName       string               `yaml:"scopeName" default:"_default"`
-	CollectionNames []string             `yaml:"collectionName"`
+	CollectionNames []string             `yaml:"collectionNames"`
 	MetadataBucket  string               `yaml:"metadataBucket"`
 	Dcp             ConfigDCP            `yaml:"dcp"`
 	API             ConfigAPI            `yaml:"api"`

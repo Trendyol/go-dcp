@@ -53,19 +53,23 @@ type ConfigCheckpoint struct {
 }
 
 type Config struct {
-	LeaderElection ConfigLeaderElection `yaml:"leaderElector"`
-	Metric         ConfigMetric         `yaml:"metric"`
-	BucketName     string               `yaml:"bucketName"`
-	ScopeName      string               `yaml:"scopeName" default:"_default"`
-	CollectionName string               `yaml:"collectionName" default:"_default"`
-	MetadataBucket string               `yaml:"metadataBucket"`
-	Password       string               `yaml:"password"`
-	Username       string               `yaml:"username"`
-	Logging        ConfigLogging        `yaml:"logging"`
-	Hosts          []string             `yaml:"hosts"`
-	Checkpoint     ConfigCheckpoint     `yaml:"checkpoint"`
-	Dcp            ConfigDCP            `yaml:"dcp"`
-	API            ConfigAPI            `yaml:"api"`
+	LeaderElection  ConfigLeaderElection `yaml:"leaderElector"`
+	Metric          ConfigMetric         `yaml:"metric"`
+	BucketName      string               `yaml:"bucketName"`
+	ScopeName       string               `yaml:"scopeName" default:"_default"`
+	CollectionNames []string             `yaml:"collectionNames"`
+	MetadataBucket  string               `yaml:"metadataBucket"`
+	Password        string               `yaml:"password"`
+	Username        string               `yaml:"username"`
+	Logging         ConfigLogging        `yaml:"logging"`
+	Hosts           []string             `yaml:"hosts"`
+	Checkpoint      ConfigCheckpoint     `yaml:"checkpoint"`
+	Dcp             ConfigDCP            `yaml:"dcp"`
+	API             ConfigAPI            `yaml:"api"`
+}
+
+func (c *Config) IsCollectionModeEnabled() bool {
+	return !(c.ScopeName == DefaultScopeName && len(c.CollectionNames) == 1 && c.CollectionNames[0] == DefaultCollectionName)
 }
 
 func Options(opts *config.Options) {
@@ -82,6 +86,10 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.MetadataBucket == "" {
 		_config.MetadataBucket = _config.BucketName
+	}
+
+	if _config.CollectionNames == nil {
+		_config.CollectionNames = []string{DefaultCollectionName}
 	}
 }
 

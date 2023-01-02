@@ -134,7 +134,10 @@ func (s *checkpoint) StopSchedule() {
 		return
 	}
 
-	s.schedule.Stop()
+	if s.schedule != nil {
+		s.schedule.Stop()
+	}
+
 	logger.Debug("stopped checkpoint schedule")
 }
 

@@ -81,7 +81,7 @@ func Options(opts *config.Options) {
 
 func applyUnhandledDefaults(_config *Config) {
 	if _config.Checkpoint.Interval == 0 {
-		_config.Checkpoint.Interval = 5 * time.Second
+		_config.Checkpoint.Interval = 10 * time.Second
 	}
 
 	if _config.MetadataBucket == "" {

@@ -90,7 +90,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `password`                          | string                      | yes         |
 | `bucketName`                        | string                      | yes         |
 | `scopeName`                         | string                      | no          |
-| `collectionName`                    | string                      | no          |
+| `collectionNames`                   | array                       | no          |
 | `metadataBucket`                    | string                      | no          |
 | `dcp.group.name`                    | string                      | yes         |
 | `dcp.group.membership.type`         | string                      | yes         |

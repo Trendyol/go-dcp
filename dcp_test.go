@@ -27,7 +27,8 @@ username: Administrator
 password: password
 bucketName: sample
 scopeName: _default
-collectionName: _default
+collectionNames:
+  - _default
 metadataBucket: sample
 dcp:
   group:

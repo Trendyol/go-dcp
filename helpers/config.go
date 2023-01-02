@@ -53,19 +53,23 @@ type ConfigCheckpoint struct {
 }
 
 type Config struct {
-	Hosts          []string             `yaml:"hosts"`
-	Username       string               `yaml:"username"`
-	Password       string               `yaml:"password"`
-	BucketName     string               `yaml:"bucketName"`
-	ScopeName      string               `yaml:"scopeName" default:"_default"`
-	CollectionName string               `yaml:"collectionName" default:"_default"`
-	MetadataBucket string               `yaml:"metadataBucket"`
-	Dcp            ConfigDCP            `yaml:"dcp"`
-	API            ConfigAPI            `yaml:"api"`
-	Metric         ConfigMetric         `yaml:"metric"`
-	LeaderElection ConfigLeaderElection `yaml:"leaderElector"`
-	Logging        ConfigLogging        `yaml:"logging"`
-	Checkpoint     ConfigCheckpoint     `yaml:"checkpoint"`
+	Hosts           []string             `yaml:"hosts"`
+	Username        string               `yaml:"username"`
+	Password        string               `yaml:"password"`
+	BucketName      string               `yaml:"bucketName"`
+	ScopeName       string               `yaml:"scopeName" default:"_default"`
+	CollectionNames []string             `yaml:"collectionName"`
+	MetadataBucket  string               `yaml:"metadataBucket"`
+	Dcp             ConfigDCP            `yaml:"dcp"`
+	API             ConfigAPI            `yaml:"api"`
+	Metric          ConfigMetric         `yaml:"metric"`
+	LeaderElection  ConfigLeaderElection `yaml:"leaderElector"`
+	Logging         ConfigLogging        `yaml:"logging"`
+	Checkpoint      ConfigCheckpoint     `yaml:"checkpoint"`
+}
+
+func (c *Config) IsCollectionModeEnabled() bool {
+	return !(c.ScopeName == DefaultScopeName && len(c.CollectionNames) == 1 && c.CollectionNames[0] == DefaultCollectionName)
 }
 
 func Options(opts *config.Options) {
@@ -82,6 +86,10 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.MetadataBucket == "" {
 		_config.MetadataBucket = _config.BucketName
+	}
+
+	if _config.CollectionNames == nil {
+		_config.CollectionNames = []string{"_default"}
 	}
 }
 

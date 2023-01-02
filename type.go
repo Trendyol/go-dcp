@@ -4,6 +4,17 @@ import "github.com/couchbase/gocbcore/v10"
 
 type InternalDcpMutation struct {
 	gocbcore.DcpMutation
+	CollectionName *string
+}
+
+type InternalDcpDeletion struct {
+	gocbcore.DcpDeletion
+	CollectionName *string
+}
+
+type InternalDcpExpiration struct {
+	gocbcore.DcpExpiration
+	CollectionName *string
 }
 
 func (i *InternalDcpMutation) IsCreated() bool {
@@ -13,8 +24,8 @@ func (i *InternalDcpMutation) IsCreated() bool {
 type (
 	DcpSnapshotMarker         = gocbcore.DcpSnapshotMarker
 	DcpMutation               = InternalDcpMutation
-	DcpDeletion               = gocbcore.DcpDeletion
-	DcpExpiration             = gocbcore.DcpExpiration
+	DcpDeletion               = InternalDcpDeletion
+	DcpExpiration             = InternalDcpExpiration
 	DcpStreamEnd              = gocbcore.DcpStreamEnd
 	DcpCollectionCreation     = gocbcore.DcpCollectionCreation
 	DcpCollectionDeletion     = gocbcore.DcpCollectionDeletion

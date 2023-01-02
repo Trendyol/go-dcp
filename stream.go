@@ -61,21 +61,21 @@ func (s *stream) listener(event interface{}, err error) {
 }
 
 func (s *stream) Open() {
-	var collectionID *uint32
+	var collectionIDs map[uint32]string
 
-	if s.client.IsCollectionModeEnabled() {
-		id, err := s.client.GetCollectionID(s.config.ScopeName, s.config.CollectionName)
+	if s.config.IsCollectionModeEnabled() {
+		ids, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
 		if err != nil {
-			logger.Panic(err, "cannot get collection id")
+			logger.Panic(err, "cannot get collection ids")
 		}
 
-		collectionID = &id
+		collectionIDs = ids
 	}
 
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
 
-	s.observer = NewObserver(vbIds, s.listener)
+	s.observer = NewObserver(vbIds, s.listener, collectionIDs)
 
 	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
 	if err != nil {
@@ -105,7 +105,7 @@ func (s *stream) Open() {
 			err := s.client.OpenStream(
 				innerVbId,
 				failoverLogs[innerVbId][0].VbUUID,
-				collectionID,
+				collectionIDs,
 				observerState[innerVbId],
 				s.observer,
 				func(entries []gocbcore.FailoverEntry, err error) {

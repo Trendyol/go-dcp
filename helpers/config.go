@@ -50,6 +50,7 @@ type ConfigLogging struct {
 type ConfigCheckpoint struct {
 	Type     string        `yaml:"type" default:"auto"`
 	Interval time.Duration `yaml:"interval"`
+	Timeout  time.Duration `yaml:"timeout"`
 }
 
 type Config struct {
@@ -82,6 +83,10 @@ func Options(opts *config.Options) {
 func applyUnhandledDefaults(_config *Config) {
 	if _config.Checkpoint.Interval == 0 {
 		_config.Checkpoint.Interval = 10 * time.Second
+	}
+
+	if _config.Checkpoint.Timeout == 0 {
+		_config.Checkpoint.Timeout = 10 * time.Second
 	}
 
 	if _config.MetadataBucket == "" {

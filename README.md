@@ -22,7 +22,7 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 
 ### Example
 
-```
+```go
 package main
 
 import (
@@ -106,6 +106,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `logger.level`                      | string                      | no          |
 | `checkpoint.type`                   | string                      | no          |
 | `checkpoint.interval`               | integer                     | no          |
+| `checkpoint.timeout`                | integer                     | no          |
 
 ---
 

@@ -358,7 +358,7 @@ func (s *client) OpenStream(
 
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
-		memd.DcpStreamAddFlagActiveOnly,
+		0,
 		vbUUID,
 		gocbcore.SeqNo(observerState.SeqNo),
 		0xffffffffffffffff,

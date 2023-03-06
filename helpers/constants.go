@@ -5,6 +5,7 @@ const Name = "cbgo"
 const (
 	Prefix                              = "_connector:" + Name + ":"
 	StaticMembershipType                = "static"
+	CouchbaseMembershipType             = "couchbase"
 	KubernetesStatefulSetMembershipType = "kubernetesStatefulSet"
 	KubernetesHaMembershipType          = "kubernetesHa"
 	KubernetesLeaderElectionType        = "kubernetes"

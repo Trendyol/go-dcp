@@ -13,7 +13,7 @@ import (
 )
 
 type metricCollector struct {
-	observer Observer
+	stream Stream
 
 	mutation   *prometheus.Desc
 	deletion   *prometheus.Desc
@@ -22,6 +22,8 @@ type metricCollector struct {
 	currentSeqNo *prometheus.Desc
 	startSeqNo   *prometheus.Desc
 	endSeqNo     *prometheus.Desc
+
+	lag *prometheus.Desc
 }
 
 func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -29,74 +31,90 @@ func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
-	if s.observer == nil {
-		return
+	s.stream.LockObservers()
+
+	for vbID, observer := range s.stream.GetObservers() {
+		metric := observer.GetMetric()
+
+		ch <- prometheus.MustNewConstMetric(
+			s.mutation,
+			prometheus.CounterValue,
+			metric.TotalMutations,
+			strconv.Itoa(int(vbID)),
+		)
+
+		ch <- prometheus.MustNewConstMetric(
+			s.deletion,
+			prometheus.CounterValue,
+			metric.TotalDeletions,
+			strconv.Itoa(int(vbID)),
+		)
+
+		ch <- prometheus.MustNewConstMetric(
+			s.expiration,
+			prometheus.CounterValue,
+			metric.TotalExpirations,
+			strconv.Itoa(int(vbID)),
+		)
 	}
 
-	metric := s.observer.GetMetric()
+	s.stream.UnlockObservers()
 
-	ch <- prometheus.MustNewConstMetric(
-		s.mutation,
-		prometheus.CounterValue,
-		metric.TotalMutations,
-	)
+	s.stream.LockOffsets()
 
-	ch <- prometheus.MustNewConstMetric(
-		s.deletion,
-		prometheus.CounterValue,
-		metric.TotalDeletions,
-	)
-
-	ch <- prometheus.MustNewConstMetric(
-		s.expiration,
-		prometheus.CounterValue,
-		metric.TotalExpirations,
-	)
-
-	for vbID, state := range s.observer.GetState() {
+	for vbID, offset := range s.stream.GetOffsets() {
 		ch <- prometheus.MustNewConstMetric(
 			s.currentSeqNo,
 			prometheus.CounterValue,
-			float64(state.SeqNo),
+			float64(offset.SeqNo),
 			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.startSeqNo,
 			prometheus.CounterValue,
-			float64(state.StartSeqNo),
+			float64(offset.StartSeqNo),
 			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.endSeqNo,
 			prometheus.CounterValue,
-			float64(state.EndSeqNo),
+			float64(offset.EndSeqNo),
+			strconv.Itoa(int(vbID)),
+		)
+
+		ch <- prometheus.MustNewConstMetric(
+			s.lag,
+			prometheus.CounterValue,
+			float64(offset.EndSeqNo-offset.SeqNo),
 			strconv.Itoa(int(vbID)),
 		)
 	}
+
+	s.stream.UnlockOffsets()
 }
 
-func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observer) (func(ctx *fiber.Ctx) error, error) {
+func NewMetricMiddleware(app *fiber.App, config helpers.Config, stream Stream) (func(ctx *fiber.Ctx) error, error) {
 	err := prometheus.DefaultRegisterer.Register(&metricCollector{
-		observer: observer,
+		stream: stream,
 
 		mutation: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "mutation", "total"),
 			"Mutation count",
-			nil,
+			[]string{"vbId"},
 			nil,
 		),
 		deletion: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "deletion", "total"),
 			"Deletion count",
-			nil,
+			[]string{"vbId"},
 			nil,
 		),
 		expiration: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "expiration", "total"),
 			"Expiration count",
-			nil,
+			[]string{"vbId"},
 			nil,
 		),
 		currentSeqNo: prometheus.NewDesc(
@@ -114,6 +132,12 @@ func NewMetricMiddleware(app *fiber.App, config helpers.Config, observer Observe
 		endSeqNo: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "end_seq_no", "current"),
 			"End seq no",
+			[]string{"vbId"},
+			nil,
+		),
+		lag: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "lag", "current"),
+			"Lag",
 			[]string{"vbId"},
 			nil,
 		),

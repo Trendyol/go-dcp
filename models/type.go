@@ -1,19 +1,43 @@
-package godcpclient
+package models
 
-import "github.com/couchbase/gocbcore/v10"
+import (
+	"github.com/couchbase/gocbcore/v10"
+)
+
+type Status int8
+
+var (
+	Ack     = Status(1)
+	Discard = Status(0)
+	Noop    = Status(-1)
+)
+
+type Offset struct {
+	SnapshotMarker
+	VbUUID gocbcore.VbUUID
+	SeqNo  uint64
+}
+
+type SnapshotMarker struct {
+	StartSeqNo uint64
+	EndSeqNo   uint64
+}
 
 type InternalDcpMutation struct {
 	gocbcore.DcpMutation
+	Offset
 	CollectionName *string
 }
 
 type InternalDcpDeletion struct {
 	gocbcore.DcpDeletion
+	Offset
 	CollectionName *string
 }
 
 type InternalDcpExpiration struct {
 	gocbcore.DcpExpiration
+	Offset
 	CollectionName *string
 }
 

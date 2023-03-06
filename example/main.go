@@ -2,24 +2,27 @@ package main
 
 import (
 	"log"
+	mathRand "math/rand"
+	"time"
 
 	"github.com/Trendyol/go-dcp-client"
+
+	"github.com/Trendyol/go-dcp-client/models"
 )
 
-func listener(event interface{}, err error) {
-	if err != nil {
-		log.Printf("error | %v", err)
-		return
-	}
+func listener(ctx *models.ListenerContext) {
+	time.Sleep(time.Duration(mathRand.Intn(100)) * time.Millisecond) // simulate some work
 
-	switch event := event.(type) {
-	case godcpclient.DcpMutation:
-		log.Printf("mutated | id: %v, value: %v | isCreated: %v", string(event.Key), string(event.Value), event.IsCreated())
-	case godcpclient.DcpDeletion:
+	switch event := ctx.Event.(type) {
+	case models.DcpMutation:
+		log.Printf("mutated(%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
+	case models.DcpDeletion:
 		log.Printf("deleted | id: %v", string(event.Key))
-	case godcpclient.DcpExpiration:
+	case models.DcpExpiration:
 		log.Printf("expired | id: %v", string(event.Key))
 	}
+
+	ctx.Ack()
 }
 
 func main() {

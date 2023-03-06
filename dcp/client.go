@@ -1,9 +1,12 @@
-package godcpclient
+package dcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -25,18 +28,24 @@ type Client interface {
 	GetBucketUUID() string
 	GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error)
 	GetNumVBuckets() int
-	GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error)
+	GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error)
 	OpenStream(
 		vbID uint16,
 		vbUUID gocbcore.VbUUID,
 		collectionIDs map[uint32]string,
-		observerState *ObserverState,
+		offset models.Offset,
 		observer Observer,
 		callback gocbcore.OpenStreamCallback,
 	) error
 	CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error
 	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
 	GetCollectionID(scopeName string, collectionName string) (uint32, error)
+	UpsertXattrs(ctx context.Context, id []byte, path string, xattrs interface{}, expiry uint32) error
+	CreateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error
+	ExecuteQuery(ctx context.Context, query []byte) ([][]byte, error)
+	UpdateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error
+	DeleteDocument(ctx context.Context, id []byte)
+	GetXattrs(ctx context.Context, id []byte, path string) ([]byte, error)
 }
 
 type client struct {
@@ -47,7 +56,7 @@ type client struct {
 }
 
 func (s *client) Ping() (bool, error) {
-	opm := NewAsyncOp(context.Background())
+	opm := helpers.NewAsyncOp(context.Background())
 
 	errorCh := make(chan error)
 	successCh := make(chan bool)
@@ -268,7 +277,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 	seqNos := make(map[uint16]gocbcore.VbSeqNoEntry)
 
 	for i := 1; i <= numNodes; i++ {
-		opm := NewAsyncOp(context.Background())
+		opm := helpers.NewAsyncOp(context.Background())
 
 		op, err := s.dcpAgent.GetVbucketSeqnos(
 			i,
@@ -309,16 +318,16 @@ func (s *client) GetNumVBuckets() int {
 	return 0
 }
 
-func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error) {
-	failoverLogs := make(map[uint16][]gocbcore.FailoverEntry)
+func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error) {
+	uuIDMap := make(map[uint16]gocbcore.VbUUID)
 
 	for _, vbID := range vbIds {
-		opm := NewAsyncOp(context.Background())
+		opm := helpers.NewAsyncOp(context.Background())
 
 		op, err := s.dcpAgent.GetFailoverLog(
 			vbID,
 			func(entries []gocbcore.FailoverEntry, err error) {
-				failoverLogs[vbID] = entries
+				uuIDMap[vbID] = entries[0].VbUUID
 
 				opm.Resolve()
 			})
@@ -329,18 +338,18 @@ func (s *client) GetFailoverLogs(vbIds []uint16) (map[uint16][]gocbcore.Failover
 		_ = opm.Wait(op, err)
 	}
 
-	return failoverLogs, nil
+	return uuIDMap, nil
 }
 
 func (s *client) OpenStream(
 	vbID uint16,
 	vbUUID gocbcore.VbUUID,
 	collectionIDs map[uint32]string,
-	observerState *ObserverState,
+	offset models.Offset,
 	observer Observer,
 	callback gocbcore.OpenStreamCallback,
 ) error {
-	opm := NewAsyncOp(context.Background())
+	opm := helpers.NewAsyncOp(context.Background())
 
 	openStreamOptions := gocbcore.OpenStreamOptions{}
 
@@ -360,10 +369,10 @@ func (s *client) OpenStream(
 		vbID,
 		0,
 		vbUUID,
-		gocbcore.SeqNo(observerState.SeqNo),
+		gocbcore.SeqNo(offset.SeqNo),
 		0xffffffffffffffff,
-		gocbcore.SeqNo(observerState.StartSeqNo),
-		gocbcore.SeqNo(observerState.EndSeqNo),
+		gocbcore.SeqNo(offset.StartSeqNo),
+		gocbcore.SeqNo(offset.EndSeqNo),
 		observer,
 		openStreamOptions,
 		func(entries []gocbcore.FailoverEntry, err error) {
@@ -380,7 +389,7 @@ func (s *client) OpenStream(
 }
 
 func (s *client) CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error {
-	opm := NewAsyncOp(context.Background())
+	opm := helpers.NewAsyncOp(context.Background())
 
 	op, err := s.dcpAgent.CloseStream(
 		vbID,
@@ -400,7 +409,7 @@ func (s *client) CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback)
 
 func (s *client) GetCollectionID(scopeName string, collectionName string) (uint32, error) {
 	ctx := context.Background()
-	opm := NewAsyncOp(ctx)
+	opm := helpers.NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -444,6 +453,228 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) (m
 	}
 
 	return collectionIDs, nil
+}
+
+func (s *client) UpsertXattrs(ctx context.Context, id []byte, path string, xattrs interface{}, expiry uint32) error {
+	opm := helpers.NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	payload, _ := json.Marshal(xattrs)
+
+	ch := make(chan error)
+
+	op, err := s.metaAgent.MutateIn(gocbcore.MutateInOptions{
+		Key: id,
+		Ops: []gocbcore.SubDocOp{
+			{
+				Op:    memd.SubDocOpDictSet,
+				Flags: memd.SubdocFlagXattrPath,
+				Path:  path,
+				Value: payload,
+			},
+		},
+		Expiry:   expiry,
+		Deadline: deadline,
+	}, func(result *gocbcore.MutateInResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return err
+	}
+
+	err = <-ch
+
+	return err
+}
+
+func (s *client) UpdateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error {
+	opm := helpers.NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	payload, _ := json.Marshal(value)
+
+	ch := make(chan error)
+
+	op, err := s.metaAgent.MutateIn(gocbcore.MutateInOptions{
+		Key: id,
+		Ops: []gocbcore.SubDocOp{
+			{
+				Op:    memd.SubDocOpSetDoc,
+				Value: payload,
+			},
+		},
+		Expiry:   expiry,
+		Deadline: deadline,
+	}, func(result *gocbcore.MutateInResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return err
+	}
+
+	err = <-ch
+
+	return err
+}
+
+func (s *client) CreateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error {
+	opm := helpers.NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	payload, _ := json.Marshal(value)
+
+	ch := make(chan error)
+
+	op, err := s.metaAgent.Set(gocbcore.SetOptions{
+		Key:      id,
+		Value:    payload,
+		Flags:    50333696,
+		Deadline: deadline,
+		Expiry:   expiry,
+	}, func(result *gocbcore.StoreResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return err
+	}
+
+	return <-ch
+}
+
+func (s *client) ExecuteQuery(ctx context.Context, query []byte) ([][]byte, error) {
+	opm := helpers.NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	ch := make(chan error)
+
+	var payload []byte
+
+	payload = append(payload, []byte("{\"statement\":\"")...)
+	payload = append(payload, query...)
+	payload = append(payload, []byte("\"}")...)
+
+	var result [][]byte
+
+	op, err := s.metaAgent.N1QLQuery(
+		gocbcore.N1QLQueryOptions{
+			Payload:  payload,
+			Deadline: deadline,
+		},
+		func(reader *gocbcore.N1QLRowReader, err error) {
+			if err == nil {
+				for {
+					row := reader.NextRow()
+					if row == nil {
+						break
+					} else {
+						result = append(result, row)
+					}
+				}
+			}
+
+			opm.Resolve()
+
+			ch <- err
+		},
+	)
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, <-ch
+}
+
+func (s *client) DeleteDocument(ctx context.Context, id []byte) {
+	opm := helpers.NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	ch := make(chan error)
+
+	op, err := s.metaAgent.Delete(gocbcore.DeleteOptions{
+		Key:      id,
+		Deadline: deadline,
+	}, func(result *gocbcore.DeleteResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return
+	}
+
+	err = <-ch
+
+	if err != nil {
+		return
+	}
+}
+
+func (s *client) GetXattrs(ctx context.Context, id []byte, path string) ([]byte, error) {
+	opm := helpers.NewAsyncOp(context.Background())
+
+	deadline, _ := ctx.Deadline()
+
+	errorCh := make(chan error)
+	documentCh := make(chan []byte)
+
+	op, err := s.metaAgent.LookupIn(gocbcore.LookupInOptions{
+		Key: id,
+		Ops: []gocbcore.SubDocOp{
+			{
+				Op:    memd.SubDocOpGet,
+				Flags: memd.SubdocFlagXattrPath,
+				Path:  path,
+			},
+		},
+		Deadline: deadline,
+	}, func(result *gocbcore.LookupInResult, err error) {
+		opm.Resolve()
+
+		if err == nil {
+			documentCh <- result.Ops[0].Value
+		} else {
+			documentCh <- nil
+		}
+
+		errorCh <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	document := <-documentCh
+	err = <-errorCh
+
+	return document, err
 }
 
 func NewClient(config helpers.Config) Client {

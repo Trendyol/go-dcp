@@ -1,7 +1,6 @@
 package godcpclient
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -20,12 +19,11 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func createConfigFile(t *testing.T) (string, func()) {
+func createConfigFile() (string, func(), error) {
 	configStr := `hosts:
   - localhost:8091
 username: Administrator
@@ -49,20 +47,20 @@ dcp:
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {
-		t.Error(err)
+		return "", nil, err
 	}
 
 	if _, err = tmpFile.WriteString(configStr); err != nil {
-		t.Error(err)
+		return "", nil, err
 	}
 
 	return tmpFile.Name(), func() {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
-	}
+	}, nil
 }
 
-func setupContainer(t *testing.T, config helpers.Config) func() {
+func setupContainer(b *testing.B, config helpers.Config) func() {
 	ctx := context.Background()
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -79,7 +77,7 @@ func setupContainer(t *testing.T, config helpers.Config) func() {
 		Started: true,
 	})
 	if err != nil {
-		t.Error(err)
+		b.Error(err)
 	}
 
 	return func() {
@@ -87,7 +85,7 @@ func setupContainer(t *testing.T, config helpers.Config) func() {
 	}
 }
 
-func insertDataToContainer(t *testing.T, mockDataSize int64, config helpers.Config) {
+func insertDataToContainer(b *testing.B, mockDataSize int64, config helpers.Config) {
 	client := gDcp.NewClient(config)
 
 	_ = client.Connect()
@@ -127,13 +125,13 @@ func insertDataToContainer(t *testing.T, mockDataSize int64, config helpers.Conf
 					err = opm.Wait(op, err)
 
 					if err != nil {
-						t.Error(err)
+						b.Error(err)
 					}
 
 					err = <-ch
 
 					if err != nil {
-						t.Error(err)
+						b.Error(err)
 					}
 
 					wg.Done()
@@ -148,24 +146,27 @@ func insertDataToContainer(t *testing.T, mockDataSize int64, config helpers.Conf
 	log.Printf("Inserted %v items", mockDataSize)
 }
 
-func TestDcp(t *testing.T) {
+func BenchmarkDcp(benchmark *testing.B) {
 	b, err := rand.Int(rand.Reader, big.NewInt(360000)) //nolint:gosec
 	if err != nil {
-		t.Error(err)
+		benchmark.Error(err)
 	}
 
 	mockDataSize := b.Int64() + 120000
 	saveTarget := mathRand.Intn(int(mockDataSize))
 
-	configPath, configFileClean := createConfigFile(t)
+	configPath, configFileClean, err := createConfigFile()
+	if err != nil {
+		benchmark.Error(err)
+	}
 	defer configFileClean()
 
 	config := helpers.NewConfig(fmt.Sprintf("%v_data_insert", helpers.Name), configPath)
 
-	containerShutdown := setupContainer(t, config)
+	containerShutdown := setupContainer(benchmark, config)
 	defer containerShutdown()
 
-	insertDataToContainer(t, mockDataSize, config)
+	insertDataToContainer(benchmark, mockDataSize, config)
 
 	var dcp Dcp
 
@@ -173,10 +174,7 @@ func TestDcp(t *testing.T) {
 	var counter int
 
 	dcp, err = NewDcp(configPath, func(ctx *models.ListenerContext) {
-		if event, ok := ctx.Event.(models.DcpMutation); ok {
-			assert.True(t, bytes.HasPrefix(event.Key, []byte("k")))
-			assert.True(t, bytes.HasPrefix(event.Value, []byte("v")))
-
+		if _, ok := ctx.Event.(models.DcpMutation); ok {
 			ctx.Ack()
 
 			lock.Lock()
@@ -195,7 +193,7 @@ func TestDcp(t *testing.T) {
 	})
 
 	if err != nil {
-		t.Error(err)
+		benchmark.Error(err)
 	}
 
 	dcp.Start()

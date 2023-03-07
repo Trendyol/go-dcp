@@ -26,6 +26,8 @@ type metricCollector struct {
 	startSeqNo   *prometheus.Desc
 	endSeqNo     *prometheus.Desc
 
+	averageProcessMs *prometheus.Desc
+
 	lag *prometheus.Desc
 }
 
@@ -39,8 +41,6 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		logger.Error(err, "cannot get seqNoMap")
 	}
-
-	s.stream.LockObservers()
 
 	for vbID, observer := range s.stream.GetObservers() {
 		metric := observer.GetMetric()
@@ -67,9 +67,8 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		)
 	}
 
-	s.stream.UnlockObservers()
-
 	s.stream.LockOffsets()
+	defer s.stream.UnlockOffsets()
 
 	for vbID, offset := range s.stream.GetOffsets() {
 		ch <- prometheus.MustNewConstMetric(
@@ -109,7 +108,14 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		)
 	}
 
-	s.stream.UnlockOffsets()
+	streamMetric := s.stream.GetMetric()
+
+	ch <- prometheus.MustNewConstMetric(
+		s.averageProcessMs,
+		prometheus.CounterValue,
+		streamMetric.AverageTookMs.Value(),
+		[]string{}...,
+	)
 }
 
 func NewMetricMiddleware(app *fiber.App, config helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
@@ -157,6 +163,12 @@ func NewMetricMiddleware(app *fiber.App, config helpers.Config, stream Stream, c
 			prometheus.BuildFQName(helpers.Name, "lag", "current"),
 			"Lag",
 			[]string{"vbId"},
+			nil,
+		),
+		averageProcessMs: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "average_process_ms", "current"),
+			"Average process ms at 10sec windows",
+			[]string{},
 			nil,
 		),
 	})

@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VividCortex/ewma"
+
 	gDcp "github.com/Trendyol/go-dcp-client/dcp"
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -24,9 +26,12 @@ type Stream interface {
 	LockOffsets()
 	UnlockOffsets()
 	GetOffsets() map[uint16]models.Offset
-	LockObservers()
-	UnlockObservers()
 	GetObservers() map[uint16]gDcp.Observer
+	GetMetric() StreamMetric
+}
+
+type StreamMetric struct {
+	AverageTookMs ewma.MovingAverage
 }
 
 type stream struct {
@@ -34,7 +39,6 @@ type stream struct {
 	metadata         Metadata
 	checkpoint       Checkpoint
 	offsetsLock      sync.Mutex
-	observersLock    sync.Mutex
 	observers        map[uint16]gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
 	streams          map[uint16]*uint16
@@ -46,6 +50,7 @@ type stream struct {
 	streamsLock      sync.Mutex
 	mainListenerCh   models.ListenerCh
 	collectionIDs    map[uint32]string
+	metric           StreamMetric
 }
 
 func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID uint16) {
@@ -55,7 +60,11 @@ func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID 
 		Event:  payload,
 	}
 
+	start := time.Now()
+
 	s.listener(ctx)
+
+	s.metric.AverageTookMs.Add(float64(time.Since(start).Milliseconds()))
 
 	if ctx.Status == models.Ack {
 		s.LockOffsets()
@@ -228,8 +237,9 @@ func (s *stream) Close(ignoreFinish bool) {
 		}
 	}
 
-	for _, observer := range s.observers {
+	for vbID, observer := range s.observers {
 		observer.Close()
+		s.observers[vbID] = nil
 	}
 
 	logger.Debug("all streams are closed")
@@ -247,16 +257,12 @@ func (s *stream) GetOffsets() map[uint16]models.Offset {
 	return s.offsets
 }
 
-func (s *stream) LockObservers() {
-	s.observersLock.Lock()
-}
-
-func (s *stream) UnlockObservers() {
-	s.observersLock.Unlock()
-}
-
 func (s *stream) GetObservers() map[uint16]gDcp.Observer {
 	return s.observers
+}
+
+func (s *stream) GetMetric() StreamMetric {
+	return s.metric
 }
 
 func NewStream(client gDcp.Client,
@@ -273,9 +279,11 @@ func NewStream(client gDcp.Client,
 		config:           config,
 		vBucketDiscovery: vBucketDiscovery,
 		offsetsLock:      sync.Mutex{},
-		observersLock:    sync.Mutex{},
 		observers:        map[uint16]gDcp.Observer{},
 		mainListenerCh:   make(models.ListenerCh, 1),
 		collectionIDs:    collectionIDs,
+		metric: StreamMetric{
+			AverageTookMs: ewma.NewMovingAverage(10.0),
+		},
 	}
 }

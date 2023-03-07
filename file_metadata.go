@@ -13,7 +13,6 @@ import (
 
 type fileMetadata struct { //nolint:unused
 	fileName string
-	config   helpers.Config
 }
 
 func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) { //nolint:unused
@@ -45,9 +44,8 @@ func (s *fileMetadata) Clear(_ []uint16) { //nolint:unused
 	_ = os.Remove(s.fileName)
 }
 
-func _(fileName string, config helpers.Config) Metadata {
+func _(fileName string, _ helpers.Config) Metadata {
 	return &fileMetadata{
 		fileName: fileName,
-		config:   config,
 	}
 }

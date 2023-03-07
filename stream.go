@@ -31,7 +31,7 @@ type Stream interface {
 
 type stream struct {
 	client           gDcp.Client
-	Metadata         Metadata
+	metadata         Metadata
 	checkpoint       Checkpoint
 	offsetsLock      sync.Mutex
 	observersLock    sync.Mutex
@@ -103,7 +103,7 @@ func (s *stream) Open() {
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(s, vbIds, s.client.GetBucketUUID(), s.Metadata, s.config)
+	s.checkpoint = NewCheckpoint(s, vbIds, s.client.GetBucketUUID(), s.metadata, s.config)
 	s.offsets = s.checkpoint.Load()
 
 	for _, vbID := range vbIds {
@@ -268,7 +268,7 @@ func NewStream(client gDcp.Client,
 ) Stream {
 	return &stream{
 		client:           client,
-		Metadata:         metadata,
+		metadata:         metadata,
 		listener:         listener,
 		config:           config,
 		vBucketDiscovery: vBucketDiscovery,

@@ -43,7 +43,7 @@ func (rh *Handler) Register(payload Register, reply *bool) error {
 		return err
 	}
 
-	followerService := NewService(followerClient, false, payload.Identity.Name)
+	followerService := NewService(followerClient, payload.Identity.Name)
 	rh.serviceDiscovery.Add(followerService)
 
 	logger.Debug("registered client %s", payload.Identity.Name)

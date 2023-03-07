@@ -8,11 +8,12 @@ import (
 	"log"
 	"math"
 	"math/big"
-	mathRand "math/rand"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	mathRand "math/rand"
 
 	gDcp "github.com/Trendyol/go-dcp-client/dcp"
 	"github.com/Trendyol/go-dcp-client/models"

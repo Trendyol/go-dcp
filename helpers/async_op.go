@@ -7,23 +7,16 @@ import (
 )
 
 type AsyncOp interface {
-	Reject()
 	Resolve()
 	Wait(op gocbcore.PendingOp, err error) error
 }
 
 type asyncOp struct {
-	ctx         context.Context
-	signal      chan struct{}
-	wasResolved bool
-}
-
-func (m *asyncOp) Reject() {
-	m.signal <- struct{}{}
+	ctx    context.Context
+	signal chan struct{}
 }
 
 func (m *asyncOp) Resolve() {
-	m.wasResolved = true
 	m.signal <- struct{}{}
 }
 

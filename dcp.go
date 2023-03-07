@@ -25,7 +25,6 @@ type Dcp interface {
 
 type dcp struct {
 	client           gDcp.Client
-	metadata         Metadata
 	stream           Stream
 	api              API
 	leaderElection   LeaderElection
@@ -62,10 +61,11 @@ func (s *dcp) Start() {
 
 	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
 
-	s.stream = NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs())
+	metadata := NewCBMetadata(s.client, s.config)
+	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs())
 
 	if s.config.LeaderElection.Enabled {
-		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.stream, s.serviceDiscovery, infoHandler)
+		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
 	}
 
@@ -114,9 +114,9 @@ func (s *dcp) Close() {
 
 	s.stream.Save()
 	s.stream.Close(false)
-	s.client.DcpClose()
-	s.client.MetaClose()
-	s.client.Close()
+	_ = s.client.DcpClose()
+	_ = s.client.MetaClose()
+	_ = s.client.Close()
 
 	logger.Info("dcp stream closed")
 }
@@ -147,11 +147,8 @@ func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
 		return nil, err
 	}
 
-	metadata := NewCBMetadata(client, config)
-
 	return &dcp{
 		client:      client,
-		metadata:    metadata,
 		listener:    listener,
 		config:      config,
 		apiShutdown: make(chan struct{}, 1),

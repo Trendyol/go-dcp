@@ -8,7 +8,6 @@ import (
 )
 
 type StatefulSetInfo struct {
-	Name       string
 	PodOrdinal int
 }
 
@@ -24,14 +23,12 @@ func NewStatefulSetInfoFromHostname() (*StatefulSetInfo, error) {
 		return nil, fmt.Errorf("hostname is not in statefulSet format")
 	}
 
-	name := hostname[:separatorIndex]
 	podOrdinal, err := strconv.Atoi(hostname[separatorIndex+1:])
 	if err != nil {
 		return nil, err
 	}
 
 	return &StatefulSetInfo{
-		Name:       name,
 		PodOrdinal: podOrdinal,
 	}, nil
 }

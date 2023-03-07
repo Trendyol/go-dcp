@@ -19,7 +19,6 @@ type ListenerArgs struct {
 }
 
 type (
-	InternalListener func(interface{})
-	Listener         func(*ListenerContext)
-	ListenerCh       chan ListenerArgs
+	Listener   func(*ListenerContext)
+	ListenerCh chan ListenerArgs
 )

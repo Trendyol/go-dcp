@@ -1,15 +1,13 @@
 package servicediscovery
 
 type Service struct {
-	Client   Client
-	Name     string
-	IsLeader bool
+	Client Client
+	Name   string
 }
 
-func NewService(client Client, isLeader bool, name string) *Service {
+func NewService(client Client, name string) *Service {
 	return &Service{
-		Client:   client,
-		IsLeader: isLeader,
-		Name:     name,
+		Client: client,
+		Name:   name,
 	}
 }

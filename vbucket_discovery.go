@@ -17,7 +17,6 @@ type VBucketDiscovery interface {
 }
 
 type vBucketDiscovery struct {
-	infoHandler   info.Handler
 	membership    membership.Membership
 	vBucketNumber int
 }
@@ -65,7 +64,6 @@ func NewVBucketDiscovery(client gDcp.Client,
 
 	return &vBucketDiscovery{
 		vBucketNumber: vBucketNumber,
-		infoHandler:   infoHandler,
 		membership:    ms,
 	}
 }

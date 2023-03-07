@@ -53,7 +53,6 @@ func NewEmptyCheckpointDocument(bucketUUID string) CheckpointDocument {
 type checkpoint struct {
 	stream     Stream
 	metadata   Metadata
-	vbSeqNos   map[uint16]gocbcore.VbSeqNoEntry
 	schedule   *time.Ticker
 	bucketUUID string
 	config     helpers.Config
@@ -150,14 +149,12 @@ func (s *checkpoint) StopSchedule() {
 func NewCheckpoint(
 	stream Stream,
 	vbIds []uint16,
-	vbSeqNos map[uint16]gocbcore.VbSeqNoEntry,
 	bucketUUID string,
 	metadata Metadata, config helpers.Config,
 ) Checkpoint {
 	return &checkpoint{
 		stream:     stream,
 		vbIds:      vbIds,
-		vbSeqNos:   vbSeqNos,
 		bucketUUID: bucketUUID,
 		metadata:   metadata,
 		config:     config,

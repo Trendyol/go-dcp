@@ -3,6 +3,8 @@ package godcpclient
 import (
 	"strconv"
 
+	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -14,6 +16,7 @@ import (
 
 type metricCollector struct {
 	stream Stream
+	client gDcp.Client
 
 	mutation   *prometheus.Desc
 	deletion   *prometheus.Desc
@@ -30,7 +33,13 @@ func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 	prometheus.DescribeByCollect(s, ch)
 }
 
+//nolint:funlen
 func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
+	seqNoMap, err := s.client.GetVBucketSeqNos()
+	if err != nil {
+		logger.Error(err, "cannot get seqNoMap")
+	}
+
 	s.stream.LockObservers()
 
 	for vbID, observer := range s.stream.GetObservers() {
@@ -84,10 +93,18 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			strconv.Itoa(int(vbID)),
 		)
 
+		var endSeqNo uint64
+
+		if seqNoMap == nil {
+			endSeqNo = offset.EndSeqNo
+		} else {
+			endSeqNo = seqNoMap[vbID]
+		}
+
 		ch <- prometheus.MustNewConstMetric(
 			s.lag,
 			prometheus.CounterValue,
-			float64(offset.EndSeqNo-offset.SeqNo),
+			float64(endSeqNo-offset.SeqNo),
 			strconv.Itoa(int(vbID)),
 		)
 	}
@@ -95,9 +112,10 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	s.stream.UnlockOffsets()
 }
 
-func NewMetricMiddleware(app *fiber.App, config helpers.Config, stream Stream) (func(ctx *fiber.Ctx) error, error) {
+func NewMetricMiddleware(app *fiber.App, config helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
 	err := prometheus.DefaultRegisterer.Register(&metricCollector{
 		stream: stream,
+		client: client,
 
 		mutation: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "mutation", "total"),

@@ -1,9 +1,10 @@
 package godcpclient
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -16,7 +17,7 @@ type fileMetadata struct { //nolint:unused
 }
 
 func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) { //nolint:unused
-	file, _ := json.MarshalIndent(state, "", "  ")
+	file, _ := jsoniter.MarshalIndent(state, "", "  ")
 	_ = os.WriteFile(s.fileName, file, 0o644) //nolint:gosec
 }
 
@@ -34,7 +35,7 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkp
 			logger.Panic(err, "error while loading checkpoint document")
 		}
 	} else {
-		_ = json.Unmarshal(file, &state)
+		_ = jsoniter.Unmarshal(file, &state)
 	}
 
 	return state

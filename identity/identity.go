@@ -1,8 +1,9 @@
 package identity
 
 import (
-	"encoding/json"
 	"os"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 )
@@ -13,7 +14,7 @@ type Identity struct {
 }
 
 func (k *Identity) String() string {
-	str, err := json.Marshal(k)
+	str, err := jsoniter.Marshal(k)
 	if err != nil {
 		logger.Panic(err, "error while marshalling identity")
 	}
@@ -28,7 +29,7 @@ func (k *Identity) Equal(other *Identity) bool {
 func NewIdentityFromStr(str string) *Identity {
 	var identity Identity
 
-	err := json.Unmarshal([]byte(str), &identity)
+	err := jsoniter.Unmarshal([]byte(str), &identity)
 	if err != nil {
 		logger.Panic(err, "error while unmarshalling identity")
 	}

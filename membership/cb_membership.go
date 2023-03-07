@@ -2,9 +2,10 @@ package membership
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/dcp"
 
@@ -142,7 +143,7 @@ func (h *cbMembership) monitor() {
 
 	for _, row := range rows {
 		var instance Instance
-		err = json.Unmarshal(row, &instance)
+		err = jsoniter.Unmarshal(row, &instance)
 
 		if err != nil {
 			logger.Error(err, "cannot unmarshal %v", string(row))

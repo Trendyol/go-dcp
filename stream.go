@@ -95,11 +95,6 @@ func (s *stream) Open() {
 		logger.Panic(err, "cannot get vbucket uuid map")
 	}
 
-	vbSeqNos, err := s.client.GetVBucketSeqNos()
-	if err != nil {
-		logger.Panic(err, "cannot get vBucket seq nos")
-	}
-
 	s.finishedStreams = sync.WaitGroup{}
 	s.finishedStreams.Add(vBucketNumber)
 
@@ -108,7 +103,7 @@ func (s *stream) Open() {
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(s, vbIds, vbSeqNos, s.client.GetBucketUUID(), s.Metadata, s.config)
+	s.checkpoint = NewCheckpoint(s, vbIds, s.client.GetBucketUUID(), s.Metadata, s.config)
 	s.offsets = s.checkpoint.Load()
 
 	for _, vbID := range vbIds {

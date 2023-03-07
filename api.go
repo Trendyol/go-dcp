@@ -70,7 +70,7 @@ func (s *api) followers(c *fiber.Ctx) error {
 func NewAPI(config helpers.Config, client gDcp.Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
-	metricMiddleware, err := NewMetricMiddleware(app, config, stream)
+	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client)
 
 	if err == nil {
 		app.Use(metricMiddleware)

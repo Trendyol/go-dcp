@@ -2,9 +2,10 @@ package dcp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -26,7 +27,7 @@ type Client interface {
 	DcpConnect() error
 	DcpClose() error
 	GetBucketUUID() string
-	GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error)
+	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
 	GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error)
 	OpenStream(
@@ -259,7 +260,7 @@ func (s *client) GetBucketUUID() string {
 	return ""
 }
 
-func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
+func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 	if s.dcpAgent == nil {
 		return nil, fmt.Errorf("please connect to the dcp first")
 	}
@@ -274,7 +275,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 		return nil, err
 	}
 
-	seqNos := make(map[uint16]gocbcore.VbSeqNoEntry)
+	seqNos := make(map[uint16]uint64)
 
 	for i := 1; i <= numNodes; i++ {
 		opm := helpers.NewAsyncOp(context.Background())
@@ -285,7 +286,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]gocbcore.VbSeqNoEntry, error) {
 			gocbcore.GetVbucketSeqnoOptions{},
 			func(entries []gocbcore.VbSeqNoEntry, err error) {
 				for _, en := range entries {
-					seqNos[en.VbID] = en
+					seqNos[en.VbID] = uint64(en.SeqNo)
 				}
 
 				opm.Resolve()
@@ -460,7 +461,7 @@ func (s *client) UpsertXattrs(ctx context.Context, id []byte, path string, xattr
 
 	deadline, _ := ctx.Deadline()
 
-	payload, _ := json.Marshal(xattrs)
+	payload, _ := jsoniter.Marshal(xattrs)
 
 	ch := make(chan error)
 
@@ -498,7 +499,7 @@ func (s *client) UpdateDocument(ctx context.Context, id []byte, value interface{
 
 	deadline, _ := ctx.Deadline()
 
-	payload, _ := json.Marshal(value)
+	payload, _ := jsoniter.Marshal(value)
 
 	ch := make(chan error)
 
@@ -534,7 +535,7 @@ func (s *client) CreateDocument(ctx context.Context, id []byte, value interface{
 
 	deadline, _ := ctx.Deadline()
 
-	payload, _ := json.Marshal(value)
+	payload, _ := jsoniter.Marshal(value)
 
 	ch := make(chan error)
 

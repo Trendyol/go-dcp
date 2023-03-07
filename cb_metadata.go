@@ -2,9 +2,10 @@ package godcpclient
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strconv"
+
+	jsoniter "github.com/json-iterator/go"
 
 	gDcp "github.com/Trendyol/go-dcp-client/dcp"
 
@@ -58,7 +59,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkpoi
 		var doc CheckpointDocument
 
 		if err == nil {
-			err = json.Unmarshal(data, &doc)
+			err = jsoniter.Unmarshal(data, &doc)
 
 			if err != nil {
 				doc = NewEmptyCheckpointDocument(bucketUUID)

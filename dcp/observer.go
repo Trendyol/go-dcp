@@ -8,8 +8,6 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-
 	"github.com/couchbase/gocbcore/v10"
 )
 
@@ -79,10 +77,6 @@ func (so *observer) SnapshotMarker(marker models.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
-	if helpers.IsMetadata(mutation) {
-		return
-	}
-
 	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
@@ -105,10 +99,6 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
-	if helpers.IsMetadata(deletion) {
-		return
-	}
-
 	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpDeletion{
@@ -131,10 +121,6 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 }
 
 func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
-	if helpers.IsMetadata(expiration) {
-		return
-	}
-
 	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpExpiration{

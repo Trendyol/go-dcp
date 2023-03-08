@@ -55,10 +55,6 @@ func (s *dcp) getCollectionIDs() map[uint32]string {
 func (s *dcp) Start() {
 	infoHandler := info.NewHandler()
 
-	s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
-	s.serviceDiscovery.StartHealthCheck()
-	s.serviceDiscovery.StartRebalance()
-
 	vBuckets := s.client.GetNumVBuckets()
 
 	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
@@ -67,6 +63,10 @@ func (s *dcp) Start() {
 	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.cancelCh)
 
 	if s.config.LeaderElection.Enabled {
+		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
+		s.serviceDiscovery.StartHealthCheck()
+		s.serviceDiscovery.StartRebalance()
+
 		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
 	}
@@ -98,11 +98,11 @@ func (s *dcp) Start() {
 }
 
 func (s *dcp) Close() {
-	s.serviceDiscovery.StopRebalance()
-	s.serviceDiscovery.StopHealthCheck()
-
 	if s.config.LeaderElection.Enabled {
 		s.leaderElection.Stop()
+
+		s.serviceDiscovery.StopRebalance()
+		s.serviceDiscovery.StopHealthCheck()
 	}
 
 	if s.api != nil && s.config.Metric.Enabled {
@@ -111,9 +111,8 @@ func (s *dcp) Close() {
 
 	s.stream.Save()
 	s.stream.Close()
-	_ = s.client.DcpClose()
-	_ = s.client.MetaClose()
-	_ = s.client.Close()
+	s.client.DcpClose()
+	s.client.Close()
 	<-s.dcpShutdown
 
 	logger.Info("dcp stream closed")
@@ -130,11 +129,6 @@ func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
 	logger.SetLevel(loggingLevel)
 
 	err = client.Connect()
-	if err != nil {
-		return nil, err
-	}
-
-	err = client.MetaConnect()
 	if err != nil {
 		return nil, err
 	}

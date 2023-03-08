@@ -21,11 +21,9 @@ type Client interface {
 	GetAgent() *gocbcore.Agent
 	GetMetaAgent() *gocbcore.Agent
 	Connect() error
-	Close() error
-	MetaConnect() error
-	MetaClose() error
+	Close()
 	DcpConnect() error
-	DcpClose() error
+	DcpClose()
 	GetBucketUUID() string
 	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
@@ -159,32 +157,30 @@ func (s *client) Connect() error {
 
 	s.agent = agent
 
-	logger.Debug("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
+	if s.config.MetadataBucket == s.config.BucketName {
+		s.metaAgent = agent
+	} else {
+		metaAgent, err := s.connect(s.config.MetadataBucket)
+		if err != nil {
+			return err
+		}
 
-	return nil
-}
-
-func (s *client) Close() error {
-	logger.Debug("closing connection to %s", s.config.Hosts)
-	return s.agent.Close()
-}
-
-func (s *client) MetaConnect() error {
-	agent, err := s.connect(s.config.MetadataBucket)
-	if err != nil {
-		return err
+		s.metaAgent = metaAgent
 	}
 
-	s.metaAgent = agent
-
-	logger.Debug("connected to %s, meta bucket: %s", s.config.Hosts, s.config.MetadataBucket)
+	logger.Debug("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, s.config.MetadataBucket)
 
 	return nil
 }
 
-func (s *client) MetaClose() error {
-	logger.Debug("closing meta connection to %s", s.config.Hosts)
-	return s.metaAgent.Close()
+func (s *client) Close() {
+	_ = s.metaAgent.Close()
+
+	if s.metaAgent != s.agent {
+		_ = s.agent.Close()
+	}
+
+	logger.Debug("connections closed %s", s.config.Hosts)
 }
 
 func (s *client) DcpConnect() error {
@@ -245,9 +241,9 @@ func (s *client) DcpConnect() error {
 	return nil
 }
 
-func (s *client) DcpClose() error {
-	logger.Debug("closing dcp connection to %s", s.config.Hosts)
-	return s.dcpAgent.Close()
+func (s *client) DcpClose() {
+	_ = s.dcpAgent.Close()
+	logger.Debug("dcp connection closed %s", s.config.Hosts)
 }
 
 func (s *client) GetBucketUUID() string {

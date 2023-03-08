@@ -64,6 +64,10 @@ func (s *api) rebalance(c *fiber.Ctx) error {
 }
 
 func (s *api) followers(c *fiber.Ctx) error {
+	if s.serviceDiscovery == nil {
+		return c.SendString("service discovery is not enabled")
+	}
+
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 

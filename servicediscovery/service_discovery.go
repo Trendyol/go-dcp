@@ -93,16 +93,6 @@ func (s *serviceDiscovery) ReassignLeader() error {
 	return err
 }
 
-func (s *serviceDiscovery) healthCheckToService(service *Service, errorCallback func()) {
-	if service == nil {
-		return
-	}
-
-	if err := service.Client.Ping(); err != nil {
-		errorCallback()
-	}
-}
-
 func (s *serviceDiscovery) StartHealthCheck() {
 	s.healthCheckSchedule = time.NewTicker(3 * time.Second)
 
@@ -110,26 +100,30 @@ func (s *serviceDiscovery) StartHealthCheck() {
 		for range s.healthCheckSchedule.C {
 			s.servicesLock.Lock()
 
-			s.healthCheckToService(s.leaderService, func() {
-				logger.Error(fmt.Errorf("leader is down"), "health check failed for leader")
+			if s.leaderService != nil {
+				err := s.leaderService.Client.Ping()
+				if err != nil {
+					logger.Error(fmt.Errorf("leader is down"), "health check failed for leader")
 
-				tempLeaderService := s.leaderService
+					tempLeaderService := s.leaderService
 
-				if err := s.ReassignLeader(); err != nil {
-					if tempLeaderService != s.leaderService {
-						_ = tempLeaderService.Client.Close()
-					} else {
-						s.RemoveLeader()
+					if err := s.ReassignLeader(); err != nil {
+						if tempLeaderService != s.leaderService {
+							_ = tempLeaderService.Client.Close()
+						} else {
+							s.RemoveLeader()
+						}
 					}
 				}
-			})
+			}
 
 			for name, service := range s.services {
-				s.healthCheckToService(service, func() {
+				err := service.Client.Ping()
+				if err != nil {
 					s.Remove(name)
 
 					logger.Debug("client %s disconnected", name)
-				})
+				}
 			}
 
 			s.servicesLock.Unlock()
@@ -171,9 +165,7 @@ func (s *serviceDiscovery) StartRebalance() {
 }
 
 func (s *serviceDiscovery) StopRebalance() {
-	if s.rebalanceSchedule != nil {
-		s.rebalanceSchedule.Stop()
-	}
+	s.rebalanceSchedule.Stop()
 }
 
 func (s *serviceDiscovery) GetAll() []string {

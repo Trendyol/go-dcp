@@ -60,11 +60,15 @@ func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID 
 		Event:  payload,
 	}
 
-	start := time.Now()
+	if !helpers.IsMetadata(payload) {
+		start := time.Now()
 
-	s.listener(ctx)
+		s.listener(ctx)
 
-	s.metric.AverageTookMs.Add(float64(time.Since(start).Milliseconds()))
+		s.metric.AverageTookMs.Add(float64(time.Since(start).Milliseconds()))
+	} else {
+		ctx.Ack()
+	}
 
 	if ctx.Status == models.Ack {
 		s.LockOffsets()

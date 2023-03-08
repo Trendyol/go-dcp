@@ -6,8 +6,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
-	"github.com/Trendyol/go-dcp-client/logger"
-
 	"github.com/Trendyol/go-dcp-client/helpers"
 )
 
@@ -15,12 +13,13 @@ type fileMetadata struct { //nolint:unused
 	fileName string
 }
 
-func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) { //nolint:unused
+func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) error { //nolint:unused
 	file, _ := jsoniter.MarshalIndent(state, "", "  ")
 	_ = os.WriteFile(s.fileName, file, 0o644) //nolint:gosec
+	return nil
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]CheckpointDocument { //nolint:unused
+func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]CheckpointDocument, error) { //nolint:unused
 	file, err := os.ReadFile(s.fileName)
 
 	state := map[uint16]CheckpointDocument{}
@@ -31,17 +30,18 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) map[uint16]Checkp
 				state[vbID] = NewEmptyCheckpointDocument(bucketUUID)
 			}
 		} else {
-			logger.Panic(err, "error while loading checkpoint document")
+			return nil, err
 		}
 	} else {
 		_ = jsoniter.Unmarshal(file, &state)
 	}
 
-	return state
+	return state, nil
 }
 
-func (s *fileMetadata) Clear(_ []uint16) { //nolint:unused
+func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 	_ = os.Remove(s.fileName)
+	return nil
 }
 
 func _(fileName string, _ helpers.Config) Metadata {

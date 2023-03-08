@@ -9,3 +9,5 @@ dcp:
     name: groupName
     membership:
       type: couchbase
+logging:
+  level: debug

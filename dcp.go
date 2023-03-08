@@ -33,6 +33,8 @@ type dcp struct {
 	listener         models.Listener
 	config           helpers.Config
 	apiShutdown      chan struct{}
+	dcpShutdown      chan struct{}
+	cancelCh         chan os.Signal
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -62,7 +64,7 @@ func (s *dcp) Start() {
 	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
 
 	metadata := NewCBMetadata(s.client, s.config)
-	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs())
+	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.cancelCh)
 
 	if s.config.LeaderElection.Enabled {
 		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.serviceDiscovery, infoHandler)
@@ -87,17 +89,12 @@ func (s *dcp) Start() {
 		}()
 	}
 
-	cancelCh := make(chan os.Signal, 1)
-	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
+	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
 	logger.Info("dcp stream started")
 
-	go func() {
-		s.stream.Wait()
-		close(cancelCh)
-	}()
-
-	<-cancelCh
+	<-s.cancelCh
+	s.dcpShutdown <- struct{}{}
 }
 
 func (s *dcp) Close() {
@@ -113,10 +110,11 @@ func (s *dcp) Close() {
 	}
 
 	s.stream.Save()
-	s.stream.Close(false)
+	s.stream.Close()
 	_ = s.client.DcpClose()
 	_ = s.client.MetaClose()
 	_ = s.client.Close()
+	<-s.dcpShutdown
 
 	logger.Info("dcp stream closed")
 }
@@ -152,6 +150,8 @@ func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
 		listener:    listener,
 		config:      config,
 		apiShutdown: make(chan struct{}, 1),
+		dcpShutdown: make(chan struct{}, 1),
+		cancelCh:    make(chan os.Signal, 1),
 	}, nil
 }
 

@@ -53,7 +53,7 @@ func (s *api) status(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
 
-func (s *api) offsetStates(c *fiber.Ctx) error {
+func (s *api) offset(c *fiber.Ctx) error {
 	return c.JSON(s.stream.GetOffsets())
 }
 
@@ -87,9 +87,9 @@ func NewAPI(config helpers.Config, client gDcp.Client, stream Stream, serviceDis
 	}
 
 	app.Get("/status", api.status)
-	app.Get("/states/offset", api.offsetStates)
+	app.Get("/states/offset", api.offset)
 	app.Get("/states/followers", api.followers)
-	app.Post("/rebalance", api.rebalance)
+	app.Get("/rebalance", api.rebalance)
 
 	return api
 }

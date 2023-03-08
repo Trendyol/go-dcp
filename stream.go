@@ -1,6 +1,8 @@
 package godcpclient
 
 import (
+	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -18,11 +20,8 @@ import (
 type Stream interface {
 	Open()
 	Rebalance()
-	Wait()
 	Save()
-	Pause()
-	Resume()
-	Close(fromRebalance bool)
+	Close()
 	LockOffsets()
 	UnlockOffsets()
 	GetOffsets() map[uint16]models.Offset
@@ -41,16 +40,17 @@ type stream struct {
 	offsetsLock      sync.Mutex
 	observers        map[uint16]gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
-	streams          map[uint16]*uint16
 	offsets          map[uint16]models.Offset
-	rebalanceTimer   *time.Timer
 	config           helpers.Config
 	listener         models.Listener
-	finishedStreams  sync.WaitGroup
+	activeStreams    sync.WaitGroup
 	streamsLock      sync.Mutex
 	mainListenerCh   models.ListenerCh
 	collectionIDs    map[uint32]string
 	metric           StreamMetric
+	rebalanceLock    sync.Mutex
+	balancing        bool
+	cancelCh         chan os.Signal
 }
 
 func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID uint16) {
@@ -89,12 +89,6 @@ func (s *stream) listen() {
 	}
 }
 
-func (s *stream) listenEnd(observer gDcp.Observer) {
-	for end := range observer.ListenEnd() {
-		s.CleanStreamOfVbID(end.VbID, false)
-	}
-}
-
 func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
@@ -104,10 +98,7 @@ func (s *stream) Open() {
 		logger.Panic(err, "cannot get vbucket uuid map")
 	}
 
-	s.finishedStreams = sync.WaitGroup{}
-	s.finishedStreams.Add(vBucketNumber)
-
-	s.streams = make(map[uint16]*uint16)
+	s.activeStreams.Add(vBucketNumber)
 
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
@@ -127,7 +118,11 @@ func (s *stream) Open() {
 				}
 			}()
 
-			go s.listenEnd(observer)
+			go func() {
+				for range observer.ListenEnd() {
+					s.activeStreams.Done()
+				}
+			}()
 
 			err := s.client.OpenStream(
 				innerVbId,
@@ -150,7 +145,6 @@ func (s *stream) Open() {
 			s.streamsLock.Lock()
 			defer s.streamsLock.Unlock()
 
-			s.streams[innerVbId] = &innerVbId
 			s.observers[innerVbId] = observer
 
 			openWg.Done()
@@ -158,34 +152,30 @@ func (s *stream) Open() {
 	}
 	openWg.Wait()
 	go s.listen()
-	logger.Debug("all streams are opened")
+	logger.Debug("stream started")
 	s.checkpoint.StartSchedule()
+
+	go func() {
+		s.activeStreams.Wait()
+		if !s.balancing {
+			close(s.cancelCh)
+		}
+	}()
 }
 
 func (s *stream) Rebalance() {
-	if s.rebalanceTimer != nil {
-		s.rebalanceTimer.Stop()
-	}
+	s.rebalanceLock.Lock()
+	defer s.rebalanceLock.Unlock()
 
-	s.rebalanceTimer = time.AfterFunc(time.Second*5, func() {
-		s.Pause()
-		s.Resume()
-		logger.Debug("rebalance is finished")
-	})
-}
+	s.balancing = true
 
-func (s *stream) Pause() {
 	s.Save()
-	s.Close(true)
-}
-
-func (s *stream) Resume() {
+	s.Close()
 	s.Open()
-}
 
-func (s *stream) Wait() {
-	s.finishedStreams.Wait()
-	logger.Debug("all streams are finished")
+	s.balancing = false
+
+	logger.Debug("rebalance is finished")
 }
 
 func (s *stream) Save() {
@@ -194,55 +184,50 @@ func (s *stream) Save() {
 	}
 }
 
-func (s *stream) CleanStreamOfVbID(vbID uint16, ignoreFinish bool) {
-	s.streamsLock.Lock()
-	defer s.streamsLock.Unlock()
+func (s *stream) closeAllStreams() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	delete(s.offsets, vbID)
+	errCh := make(chan error, 1)
 
-	if s.streams[vbID] != nil {
-		s.streams[vbID] = nil
+	go func() {
+		var err error
 
-		if !ignoreFinish {
-			s.finishedStreams.Done()
+		for vbID := range s.observers {
+			err = s.client.CloseStream(vbID)
 		}
+
+		errCh <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return err
 	}
 }
 
-func (s *stream) CloseWithVbID(vbID uint16, ignoreFinish bool) {
-	ch := make(chan error)
-
-	err := s.client.CloseStream(vbID, func(err error) {
-		ch <- err
-	})
-	if err != nil {
-		logger.Panic(err, "cannot close stream, vbID: %d", vbID)
-	}
-
-	if err = <-ch; err != nil {
-		logger.Panic(err, "cannot close stream, vbID: %d", vbID)
-	}
-
-	s.CleanStreamOfVbID(vbID, ignoreFinish)
-}
-
-func (s *stream) Close(ignoreFinish bool) {
+func (s *stream) Close() {
 	if s.checkpoint != nil {
 		s.checkpoint.StopSchedule()
 	}
 
-	for _, stream := range s.streams {
-		if stream != nil {
-			s.CloseWithVbID(*stream, ignoreFinish)
-		}
+	err := s.closeAllStreams()
+	if err != nil {
+		logger.Error(err, "cannot close all streams")
 	}
 
-	for vbID, observer := range s.observers {
+	s.activeStreams.Wait()
+
+	for _, observer := range s.observers {
 		observer.Close()
-		s.observers[vbID] = nil
 	}
 
-	logger.Debug("all streams are closed")
+	s.observers = map[uint16]gDcp.Observer{}
+	s.offsets = map[uint16]models.Offset{}
+
+	logger.Debug("stream stopped")
 }
 
 func (s *stream) LockOffsets() {
@@ -271,6 +256,7 @@ func NewStream(client gDcp.Client,
 	vBucketDiscovery VBucketDiscovery,
 	listener models.Listener,
 	collectionIDs map[uint32]string,
+	cancelCh chan os.Signal,
 ) Stream {
 	return &stream{
 		client:           client,
@@ -282,6 +268,9 @@ func NewStream(client gDcp.Client,
 		observers:        map[uint16]gDcp.Observer{},
 		mainListenerCh:   make(models.ListenerCh, 1),
 		collectionIDs:    collectionIDs,
+		rebalanceLock:    sync.Mutex{},
+		activeStreams:    sync.WaitGroup{},
+		cancelCh:         cancelCh,
 		metric: StreamMetric{
 			AverageTookMs: ewma.NewMovingAverage(10.0),
 		},

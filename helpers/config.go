@@ -86,7 +86,7 @@ func applyUnhandledDefaults(_config *Config) {
 	}
 
 	if _config.Checkpoint.Timeout == 0 {
-		_config.Checkpoint.Timeout = 10 * time.Second
+		_config.Checkpoint.Timeout = 5 * time.Second
 	}
 
 	if _config.MetadataBucket == "" {

@@ -147,7 +147,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int64, config helpers.Conf
 }
 
 func BenchmarkDcp(benchmark *testing.B) {
-	b, err := rand.Int(rand.Reader, big.NewInt(360000)) //nolint:gosec
+	b, err := rand.Int(rand.Reader, big.NewInt(480000)) //nolint:gosec
 	if err != nil {
 		benchmark.Error(err)
 	}
@@ -170,8 +170,9 @@ func BenchmarkDcp(benchmark *testing.B) {
 
 	var dcp Dcp
 
-	var lock sync.Mutex
-	var counter int
+	lock := sync.Mutex{}
+	counter := 0
+	finish := make(chan bool, 1)
 
 	dcp, err = NewDcp(configPath, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
@@ -185,7 +186,7 @@ func BenchmarkDcp(benchmark *testing.B) {
 			}
 
 			if counter == int(mockDataSize) {
-				dcp.Close()
+				finish <- true
 			}
 
 			lock.Unlock()
@@ -195,6 +196,11 @@ func BenchmarkDcp(benchmark *testing.B) {
 	if err != nil {
 		benchmark.Error(err)
 	}
+
+	go func() {
+		<-finish
+		dcp.Close()
+	}()
 
 	dcp.Start()
 }

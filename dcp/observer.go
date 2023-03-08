@@ -236,6 +236,7 @@ func (so *observer) Close() {
 	}()
 
 	close(so.listenerCh)
+	close(so.endCh)
 }
 
 func NewObserver(

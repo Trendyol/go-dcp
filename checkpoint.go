@@ -85,16 +85,24 @@ func (s *checkpoint) Save() {
 
 	s.stream.UnlockOffsets()
 
-	s.metadata.Save(dump, s.bucketUUID)
-
-	logger.Debug("saved checkpoint")
+	err := s.metadata.Save(dump, s.bucketUUID)
+	if err == nil {
+		logger.Debug("saved checkpoint")
+	} else {
+		logger.Error(err, "error while saving checkpoint document")
+	}
 }
 
 func (s *checkpoint) Load() map[uint16]models.Offset {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
-	dump := s.metadata.Load(s.vbIds, s.bucketUUID)
+	dump, err := s.metadata.Load(s.vbIds, s.bucketUUID)
+	if err == nil {
+		logger.Debug("loaded checkpoint")
+	} else {
+		logger.Panic(err, "error while loading checkpoint document")
+	}
 
 	offsets := map[uint16]models.Offset{}
 
@@ -109,13 +117,11 @@ func (s *checkpoint) Load() map[uint16]models.Offset {
 		}
 	}
 
-	logger.Debug("loaded checkpoint")
-
 	return offsets
 }
 
 func (s *checkpoint) Clear() {
-	s.metadata.Clear(s.vbIds)
+	_ = s.metadata.Clear(s.vbIds)
 	logger.Debug("cleared checkpoint")
 }
 

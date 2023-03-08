@@ -10,3 +10,5 @@ dcp:
     membership:
       type: kubernetesStatefulSet
       totalMembers: 1
+logging:
+  level: debug

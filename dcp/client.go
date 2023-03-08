@@ -38,7 +38,7 @@ type Client interface {
 		observer Observer,
 		callback gocbcore.OpenStreamCallback,
 	) error
-	CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error
+	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
 	GetCollectionID(scopeName string, collectionName string) (uint32, error)
 	UpsertXattrs(ctx context.Context, id []byte, path string, xattrs interface{}, expiry uint32) error
@@ -389,8 +389,10 @@ func (s *client) OpenStream(
 	return opm.Wait(op, err)
 }
 
-func (s *client) CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback) error {
+func (s *client) CloseStream(vbID uint16) error {
 	opm := helpers.NewAsyncOp(context.Background())
+
+	ch := make(chan error)
 
 	op, err := s.dcpAgent.CloseStream(
 		vbID,
@@ -398,14 +400,17 @@ func (s *client) CloseStream(vbID uint16, callback gocbcore.CloseStreamCallback)
 		func(err error) {
 			opm.Resolve()
 
-			callback(err)
+			ch <- err
 		},
 	)
+
+	err = opm.Wait(op, err)
+
 	if err != nil {
 		return err
 	}
 
-	return opm.Wait(op, err)
+	return <-ch
 }
 
 func (s *client) GetCollectionID(scopeName string, collectionName string) (uint32, error) {

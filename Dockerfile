@@ -7,7 +7,7 @@ COPY . .
 WORKDIR /project/example
 
 RUN rm ./config.yml
-RUN mv ./config_couchbase.yml ./config.yml
+RUN mv ./config_k8s_leader_election.yml ./config.yml
 
 RUN go mod download
 RUN CGO_ENABLED=0 go build -a -o godcpclient main.go

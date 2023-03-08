@@ -11,3 +11,5 @@ dcp:
       type: static
       memberNumber: 1
       totalMembers: 1
+logging:
+  level: debug

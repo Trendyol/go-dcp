@@ -89,6 +89,7 @@ func (s *stream) listen() {
 	}
 }
 
+//nolint:funlen
 func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)

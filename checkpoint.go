@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/models"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -12,7 +14,7 @@ import (
 
 type Checkpoint interface {
 	Save()
-	Load() map[uint16]*ObserverState
+	Load() map[uint16]models.Offset
 	Clear()
 	StartSchedule()
 	StopSchedule()
@@ -49,69 +51,77 @@ func NewEmptyCheckpointDocument(bucketUUID string) CheckpointDocument {
 }
 
 type checkpoint struct {
-	observer     Observer
-	metadata     Metadata
-	failoverLogs map[uint16][]gocbcore.FailoverEntry
-	vbSeqNos     map[uint16]gocbcore.VbSeqNoEntry
-	schedule     *time.Ticker
-	bucketUUID   string
-	config       helpers.Config
-	vbIds        []uint16
-	saveLock     sync.Mutex
-	loadLock     sync.Mutex
+	stream     Stream
+	metadata   Metadata
+	schedule   *time.Ticker
+	bucketUUID string
+	config     helpers.Config
+	vbIds      []uint16
+	saveLock   sync.Mutex
+	loadLock   sync.Mutex
 }
 
 func (s *checkpoint) Save() {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
-	state := s.observer.GetState()
-
 	dump := map[uint16]CheckpointDocument{}
 
-	for vbID, observerState := range state {
+	s.stream.LockOffsets()
+
+	for vbID, offset := range s.stream.GetOffsets() {
 		dump[vbID] = CheckpointDocument{
 			Checkpoint: checkpointDocumentCheckpoint{
-				VbUUID: uint64(s.failoverLogs[vbID][0].VbUUID),
-				SeqNo:  observerState.SeqNo,
+				VbUUID: uint64(offset.VbUUID),
+				SeqNo:  offset.SeqNo,
 				Snapshot: checkpointDocumentSnapshot{
-					StartSeqNo: observerState.StartSeqNo,
-					EndSeqNo:   observerState.EndSeqNo,
+					StartSeqNo: offset.StartSeqNo,
+					EndSeqNo:   offset.EndSeqNo,
 				},
 			},
 			BucketUUID: s.bucketUUID,
 		}
 	}
 
-	s.metadata.Save(dump, s.bucketUUID)
+	s.stream.UnlockOffsets()
 
-	logger.Debug("saved checkpoint")
+	err := s.metadata.Save(dump, s.bucketUUID)
+	if err == nil {
+		logger.Debug("saved checkpoint")
+	} else {
+		logger.Error(err, "error while saving checkpoint document")
+	}
 }
 
-func (s *checkpoint) Load() map[uint16]*ObserverState {
+func (s *checkpoint) Load() map[uint16]models.Offset {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
-	dump := s.metadata.Load(s.vbIds, s.bucketUUID)
+	dump, err := s.metadata.Load(s.vbIds, s.bucketUUID)
+	if err == nil {
+		logger.Debug("loaded checkpoint")
+	} else {
+		logger.Panic(err, "error while loading checkpoint document")
+	}
 
-	observerState := map[uint16]*ObserverState{}
+	offsets := map[uint16]models.Offset{}
 
 	for vbID, doc := range dump {
-		observerState[vbID] = &ObserverState{
-			SeqNo:      doc.Checkpoint.SeqNo,
-			StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
-			EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
+		offsets[vbID] = models.Offset{
+			SnapshotMarker: models.SnapshotMarker{
+				StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
+				EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
+			},
+			VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
+			SeqNo:  doc.Checkpoint.SeqNo,
 		}
 	}
 
-	s.observer.SetState(observerState)
-	logger.Debug("loaded checkpoint")
-
-	return observerState
+	return offsets
 }
 
 func (s *checkpoint) Clear() {
-	s.metadata.Clear(s.vbIds)
+	_ = s.metadata.Clear(s.vbIds)
 	logger.Debug("cleared checkpoint")
 }
 
@@ -126,6 +136,7 @@ func (s *checkpoint) StartSchedule() {
 			s.Save()
 		}
 	}()
+
 	logger.Debug("started checkpoint schedule")
 }
 
@@ -142,20 +153,16 @@ func (s *checkpoint) StopSchedule() {
 }
 
 func NewCheckpoint(
-	observer Observer,
+	stream Stream,
 	vbIds []uint16,
-	failoverLogs map[uint16][]gocbcore.FailoverEntry,
-	vbSeqNos map[uint16]gocbcore.VbSeqNoEntry,
 	bucketUUID string,
 	metadata Metadata, config helpers.Config,
 ) Checkpoint {
 	return &checkpoint{
-		observer:     observer,
-		vbIds:        vbIds,
-		failoverLogs: failoverLogs,
-		vbSeqNos:     vbSeqNos,
-		bucketUUID:   bucketUUID,
-		metadata:     metadata,
-		config:       config,
+		stream:     stream,
+		vbIds:      vbIds,
+		bucketUUID: bucketUUID,
+		metadata:   metadata,
+		config:     config,
 	}
 }

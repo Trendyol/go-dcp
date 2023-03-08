@@ -3,9 +3,12 @@ hosts:
 username: user
 password: password
 bucketName: dcp-test
+metadataBucket: dcp-test-meta
 dcp:
   group:
     name: groupName
     membership:
       type: kubernetesStatefulSet
       totalMembers: 1
+logging:
+  level: debug

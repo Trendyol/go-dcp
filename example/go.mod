@@ -7,6 +7,7 @@ replace github.com/Trendyol/go-dcp-client => ../.
 require github.com/Trendyol/go-dcp-client v0.0.0
 
 require (
+	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/ansrivas/fiberprometheus/v2 v2.4.1 // indirect
 	github.com/avast/retry-go/v4 v4.3.1 // indirect

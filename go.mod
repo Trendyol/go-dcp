@@ -3,6 +3,7 @@ module github.com/Trendyol/go-dcp-client
 go 1.19
 
 require (
+	github.com/VividCortex/ewma v1.2.0
 	github.com/ansrivas/fiberprometheus/v2 v2.4.1
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/couchbase/gocbcore/v10 v10.2.0
@@ -10,6 +11,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/google/uuid v1.3.0
 	github.com/gookit/config/v2 v2.1.8
+	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.14.0
 	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.8.1
@@ -44,7 +46,6 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gookit/goutil v0.5.15 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

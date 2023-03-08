@@ -1,7 +1,6 @@
 package godcpclient
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -13,14 +12,18 @@ import (
 	"testing"
 	"time"
 
+	mathRand "math/rand"
+
+	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/models"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
-	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func createConfigFile(t *testing.T) (string, func()) {
+func createConfigFile() (string, func(), error) {
 	configStr := `hosts:
   - localhost:8091
 username: Administrator
@@ -30,6 +33,10 @@ scopeName: _default
 collectionNames:
   - _default
 metadataBucket: sample
+checkpoint:
+  type: manual
+logging:
+  level: debug
 dcp:
   group:
     name: groupName
@@ -40,20 +47,20 @@ dcp:
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {
-		t.Error(err)
+		return "", nil, err
 	}
 
 	if _, err = tmpFile.WriteString(configStr); err != nil {
-		t.Error(err)
+		return "", nil, err
 	}
 
 	return tmpFile.Name(), func() {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
-	}
+	}, nil
 }
 
-func setupContainer(t *testing.T, config helpers.Config) func() {
+func setupContainer(b *testing.B, config helpers.Config) func() {
 	ctx := context.Background()
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -70,7 +77,7 @@ func setupContainer(t *testing.T, config helpers.Config) func() {
 		Started: true,
 	})
 	if err != nil {
-		t.Error(err)
+		b.Error(err)
 	}
 
 	return func() {
@@ -78,8 +85,8 @@ func setupContainer(t *testing.T, config helpers.Config) func() {
 	}
 }
 
-func insertDataToContainer(t *testing.T, mockDataSize int64, config helpers.Config) {
-	client := NewClient(config)
+func insertDataToContainer(b *testing.B, mockDataSize int64, config helpers.Config) {
+	client := gDcp.NewClient(config)
 
 	_ = client.Connect()
 	defer client.Close()
@@ -92,92 +99,104 @@ func insertDataToContainer(t *testing.T, mockDataSize int64, config helpers.Conf
 	// 2048 is the default value for the max queue size of the client, so we need to make sure that we don't exceed that
 	chunks := helpers.ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
 
-	for _, chunk := range chunks {
-		wg := sync.WaitGroup{}
-		wg.Add(len(chunk))
+	// Concurrency is limited to 10 to avoid server overload
+	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(10))))
 
-		for _, id := range chunk {
-			go func(i int) {
-				ch := make(chan error)
+	for _, iteration := range iterations {
+		for _, chunk := range iteration {
+			wg := sync.WaitGroup{}
+			wg.Add(len(chunk))
 
-				opm := NewAsyncOp(context.Background())
+			for _, id := range chunk {
+				go func(i int) {
+					ch := make(chan error)
 
-				op, err := client.GetAgent().Set(gocbcore.SetOptions{
-					Key:   []byte(fmt.Sprintf("my_key_%v", i)),
-					Value: []byte(fmt.Sprintf("my_value_%v", i)),
-				}, func(result *gocbcore.StoreResult, err error) {
-					opm.Resolve()
+					opm := helpers.NewAsyncOp(context.Background())
 
-					ch <- err
-				})
+					op, err := client.GetAgent().Set(gocbcore.SetOptions{
+						Key:   []byte(fmt.Sprintf("%v", i)),
+						Value: []byte(fmt.Sprintf("%v", i)),
+					}, func(result *gocbcore.StoreResult, err error) {
+						opm.Resolve()
 
-				err = opm.Wait(op, err)
+						ch <- err
+					})
 
-				if err != nil {
-					t.Error(err)
-				}
+					err = opm.Wait(op, err)
 
-				err = <-ch
+					if err != nil {
+						b.Error(err)
+					}
 
-				if err != nil {
-					t.Error(err)
-				}
+					err = <-ch
 
-				wg.Done()
-			}(id)
+					if err != nil {
+						b.Error(err)
+					}
+
+					wg.Done()
+				}(id)
+			}
+
+			wg.Wait()
 		}
-
-		wg.Wait()
+		time.Sleep(720 * time.Millisecond)
 	}
 
 	log.Printf("Inserted %v items", mockDataSize)
 }
 
-func TestDcp(t *testing.T) {
-	b, err := rand.Int(rand.Reader, big.NewInt(24000-12000))
+func BenchmarkDcp(benchmark *testing.B) {
+	b, err := rand.Int(rand.Reader, big.NewInt(720000)) //nolint:gosec
 	if err != nil {
-		t.Error(err)
+		benchmark.Error(err)
 	}
 
-	mockDataSize := b.Int64() + 12000
+	mockDataSize := b.Int64() + 240000
+	saveTarget := mathRand.Intn(int(mockDataSize))
 
-	configPath, configFileClean := createConfigFile(t)
+	configPath, configFileClean, err := createConfigFile()
+	if err != nil {
+		benchmark.Error(err)
+	}
 	defer configFileClean()
 
 	config := helpers.NewConfig(fmt.Sprintf("%v_data_insert", helpers.Name), configPath)
 
-	containerShutdown := setupContainer(t, config)
+	containerShutdown := setupContainer(benchmark, config)
 	defer containerShutdown()
 
-	insertDataToContainer(t, mockDataSize, config)
+	insertDataToContainer(benchmark, mockDataSize, config)
 
 	var dcp Dcp
 
-	var counter int64
-	lock := sync.Mutex{}
+	counter := 0
+	finish := make(chan bool, 1)
 
-	dcp, err = NewDcp(configPath, func(event interface{}, err error) {
-		if err != nil {
-			return
-		}
+	dcp, err = NewDcp(configPath, func(ctx *models.ListenerContext) {
+		if _, ok := ctx.Event.(models.DcpMutation); ok {
+			ctx.Ack()
 
-		if event, ok := event.(DcpMutation); ok {
-			lock.Lock()
 			counter++
-			lock.Unlock()
 
-			assert.True(t, bytes.HasPrefix(event.Key, []byte("my_key")))
-			assert.True(t, bytes.HasPrefix(event.Value, []byte("my_value")))
+			if counter == saveTarget {
+				ctx.Commit()
+			}
 
-			if counter == mockDataSize {
-				dcp.Close()
+			if counter == int(mockDataSize) {
+				finish <- true
 			}
 		}
 	})
 
 	if err != nil {
-		t.Error(err)
+		benchmark.Error(err)
 	}
+
+	go func() {
+		<-finish
+		dcp.Close()
+	}()
 
 	dcp.Start()
 }

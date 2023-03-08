@@ -1,8 +1,15 @@
 package godcpclient
 
 import (
+	"context"
+	"os"
 	"sync"
 	"time"
+
+	"github.com/VividCortex/ewma"
+
+	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -13,94 +20,121 @@ import (
 type Stream interface {
 	Open()
 	Rebalance()
-	Wait()
 	Save()
-	Pause()
-	Resume()
-	Close(fromRebalance bool)
-	GetObserver() Observer
+	Close()
+	LockOffsets()
+	UnlockOffsets()
+	GetOffsets() map[uint16]models.Offset
+	GetObservers() map[uint16]gDcp.Observer
+	GetMetric() StreamMetric
+}
+
+type StreamMetric struct {
+	AverageTookMs ewma.MovingAverage
 }
 
 type stream struct {
-	client           Client
-	Metadata         Metadata
+	client           gDcp.Client
+	metadata         Metadata
 	checkpoint       Checkpoint
-	observer         Observer
+	offsetsLock      sync.Mutex
+	observers        map[uint16]gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
-	streams          map[uint16]*uint16
-	rebalanceTimer   *time.Timer
+	offsets          map[uint16]models.Offset
 	config           helpers.Config
-	listeners        []Listener
-	finishedStreams  sync.WaitGroup
+	listener         models.Listener
+	activeStreams    sync.WaitGroup
 	streamsLock      sync.Mutex
+	mainListenerCh   models.ListenerCh
+	collectionIDs    map[uint32]string
+	metric           StreamMetric
+	rebalanceLock    sync.Mutex
+	balancing        bool
+	cancelCh         chan os.Signal
 }
 
-func (s *stream) listener(event interface{}, err error) {
-	if end, ok := event.(DcpStreamEnd); ok {
-		s.CleanStreamOfVbID(end.VbID, false)
+func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID uint16) {
+	ctx := &models.ListenerContext{
+		Commit: s.checkpoint.Save,
+		Status: models.Noop,
+		Event:  payload,
 	}
 
-	if err != nil {
-		return
+	if !helpers.IsMetadata(payload) {
+		start := time.Now()
+
+		s.listener(ctx)
+
+		s.metric.AverageTookMs.Add(float64(time.Since(start).Milliseconds()))
+	} else {
+		ctx.Ack()
 	}
 
-	if helpers.IsMetadata(event) {
-		return
-	}
-
-	for _, listener := range s.listeners {
-		listener(event, err)
+	if ctx.Status == models.Ack {
+		s.LockOffsets()
+		s.offsets[vbID] = offset
+		s.UnlockOffsets()
 	}
 }
 
-func (s *stream) Open() {
-	var collectionIDs map[uint32]string
+func (s *stream) listen() {
+	for args := range s.mainListenerCh {
+		event := args.Event
 
-	if s.config.IsCollectionModeEnabled() {
-		ids, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
-		if err != nil {
-			logger.Panic(err, "cannot get collection ids")
+		switch v := event.(type) {
+		case models.DcpMutation:
+			s.waitAndForward(v, v.Offset, v.VbID)
+		case models.DcpDeletion:
+			s.waitAndForward(v, v.Offset, v.VbID)
+		case models.DcpExpiration:
+			s.waitAndForward(v, v.Offset, v.VbID)
+		default:
 		}
-
-		collectionIDs = ids
 	}
+}
 
+//nolint:funlen
+func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
 
-	s.observer = NewObserver(vbIds, s.listener, collectionIDs)
-
-	failoverLogs, err := s.client.GetFailoverLogs(vbIds)
+	uuIDMap, err := s.client.GetVBucketUUIDMap(vbIds)
 	if err != nil {
-		logger.Panic(err, "cannot get failover logs")
+		logger.Panic(err, "cannot get vbucket uuid map")
 	}
 
-	vbSeqNos, err := s.client.GetVBucketSeqNos()
-	if err != nil {
-		logger.Panic(err, "cannot get vBucket seq nos")
-	}
-
-	s.finishedStreams = sync.WaitGroup{}
-	s.finishedStreams.Add(vBucketNumber)
-
-	s.streams = make(map[uint16]*uint16)
+	s.activeStreams.Add(vBucketNumber)
 
 	var openWg sync.WaitGroup
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(s.observer, vbIds, failoverLogs, vbSeqNos, s.client.GetBucketUUID(), s.Metadata, s.config)
-	observerState := s.checkpoint.Load()
+	s.checkpoint = NewCheckpoint(s, vbIds, s.client.GetBucketUUID(), s.metadata, s.config)
+	s.offsets = s.checkpoint.Load()
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
 			ch := make(chan error)
 
+			observer := gDcp.NewObserver(s.collectionIDs, uuIDMap[innerVbId])
+
+			go func() {
+				for args := range observer.Listen() {
+					s.mainListenerCh <- args
+				}
+			}()
+
+			go func() {
+				for range observer.ListenEnd() {
+					s.activeStreams.Done()
+				}
+			}()
+
 			err := s.client.OpenStream(
 				innerVbId,
-				failoverLogs[innerVbId][0].VbUUID,
-				collectionIDs,
-				observerState[innerVbId],
-				s.observer,
+				uuIDMap[innerVbId],
+				s.collectionIDs,
+				s.offsets[innerVbId],
+				observer,
 				func(entries []gocbcore.FailoverEntry, err error) {
 					ch <- err
 				},
@@ -116,40 +150,37 @@ func (s *stream) Open() {
 			s.streamsLock.Lock()
 			defer s.streamsLock.Unlock()
 
-			s.streams[innerVbId] = &innerVbId
+			s.observers[innerVbId] = observer
 
 			openWg.Done()
 		}(vbID)
 	}
 	openWg.Wait()
-	logger.Debug("all streams are opened")
+	go s.listen()
+	logger.Debug("stream started")
 	s.checkpoint.StartSchedule()
+
+	go func() {
+		s.activeStreams.Wait()
+		if !s.balancing {
+			close(s.cancelCh)
+		}
+	}()
 }
 
 func (s *stream) Rebalance() {
-	if s.rebalanceTimer != nil {
-		s.rebalanceTimer.Stop()
-	}
+	s.rebalanceLock.Lock()
+	defer s.rebalanceLock.Unlock()
 
-	s.rebalanceTimer = time.AfterFunc(time.Second*5, func() {
-		s.Pause()
-		s.Resume()
-		logger.Debug("rebalance is finished")
-	})
-}
+	s.balancing = true
 
-func (s *stream) Pause() {
 	s.Save()
-	s.Close(true)
-}
-
-func (s *stream) Resume() {
+	s.Close()
 	s.Open()
-}
 
-func (s *stream) Wait() {
-	s.finishedStreams.Wait()
-	logger.Debug("all streams are finished")
+	s.balancing = false
+
+	logger.Debug("rebalance is finished")
 }
 
 func (s *stream) Save() {
@@ -158,60 +189,95 @@ func (s *stream) Save() {
 	}
 }
 
-func (s *stream) CleanStreamOfVbID(vbID uint16, ignoreFinish bool) {
-	s.streamsLock.Lock()
-	defer s.streamsLock.Unlock()
+func (s *stream) closeAllStreams() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	if s.streams[vbID] != nil {
-		s.streams[vbID] = nil
+	errCh := make(chan error, 1)
 
-		if !ignoreFinish {
-			s.finishedStreams.Done()
+	go func() {
+		var err error
+
+		for vbID := range s.observers {
+			err = s.client.CloseStream(vbID)
 		}
+
+		errCh <- err
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errCh:
+		return err
 	}
 }
 
-func (s *stream) CloseWithVbID(vbID uint16, ignoreFinish bool) {
-	ch := make(chan error)
-
-	err := s.client.CloseStream(vbID, func(err error) {
-		ch <- err
-	})
-	if err != nil {
-		logger.Panic(err, "cannot close stream, vbID: %d", vbID)
-	}
-
-	if err = <-ch; err != nil {
-		logger.Panic(err, "cannot close stream, vbID: %d", vbID)
-	}
-
-	s.CleanStreamOfVbID(vbID, ignoreFinish)
-}
-
-func (s *stream) Close(ignoreFinish bool) {
+func (s *stream) Close() {
 	if s.checkpoint != nil {
 		s.checkpoint.StopSchedule()
 	}
 
-	for _, stream := range s.streams {
-		if stream != nil {
-			s.CloseWithVbID(*stream, ignoreFinish)
-		}
+	err := s.closeAllStreams()
+	if err != nil {
+		logger.Error(err, "cannot close all streams")
 	}
 
-	logger.Debug("all streams are closed")
+	s.activeStreams.Wait()
+
+	for _, observer := range s.observers {
+		observer.Close()
+	}
+
+	s.observers = map[uint16]gDcp.Observer{}
+	s.offsets = map[uint16]models.Offset{}
+
+	logger.Debug("stream stopped")
 }
 
-func (s *stream) GetObserver() Observer {
-	return s.observer
+func (s *stream) LockOffsets() {
+	s.offsetsLock.Lock()
 }
 
-func NewStream(client Client, metadata Metadata, config helpers.Config, vBucketDiscovery VBucketDiscovery, listeners ...Listener) Stream {
+func (s *stream) UnlockOffsets() {
+	s.offsetsLock.Unlock()
+}
+
+func (s *stream) GetOffsets() map[uint16]models.Offset {
+	return s.offsets
+}
+
+func (s *stream) GetObservers() map[uint16]gDcp.Observer {
+	return s.observers
+}
+
+func (s *stream) GetMetric() StreamMetric {
+	return s.metric
+}
+
+func NewStream(client gDcp.Client,
+	metadata Metadata,
+	config helpers.Config,
+	vBucketDiscovery VBucketDiscovery,
+	listener models.Listener,
+	collectionIDs map[uint32]string,
+	cancelCh chan os.Signal,
+) Stream {
 	return &stream{
 		client:           client,
-		Metadata:         metadata,
-		listeners:        listeners,
+		metadata:         metadata,
+		listener:         listener,
 		config:           config,
 		vBucketDiscovery: vBucketDiscovery,
+		offsetsLock:      sync.Mutex{},
+		observers:        map[uint16]gDcp.Observer{},
+		mainListenerCh:   make(models.ListenerCh, 1),
+		collectionIDs:    collectionIDs,
+		rebalanceLock:    sync.Mutex{},
+		activeStreams:    sync.WaitGroup{},
+		cancelCh:         cancelCh,
+		metric: StreamMetric{
+			AverageTookMs: ewma.NewMovingAverage(10.0),
+		},
 	}
 }

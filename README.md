@@ -6,7 +6,6 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 ---
 
 * [Why?](#why)
-* [Features](#features)
 * [Usage](#usage)
 * [Configuration](#configuration)
 * [Examples](#examples)
@@ -31,20 +30,17 @@ import (
 	"github.com/Trendyol/go-dcp-client"
 )
 
-func listener(event interface{}, err error) {
-	if err != nil {
-		log.Printf("error | %v", err)
-		return
-	}
-
-	switch event := event.(type) {
+func listener(ctx *godcpclient.ListenerContext) {
+	switch event := ctx.Event.(type) {
 	case godcpclient.DcpMutation:
-		log.Printf("mutated | id: %v, value: %v | isCreated: %v", string(event.Key), string(event.Value), event.IsCreated())
+		log.Printf("mutated(%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
 	case godcpclient.DcpDeletion:
 		log.Printf("deleted | id: %v", string(event.Key))
 	case godcpclient.DcpExpiration:
 		log.Printf("expired | id: %v", string(event.Key))
 	}
+
+	ctx.Ack()
 }
 
 func main() {
@@ -58,19 +54,6 @@ func main() {
 	dcp.Start()
 }
 ```
-
----
-
-### Features
-
-- [X] Metrics calculator
-- [X] Kubernetes StatefulSet membership
-- [X] Kubernetes High Availability
-- [X] Auto membership
-- [ ] Durable connection
-- [ ] Auto restart
-
----
 
 ### Usage
 
@@ -116,3 +99,4 @@ $ go get github.com/Trendyol/go-dcp-client
 - [static membership config](example/config.yml)
 - [kubernetesStatefulSet membership config](example/config_k8s_stateful_set.yml)
 - [kubernetesHa membership config](example/config_k8s_leader_election.yml)
+- [couchbase membership config](example/config_couchbase.yml) - thanks to [@onursak](https://github.com/onursak)

@@ -3,6 +3,8 @@ package godcpclient
 import (
 	"fmt"
 
+	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -16,7 +18,7 @@ type API interface {
 }
 
 type api struct {
-	client           Client
+	client           gDcp.Client
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
@@ -24,17 +26,15 @@ type api struct {
 }
 
 func (s *api) Listen() {
-	go func() {
-		logger.Info("api starting on port %d", s.config.API.Port)
+	logger.Info("api starting on port %d", s.config.API.Port)
 
-		err := s.app.Listen(fmt.Sprintf(":%d", s.config.API.Port))
+	err := s.app.Listen(fmt.Sprintf(":%d", s.config.API.Port))
 
-		if err != nil {
-			logger.Error(err, "api cannot start on port %d", s.config.API.Port)
-		} else {
-			logger.Debug("api stopped")
-		}
-	}()
+	if err != nil {
+		logger.Error(err, "api cannot start on port %d", s.config.API.Port)
+	} else {
+		logger.Debug("api stopped")
+	}
 }
 
 func (s *api) Shutdown() {
@@ -53,8 +53,8 @@ func (s *api) status(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
 
-func (s *api) observerState(c *fiber.Ctx) error {
-	return c.JSON(s.stream.GetObserver().GetState())
+func (s *api) offset(c *fiber.Ctx) error {
+	return c.JSON(s.stream.GetOffsets())
 }
 
 func (s *api) rebalance(c *fiber.Ctx) error {
@@ -64,13 +64,17 @@ func (s *api) rebalance(c *fiber.Ctx) error {
 }
 
 func (s *api) followers(c *fiber.Ctx) error {
+	if s.serviceDiscovery == nil {
+		return c.SendString("service discovery is not enabled")
+	}
+
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func NewAPI(config helpers.Config, client Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) API {
+func NewAPI(config helpers.Config, client gDcp.Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
-	metricMiddleware, err := NewMetricMiddleware(app, config, stream.GetObserver())
+	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client)
 
 	if err == nil {
 		app.Use(metricMiddleware)
@@ -87,9 +91,9 @@ func NewAPI(config helpers.Config, client Client, stream Stream, serviceDiscover
 	}
 
 	app.Get("/status", api.status)
-	app.Get("/states/observer", api.observerState)
+	app.Get("/states/offset", api.offset)
 	app.Get("/states/followers", api.followers)
-	app.Post("/rebalance", api.rebalance)
+	app.Get("/rebalance", api.rebalance)
 
 	return api
 }

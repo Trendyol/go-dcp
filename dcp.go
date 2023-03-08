@@ -6,6 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+
+	"github.com/Trendyol/go-dcp-client/models"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/rs/zerolog"
 
@@ -20,32 +24,50 @@ type Dcp interface {
 }
 
 type dcp struct {
-	client           Client
-	metadata         Metadata
+	client           gDcp.Client
 	stream           Stream
 	api              API
 	leaderElection   LeaderElection
 	vBucketDiscovery VBucketDiscovery
 	serviceDiscovery servicediscovery.ServiceDiscovery
-	listener         Listener
+	listener         models.Listener
 	config           helpers.Config
+	apiShutdown      chan struct{}
+	dcpShutdown      chan struct{}
+	cancelCh         chan os.Signal
+}
+
+func (s *dcp) getCollectionIDs() map[uint32]string {
+	collectionIDs := map[uint32]string{}
+
+	if s.config.IsCollectionModeEnabled() {
+		ids, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
+		if err != nil {
+			logger.Panic(err, "cannot get collection ids")
+		}
+
+		collectionIDs = ids
+	}
+
+	return collectionIDs
 }
 
 func (s *dcp) Start() {
 	infoHandler := info.NewHandler()
 
-	s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
-	s.serviceDiscovery.StartHealthCheck()
-	s.serviceDiscovery.StartRebalance()
-
 	vBuckets := s.client.GetNumVBuckets()
 
-	s.vBucketDiscovery = NewVBucketDiscovery(s.config.Dcp.Group.Membership, vBuckets, infoHandler)
+	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
 
-	s.stream = NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener)
+	metadata := NewCBMetadata(s.client, s.config)
+	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.cancelCh)
 
 	if s.config.LeaderElection.Enabled {
-		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.stream, s.serviceDiscovery, infoHandler)
+		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
+		s.serviceDiscovery.StartHealthCheck()
+		s.serviceDiscovery.StartRebalance()
+
+		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
 	}
 
@@ -56,42 +78,48 @@ func (s *dcp) Start() {
 	})
 
 	if s.config.Metric.Enabled {
-		s.api = NewAPI(s.config, s.client, s.stream, s.serviceDiscovery)
-		s.api.Listen()
+		go func() {
+			go func() {
+				<-s.apiShutdown
+				s.api.Shutdown()
+			}()
+
+			s.api = NewAPI(s.config, s.client, s.stream, s.serviceDiscovery)
+			s.api.Listen()
+		}()
 	}
 
-	cancelCh := make(chan os.Signal, 1)
-	signal.Notify(cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
+	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
-	go func() {
-		s.stream.Wait()
-		close(cancelCh)
-	}()
+	logger.Info("dcp stream started")
 
-	<-cancelCh
+	<-s.cancelCh
+	s.dcpShutdown <- struct{}{}
 }
 
 func (s *dcp) Close() {
-	s.serviceDiscovery.StopRebalance()
-	s.serviceDiscovery.StopHealthCheck()
-
 	if s.config.LeaderElection.Enabled {
 		s.leaderElection.Stop()
+
+		s.serviceDiscovery.StopRebalance()
+		s.serviceDiscovery.StopHealthCheck()
 	}
 
 	if s.api != nil && s.config.Metric.Enabled {
-		s.api.Shutdown()
+		s.apiShutdown <- struct{}{}
 	}
 
 	s.stream.Save()
-	s.stream.Close(false)
+	s.stream.Close()
 	s.client.DcpClose()
-	s.client.MetaClose()
 	s.client.Close()
+	<-s.dcpShutdown
+
+	logger.Info("dcp stream closed")
 }
 
-func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
-	client := NewClient(config)
+func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
+	client := gDcp.NewClient(config)
 
 	loggingLevel, err := zerolog.ParseLevel(config.Logging.Level)
 	if err != nil {
@@ -105,24 +133,19 @@ func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 		return nil, err
 	}
 
-	err = client.MetaConnect()
-	if err != nil {
-		return nil, err
-	}
-
 	err = client.DcpConnect()
 
 	if err != nil {
 		return nil, err
 	}
 
-	metadata := NewCBMetadata(client.GetMetaAgent(), config)
-
 	return &dcp{
-		client:   client,
-		metadata: metadata,
-		listener: listener,
-		config:   config,
+		client:      client,
+		listener:    listener,
+		config:      config,
+		apiShutdown: make(chan struct{}, 1),
+		dcpShutdown: make(chan struct{}, 1),
+		cancelCh:    make(chan os.Signal, 1),
 	}, nil
 }
 
@@ -130,7 +153,7 @@ func newDcp(config helpers.Config, listener Listener) (Dcp, error) {
 //
 //	config: path to a configuration file or a configuration struct
 //	listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(config interface{}, listener Listener) (Dcp, error) {
+func NewDcp(config interface{}, listener models.Listener) (Dcp, error) {
 	if path, ok := config.(string); ok {
 		return newDcp(helpers.NewConfig(helpers.Name, path), listener)
 	} else if config, ok := config.(helpers.Config); ok {

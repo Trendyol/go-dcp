@@ -3,7 +3,6 @@ package godcpclient
 import (
 	"context"
 	"sync"
-	"sync/atomic"
 
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 	"github.com/Trendyol/go-dcp-client/membership/info"
@@ -23,28 +22,17 @@ type LeaderElection interface {
 }
 
 type leaderElection struct {
-	elector          kle.LeaderElector
 	rpcServer        servicediscovery.Server
-	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	infoHandler      info.Handler
-	stabilityCh      chan bool
 	myIdentity       *identity.Identity
 	config           helpers.ConfigLeaderElection
 	newLeaderLock    sync.Mutex
-	initialized      uint32
-	stable           bool
 }
 
 func (l *leaderElection) OnBecomeLeader() {
-	if atomic.LoadUint32(&l.initialized) == 1 {
-		l.stabilityCh <- false
-	}
-
 	l.serviceDiscovery.BeLeader()
 	l.serviceDiscovery.RemoveLeader()
-
-	l.stabilityCh <- true
 }
 
 func (l *leaderElection) OnResignLeader() {
@@ -56,10 +44,6 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 	l.newLeaderLock.Lock()
 	defer l.newLeaderLock.Unlock()
 
-	if atomic.LoadUint32(&l.initialized) == 1 {
-		l.stabilityCh <- false
-	}
-
 	l.serviceDiscovery.DontBeLeader()
 	l.serviceDiscovery.RemoveAll()
 	l.serviceDiscovery.RemoveLeader()
@@ -69,7 +53,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 		return
 	}
 
-	leaderService := servicediscovery.NewService(leaderClient, true, leaderIdentity.Name)
+	leaderService := servicediscovery.NewService(leaderClient, leaderIdentity.Name)
 
 	l.serviceDiscovery.AssignLeader(leaderService)
 
@@ -78,53 +62,34 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 	if err != nil {
 		logger.Panic(err, "error while registering leader client")
 	}
-
-	l.stabilityCh <- true
 }
 
 func (l *leaderElection) Start() {
 	l.rpcServer = servicediscovery.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
+	var elector kle.LeaderElector
+
 	if l.config.Type == helpers.KubernetesLeaderElectionType {
 		kubernetesClient := kubernetes.NewClient(l.myIdentity)
-		l.elector = kle.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
+		elector = kle.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
 	}
 
-	l.elector.Run(context.Background())
-	l.watchStability()
+	elector.Run(context.Background())
 }
 
 func (l *leaderElection) Stop() {
 	l.rpcServer.Shutdown()
 }
 
-func (l *leaderElection) watchStability() {
-	go func() {
-		for result := range l.stabilityCh {
-			if l.stable != result {
-				l.stable = result
-				logger.Debug("stability changed: %v", l.stable)
-			}
-
-			if atomic.LoadUint32(&l.initialized) != 1 {
-				atomic.StoreUint32(&l.initialized, 1)
-			}
-		}
-	}()
-}
-
 func NewLeaderElection(
 	config helpers.ConfigLeaderElection,
-	stream Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
 	infoHandler info.Handler,
 ) LeaderElection {
 	return &leaderElection{
 		config:           config,
-		stream:           stream,
 		serviceDiscovery: serviceDiscovery,
-		stabilityCh:      make(chan bool),
 		newLeaderLock:    sync.Mutex{},
 		myIdentity:       identity.NewIdentityFromEnv(),
 		infoHandler:      infoHandler,

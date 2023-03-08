@@ -8,7 +8,10 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	configPath, configFileClean := createConfigFile(t)
+	configPath, configFileClean, err := createConfigFile()
+	if err != nil {
+		t.Error(err)
+	}
 	defer configFileClean()
 
 	config := helpers.NewConfig(helpers.Name, configPath)

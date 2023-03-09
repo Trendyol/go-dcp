@@ -9,17 +9,17 @@ import (
 	"github.com/Trendyol/go-dcp-client/helpers"
 )
 
-type fileMetadata struct {
+type fileMetadata struct { //nolint:unused
 	fileName string
 }
 
-func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) error {
+func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) error { //nolint:unused
 	file, _ := jsoniter.MarshalIndent(state, "", "  ")
 	_ = os.WriteFile(s.fileName, file, 0o644) //nolint:gosec
 	return nil
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]CheckpointDocument, error) {
+func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]CheckpointDocument, error) { //nolint:unused
 	file, err := os.ReadFile(s.fileName)
 
 	state := map[uint16]CheckpointDocument{}
@@ -39,7 +39,7 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]Check
 	return state, nil
 }
 
-func (s *fileMetadata) Clear(_ []uint16) error {
+func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 	_ = os.Remove(s.fileName)
 	return nil
 }

@@ -41,8 +41,7 @@ type observer struct {
 	currentSnapshots     map[uint16]*models.SnapshotMarker
 	currentSnapshotsLock sync.Mutex
 
-	uuIDs     map[uint16]gocbcore.VbUUID
-	uuIDsLock sync.Mutex
+	uuIDs map[uint16]gocbcore.VbUUID
 
 	metrics     map[uint16]ObserverMetric
 	metricsLock sync.Mutex
@@ -73,10 +72,14 @@ func (so *observer) sendOrSkip(args models.ListenerArgs) {
 }
 
 func (so *observer) SnapshotMarker(marker models.DcpSnapshotMarker) {
+	so.currentSnapshotsLock.Lock()
+
 	so.currentSnapshots[marker.VbID] = &models.SnapshotMarker{
 		StartSeqNo: marker.StartSeqNo,
 		EndSeqNo:   marker.EndSeqNo,
 	}
+
+	so.currentSnapshotsLock.Unlock()
 
 	so.sendOrSkip(models.ListenerArgs{
 		Event: marker,
@@ -84,6 +87,8 @@ func (so *observer) SnapshotMarker(marker models.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
+	so.currentSnapshotsLock.Lock()
+
 	if currentSnapshot, ok := so.currentSnapshots[mutation.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
@@ -98,6 +103,8 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 		})
 	}
 
+	so.currentSnapshotsLock.Unlock()
+
 	so.metricsLock.Lock()
 	defer so.metricsLock.Unlock()
 
@@ -111,6 +118,8 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
+	so.currentSnapshotsLock.Lock()
+
 	if currentSnapshot, ok := so.currentSnapshots[deletion.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpDeletion{
@@ -125,6 +134,8 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 		})
 	}
 
+	so.currentSnapshotsLock.Unlock()
+
 	so.metricsLock.Lock()
 	defer so.metricsLock.Unlock()
 
@@ -138,6 +149,8 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 }
 
 func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
+	so.currentSnapshotsLock.Lock()
+
 	if currentSnapshot, ok := so.currentSnapshots[expiration.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpExpiration{
@@ -151,6 +164,8 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 			},
 		})
 	}
+
+	so.currentSnapshotsLock.Unlock()
 
 	so.metricsLock.Lock()
 	defer so.metricsLock.Unlock()
@@ -211,10 +226,14 @@ func (so *observer) OSOSnapshot(snapshot models.DcpOSOSnapshot) {
 }
 
 func (so *observer) SeqNoAdvanced(advanced models.DcpSeqNoAdvanced) {
+	so.currentSnapshotsLock.Lock()
+
 	so.currentSnapshots[advanced.VbID] = &models.SnapshotMarker{
 		StartSeqNo: advanced.SeqNo,
 		EndSeqNo:   advanced.SeqNo,
 	}
+
+	so.currentSnapshotsLock.Unlock()
 
 	so.sendOrSkip(models.ListenerArgs{
 		Event: advanced,
@@ -267,8 +286,7 @@ func NewObserver(
 		currentSnapshots:     map[uint16]*models.SnapshotMarker{},
 		currentSnapshotsLock: sync.Mutex{},
 
-		uuIDs:     uuIDMap,
-		uuIDsLock: sync.Mutex{},
+		uuIDs: uuIDMap,
 
 		metrics:     map[uint16]ObserverMetric{},
 		metricsLock: sync.Mutex{},

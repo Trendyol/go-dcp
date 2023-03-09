@@ -2,17 +2,13 @@ package godcpclient
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
 	"log"
 	"math"
-	"math/big"
 	"os"
 	"sync"
 	"testing"
 	"time"
-
-	mathRand "math/rand"
 
 	gDcp "github.com/Trendyol/go-dcp-client/dcp"
 	"github.com/Trendyol/go-dcp-client/models"
@@ -87,11 +83,10 @@ func setupContainer(b *testing.B, config helpers.Config) func() {
 	}
 }
 
-func insertDataToContainer(b *testing.B, mockDataSize int64, config helpers.Config) {
+func insertDataToContainer(b *testing.B, mockDataSize int, config helpers.Config) {
 	client := gDcp.NewClient(config)
 
 	_ = client.Connect()
-	defer client.Close()
 
 	ids := make([]int, mockDataSize)
 	for i := range ids {
@@ -101,8 +96,8 @@ func insertDataToContainer(b *testing.B, mockDataSize int64, config helpers.Conf
 	// 2048 is the default value for the max queue size of the client, so we need to make sure that we don't exceed that
 	chunks := helpers.ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
 
-	// Concurrency is limited to 10 to avoid server overload
-	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(10))))
+	// Concurrency is limited to 8 to avoid server overload
+	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(8))))
 
 	for _, iteration := range iterations {
 		for _, chunk := range iteration {
@@ -142,20 +137,19 @@ func insertDataToContainer(b *testing.B, mockDataSize int64, config helpers.Conf
 
 			wg.Wait()
 		}
-		time.Sleep(720 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
+
+	client.Close()
+
+	time.Sleep(5 * time.Second)
 
 	log.Printf("Inserted %v items", mockDataSize)
 }
 
 func BenchmarkDcp(benchmark *testing.B) {
-	b, err := rand.Int(rand.Reader, big.NewInt(720000)) //nolint:gosec
-	if err != nil {
-		benchmark.Error(err)
-	}
-
-	mockDataSize := b.Int64() + 240000
-	saveTarget := mathRand.Intn(int(mockDataSize))
+	mockDataSize := 320000
+	saveTarget := mockDataSize / 2
 
 	configPath, configFileClean, err := createConfigFile()
 	if err != nil {
@@ -185,7 +179,7 @@ func BenchmarkDcp(benchmark *testing.B) {
 				ctx.Commit()
 			}
 
-			if counter == int(mockDataSize) {
+			if counter == mockDataSize {
 				finish <- true
 			}
 		}

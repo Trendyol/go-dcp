@@ -19,15 +19,15 @@ import (
 )
 
 type cbMembership struct {
+	client              dcp.Client
+	handler             info.Handler
 	info                *info.Model
 	infoChan            chan *info.Model
-	client              dcp.Client
 	id                  []byte
-	clusterJoinTime     int64
 	lastActiveInstances []Instance
-	handler             info.Handler
 	monitorQuery        []byte
 	indexQuery          []byte
+	clusterJoinTime     int64
 }
 
 type Instance struct {
@@ -181,7 +181,7 @@ func getIndexQuery(metadataBucket string) []byte {
 	var query []byte
 
 	query = append(query, []byte("CREATE INDEX ")...)
-	query = append(query, []byte("ids_metadata_instance IF NOT EXISTS on ")...)
+	query = append(query, []byte("ids_metadata_instance on ")...)
 	query = append(query, []byte("`")...)
 	query = append(query, []byte(metadataBucket)...)
 	query = append(query, []byte("`(`type`)")...)

@@ -199,7 +199,8 @@ func (s *client) DcpConnect() error {
 			Enabled: true,
 		},
 		DCPConfig: gocbcore.DCPConfig{
-			BufferSize: s.config.Dcp.BufferSizeKb * 1024,
+			BufferSize:      s.config.Dcp.BufferSizeKb * 1024,
+			UseExpiryOpcode: true,
 		},
 	}
 

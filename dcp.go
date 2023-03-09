@@ -55,7 +55,7 @@ func (s *dcp) getCollectionIDs() map[uint32]string {
 }
 
 func (s *dcp) healthCheck() {
-	timer := time.NewTicker(time.Second * 4)
+	timer := time.NewTicker(s.config.HealthCheck.Interval)
 
 	go func() {
 		for range timer.C {

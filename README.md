@@ -3,7 +3,6 @@
 This repository contains go implementation of a Couchbase Database Change Protocol (DCP) client.
 
 ### Contents
----
 
 * [Why?](#why)
 * [Usage](#usage)
@@ -12,12 +11,10 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 
 ### Why?
 
-+ Our main goal is to build a dcp client for faster and stateful systems. We want to use this repository in below
++ Our main goal is to build a dcp client for faster and stateful systems. We're already using this repository in below
   implementations:
-    + Couchbase Elastic Connector
-    + Kafka Connector
-
----
+    + [Elastic Connector](https://github.com/Trendyol/go-elasticsearch-connect-couchbase)
+    + [Kafka Connector](https://github.com/Trendyol/go-kafka-connect-couchbase)
 
 ### Example
 
@@ -64,8 +61,6 @@ $ go get github.com/Trendyol/go-dcp-client
 
 ```
 
----
-
 ### Configuration
 
 | Variable                            | Type                        | Is Required |
@@ -95,8 +90,8 @@ $ go get github.com/Trendyol/go-dcp-client
 | `checkpoint.type`                   | string                      | no          |
 | `checkpoint.interval`               | integer                     | no          |
 | `checkpoint.timeout`                | integer                     | no          |
-
----
+| `healthCheck.interval`              | integer                     | no          |
+| `healthCheck.timeout`               | integer                     | no          |
 
 ### Examples
 

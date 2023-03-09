@@ -60,6 +60,11 @@ type ConfigCheckpoint struct {
 	Timeout  time.Duration `yaml:"timeout"`
 }
 
+type ConfigHealthCheck struct {
+	Interval time.Duration `yaml:"interval"`
+	Timeout  time.Duration `yaml:"timeout"`
+}
+
 type Config struct {
 	LeaderElection  ConfigLeaderElection `yaml:"leaderElector"`
 	Metric          ConfigMetric         `yaml:"metric"`
@@ -74,6 +79,7 @@ type Config struct {
 	Checkpoint      ConfigCheckpoint     `yaml:"checkpoint"`
 	Dcp             ConfigDCP            `yaml:"dcp"`
 	API             ConfigAPI            `yaml:"api"`
+	HealthCheck     ConfigHealthCheck    `yaml:"healthCheck"`
 }
 
 func (c *Config) IsCollectionModeEnabled() bool {
@@ -94,6 +100,14 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.Checkpoint.Timeout == 0 {
 		_config.Checkpoint.Timeout = 5 * time.Second
+	}
+
+	if _config.HealthCheck.Interval == 0 {
+		_config.HealthCheck.Interval = 30 * time.Second
+	}
+
+	if _config.HealthCheck.Timeout == 0 {
+		_config.HealthCheck.Timeout = 10 * time.Second
 	}
 
 	if _config.MetadataBucket == "" {

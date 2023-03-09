@@ -55,7 +55,7 @@ type client struct {
 }
 
 func (s *client) Ping() (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), s.config.HealthCheck.Timeout)
 	defer cancel()
 
 	opm := helpers.NewAsyncOp(ctx)

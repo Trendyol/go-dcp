@@ -2,16 +2,8 @@ package models
 
 type ListenerContext struct {
 	Commit func()
-	Status Status
 	Event  interface{}
-}
-
-func (ctx *ListenerContext) Ack() {
-	ctx.Status = Ack
-}
-
-func (ctx *ListenerContext) Discard() {
-	ctx.Status = Discard
+	Ack    func()
 }
 
 type ListenerArgs struct {

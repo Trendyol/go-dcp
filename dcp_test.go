@@ -38,6 +38,8 @@ checkpoint:
 logging:
   level: debug
 dcp:
+  listener:
+    bufferSize: 1024
   group:
     name: groupName
     membership:

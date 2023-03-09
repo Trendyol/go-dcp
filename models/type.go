@@ -4,14 +4,6 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
-type Status int8
-
-var (
-	Ack     = Status(1)
-	Discard = Status(0)
-	Noop    = Status(-1)
-)
-
 type Offset struct {
 	SnapshotMarker
 	VbUUID gocbcore.VbUUID

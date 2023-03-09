@@ -28,16 +28,18 @@ import (
 	"log"
 
 	"github.com/Trendyol/go-dcp-client"
+
+	"github.com/Trendyol/go-dcp-client/models"
 )
 
-func listener(ctx *godcpclient.ListenerContext) {
+func listener(ctx *models.ListenerContext) {
 	switch event := ctx.Event.(type) {
-	case godcpclient.DcpMutation:
-		log.Printf("mutated(%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
-	case godcpclient.DcpDeletion:
-		log.Printf("deleted | id: %v", string(event.Key))
-	case godcpclient.DcpExpiration:
-		log.Printf("expired | id: %v", string(event.Key))
+	case models.DcpMutation:
+		log.Printf("mutated(vb=%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
+	case models.DcpDeletion:
+		log.Printf("deleted(vb=%v) | id: %v", event.VbID, string(event.Key))
+	case models.DcpExpiration:
+		log.Printf("expired(vb=%v) | id: %v", event.VbID, string(event.Key))
 	}
 
 	ctx.Ack()
@@ -75,11 +77,13 @@ $ go get github.com/Trendyol/go-dcp-client
 | `scopeName`                         | string                      | no          |
 | `collectionNames`                   | array                       | no          |
 | `metadataBucket`                    | string                      | no          |
+| `dcp.listener.bufferSize`           | integer                     | no          |
 | `dcp.group.name`                    | string                      | yes         |
 | `dcp.group.membership.type`         | string                      | yes         |
 | `dcp.group.membership.memberNumber` | integer                     | no          |
 | `dcp.group.membership.totalMembers` | integer                     | no          |
 | `api.port`                          | integer                     | no          |
+| `metric.averageWindowSec`           | float                       | no          |
 | `metric.enabled`                    | boolean *(true/false)*      | no          |
 | `metric.path`                       | string                      | no          |
 | `leaderElection.enabled`            | boolean *(true/false)*      | no          |

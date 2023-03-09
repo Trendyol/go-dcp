@@ -54,7 +54,8 @@ func (s *api) status(c *fiber.Ctx) error {
 }
 
 func (s *api) offset(c *fiber.Ctx) error {
-	return c.JSON(s.stream.GetOffsets())
+	offsets, _ := s.stream.GetOffsetsWithDirty()
+	return c.JSON(offsets)
 }
 
 func (s *api) rebalance(c *fiber.Ctx) error {

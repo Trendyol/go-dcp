@@ -70,7 +70,9 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	s.stream.LockOffsets()
 	defer s.stream.UnlockOffsets()
 
-	for vbID, offset := range s.stream.GetOffsets() {
+	offsets, _ := s.stream.GetOffsetsWithDirty()
+
+	for vbID, offset := range offsets {
 		ch <- prometheus.MustNewConstMetric(
 			s.currentSeqNo,
 			prometheus.CounterValue,
@@ -113,7 +115,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(
 		s.averageProcessMs,
 		prometheus.CounterValue,
-		streamMetric.AverageTookMs.Value(),
+		streamMetric.AverageProcessMs.Value(),
 		[]string{}...,
 	)
 }

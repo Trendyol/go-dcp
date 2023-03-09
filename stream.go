@@ -24,13 +24,14 @@ type Stream interface {
 	Close()
 	LockOffsets()
 	UnlockOffsets()
-	GetOffsets() map[uint16]models.Offset
+	GetOffsetsWithDirty() (map[uint16]models.Offset, bool)
 	GetObservers() map[uint16]gDcp.Observer
 	GetMetric() StreamMetric
+	UnmarkDirty()
 }
 
 type StreamMetric struct {
-	AverageTookMs ewma.MovingAverage
+	AverageProcessMs ewma.MovingAverage
 }
 
 type stream struct {
@@ -41,6 +42,7 @@ type stream struct {
 	observers        map[uint16]gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
 	offsets          map[uint16]models.Offset
+	dirty            bool
 	config           helpers.Config
 	listener         models.Listener
 	activeStreams    sync.WaitGroup
@@ -53,27 +55,30 @@ type stream struct {
 	cancelCh         chan os.Signal
 }
 
+func (s *stream) setOffset(vbID uint16, offset models.Offset) {
+	s.LockOffsets()
+	defer s.UnlockOffsets()
+	s.offsets[vbID] = offset
+}
+
 func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID uint16) {
 	ctx := &models.ListenerContext{
 		Commit: s.checkpoint.Save,
-		Status: models.Noop,
 		Event:  payload,
+		Ack: func() {
+			s.setOffset(vbID, offset)
+			s.dirty = true
+		},
 	}
 
-	if !helpers.IsMetadata(payload) {
+	if helpers.IsMetadata(payload) {
+		s.setOffset(vbID, offset)
+	} else {
 		start := time.Now()
 
 		s.listener(ctx)
 
-		s.metric.AverageTookMs.Add(float64(time.Since(start).Milliseconds()))
-	} else {
-		ctx.Ack()
-	}
-
-	if ctx.Status == models.Ack {
-		s.LockOffsets()
-		s.offsets[vbID] = offset
-		s.UnlockOffsets()
+		s.metric.AverageProcessMs.Add(float64(time.Since(start).Milliseconds()))
 	}
 }
 
@@ -243,8 +248,8 @@ func (s *stream) UnlockOffsets() {
 	s.offsetsLock.Unlock()
 }
 
-func (s *stream) GetOffsets() map[uint16]models.Offset {
-	return s.offsets
+func (s *stream) GetOffsetsWithDirty() (map[uint16]models.Offset, bool) {
+	return s.offsets, s.dirty
 }
 
 func (s *stream) GetObservers() map[uint16]gDcp.Observer {
@@ -253,6 +258,10 @@ func (s *stream) GetObservers() map[uint16]gDcp.Observer {
 
 func (s *stream) GetMetric() StreamMetric {
 	return s.metric
+}
+
+func (s *stream) UnmarkDirty() {
+	s.dirty = false
 }
 
 func NewStream(client gDcp.Client,
@@ -271,13 +280,13 @@ func NewStream(client gDcp.Client,
 		vBucketDiscovery: vBucketDiscovery,
 		offsetsLock:      sync.Mutex{},
 		observers:        map[uint16]gDcp.Observer{},
-		mainListenerCh:   make(models.ListenerCh, 1),
+		mainListenerCh:   make(models.ListenerCh, config.Dcp.Listener.BufferSize),
 		collectionIDs:    collectionIDs,
 		rebalanceLock:    sync.Mutex{},
 		activeStreams:    sync.WaitGroup{},
 		cancelCh:         cancelCh,
 		metric: StreamMetric{
-			AverageTookMs: ewma.NewMovingAverage(10.0),
+			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},
 	}
 }

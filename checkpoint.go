@@ -68,8 +68,15 @@ func (s *checkpoint) Save() {
 	dump := map[uint16]CheckpointDocument{}
 
 	s.stream.LockOffsets()
+	defer s.stream.UnlockOffsets()
 
-	for vbID, offset := range s.stream.GetOffsets() {
+	offsets, dirty := s.stream.GetOffsetsWithDirty()
+
+	if !dirty {
+		return
+	}
+
+	for vbID, offset := range offsets {
 		dump[vbID] = CheckpointDocument{
 			Checkpoint: checkpointDocumentCheckpoint{
 				VbUUID: uint64(offset.VbUUID),
@@ -83,11 +90,10 @@ func (s *checkpoint) Save() {
 		}
 	}
 
-	s.stream.UnlockOffsets()
-
 	err := s.metadata.Save(dump, s.bucketUUID)
 	if err == nil {
 		logger.Debug("saved checkpoint")
+		s.stream.UnmarkDirty()
 	} else {
 		logger.Error(err, "error while saving checkpoint document")
 	}

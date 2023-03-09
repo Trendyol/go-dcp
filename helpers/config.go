@@ -19,8 +19,13 @@ type ConfigDCPGroup struct {
 	Membership ConfigDCPGroupMembership `yaml:"membership"`
 }
 
+type ConfigDCPListener struct {
+	BufferSize int `yaml:"bufferSize"`
+}
+
 type ConfigDCP struct {
-	Group ConfigDCPGroup `yaml:"group"`
+	Group    ConfigDCPGroup    `yaml:"group"`
+	Listener ConfigDCPListener `yaml:"listener" default:"1"`
 }
 
 type ConfigAPI struct {
@@ -28,8 +33,9 @@ type ConfigAPI struct {
 }
 
 type ConfigMetric struct {
-	Path    string `yaml:"path" default:"/metrics"`
-	Enabled bool   `yaml:"enabled" default:"true"`
+	Path             string  `yaml:"path" default:"/metrics"`
+	Enabled          bool    `yaml:"enabled" default:"true"`
+	AverageWindowSec float64 `yaml:"averageWindowSec" default:"10.0"`
 }
 
 type ConfigLeaderElection struct {

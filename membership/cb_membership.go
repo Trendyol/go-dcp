@@ -121,7 +121,8 @@ func (h *cbMembership) createIndex() {
 	defer cancel()
 
 	_, err := h.client.ExecuteQuery(ctx, h.indexQuery)
-	if err != nil {
+	// 4300 -> Already exist error code for N1QL
+	if n1qlError, ok := err.(*gocbcore.N1QLError); !ok || n1qlError.Errors[0].Code != 4300 {
 		logger.Panic(err, "error while create index")
 	}
 }

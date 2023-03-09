@@ -122,7 +122,6 @@ func (h *cbMembership) createIndex() {
 	defer cancel()
 
 	_, err := h.client.ExecuteQuery(ctx, h.indexQuery)
-
 	if err != nil {
 		logger.Error(err, "error while create index")
 		return

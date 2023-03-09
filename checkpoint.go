@@ -62,19 +62,20 @@ type checkpoint struct {
 }
 
 func (s *checkpoint) Save() {
-	s.saveLock.Lock()
-	defer s.saveLock.Unlock()
-
-	dump := map[uint16]CheckpointDocument{}
-
 	s.stream.LockOffsets()
 	defer s.stream.UnlockOffsets()
 
 	offsets, dirty := s.stream.GetOffsetsWithDirty()
 
 	if !dirty {
+		logger.Debug("no need to save checkpoint")
 		return
 	}
+
+	s.saveLock.Lock()
+	defer s.saveLock.Unlock()
+
+	dump := map[uint16]CheckpointDocument{}
 
 	for vbID, offset := range offsets {
 		dump[vbID] = CheckpointDocument{

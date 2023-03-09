@@ -42,9 +42,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		logger.Error(err, "cannot get seqNoMap")
 	}
 
-	for vbID, observer := range s.stream.GetObservers() {
-		metric := observer.GetMetric()
-
+	for vbID, metric := range s.stream.GetObserver().GetMetrics() {
 		ch <- prometheus.MustNewConstMetric(
 			s.mutation,
 			prometheus.CounterValue,

@@ -198,6 +198,9 @@ func (s *client) DcpConnect() error {
 		CompressionConfig: gocbcore.CompressionConfig{
 			Enabled: true,
 		},
+		DCPConfig: gocbcore.DCPConfig{
+			BufferSize: s.config.Dcp.BufferSizeKb * 1024,
+		},
 	}
 
 	if s.config.IsCollectionModeEnabled() {

@@ -77,6 +77,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `scopeName`                         | string                      | no          |
 | `collectionNames`                   | array                       | no          |
 | `metadataBucket`                    | string                      | no          |
+| `dcp.bufferSizeKb`                  | integer                     | no          |
 | `dcp.listener.bufferSize`           | integer                     | no          |
 | `dcp.group.name`                    | string                      | yes         |
 | `dcp.group.membership.type`         | string                      | yes         |

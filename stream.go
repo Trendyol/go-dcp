@@ -25,7 +25,7 @@ type Stream interface {
 	LockOffsets()
 	UnlockOffsets()
 	GetOffsetsWithDirty() (map[uint16]models.Offset, bool)
-	GetObservers() map[uint16]gDcp.Observer
+	GetObserver() gDcp.Observer
 	GetMetric() StreamMetric
 	UnmarkDirty()
 }
@@ -39,7 +39,7 @@ type stream struct {
 	metadata         Metadata
 	checkpoint       Checkpoint
 	offsetsLock      sync.Mutex
-	observers        map[uint16]gDcp.Observer
+	observer         gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
 	offsets          map[uint16]models.Offset
 	dirty            bool
@@ -47,7 +47,6 @@ type stream struct {
 	listener         models.Listener
 	activeStreams    sync.WaitGroup
 	streamsLock      sync.Mutex
-	mainListenerCh   models.ListenerCh
 	collectionIDs    map[uint32]string
 	metric           StreamMetric
 	rebalanceLock    sync.Mutex
@@ -83,7 +82,7 @@ func (s *stream) waitAndForward(payload interface{}, offset models.Offset, vbID 
 }
 
 func (s *stream) listen() {
-	for args := range s.mainListenerCh {
+	for args := range s.observer.Listen() {
 		event := args.Event
 
 		switch v := event.(type) {
@@ -98,7 +97,12 @@ func (s *stream) listen() {
 	}
 }
 
-//nolint:funlen
+func (s *stream) listenEnd() {
+	for range s.observer.ListenEnd() {
+		s.activeStreams.Done()
+	}
+}
+
 func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
@@ -116,23 +120,11 @@ func (s *stream) Open() {
 	s.checkpoint = NewCheckpoint(s, vbIds, s.client.GetBucketUUID(), s.metadata, s.config)
 	s.offsets = s.checkpoint.Load()
 
+	observer := gDcp.NewObserver(s.config, s.collectionIDs, uuIDMap)
+
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
 			ch := make(chan error)
-
-			observer := gDcp.NewObserver(s.collectionIDs, uuIDMap[innerVbId])
-
-			go func() {
-				for args := range observer.Listen() {
-					s.mainListenerCh <- args
-				}
-			}()
-
-			go func() {
-				for range observer.ListenEnd() {
-					s.activeStreams.Done()
-				}
-			}()
 
 			err := s.client.OpenStream(
 				innerVbId,
@@ -155,14 +147,17 @@ func (s *stream) Open() {
 			s.streamsLock.Lock()
 			defer s.streamsLock.Unlock()
 
-			s.observers[innerVbId] = observer
-
 			openWg.Done()
 		}(vbID)
 	}
 	openWg.Wait()
+
+	s.observer = observer
+	go s.listenEnd()
 	go s.listen()
+
 	logger.Debug("stream started")
+
 	s.checkpoint.StartSchedule()
 
 	go func() {
@@ -203,9 +198,11 @@ func (s *stream) closeAllStreams() error {
 	go func() {
 		var err error
 
-		for vbID := range s.observers {
+		s.LockOffsets()
+		for vbID := range s.offsets {
 			err = s.client.CloseStream(vbID)
 		}
+		s.UnlockOffsets()
 
 		errCh <- err
 	}()
@@ -219,6 +216,8 @@ func (s *stream) closeAllStreams() error {
 }
 
 func (s *stream) Close() {
+	s.observer.Close()
+
 	if s.checkpoint != nil {
 		s.checkpoint.StopSchedule()
 	}
@@ -229,12 +228,8 @@ func (s *stream) Close() {
 	}
 
 	s.activeStreams.Wait()
-
-	for _, observer := range s.observers {
-		observer.Close()
-	}
-
-	s.observers = map[uint16]gDcp.Observer{}
+	s.observer.CloseEnd()
+	s.observer = nil
 	s.offsets = map[uint16]models.Offset{}
 
 	logger.Debug("stream stopped")
@@ -252,8 +247,8 @@ func (s *stream) GetOffsetsWithDirty() (map[uint16]models.Offset, bool) {
 	return s.offsets, s.dirty
 }
 
-func (s *stream) GetObservers() map[uint16]gDcp.Observer {
-	return s.observers
+func (s *stream) GetObserver() gDcp.Observer {
+	return s.observer
 }
 
 func (s *stream) GetMetric() StreamMetric {
@@ -279,8 +274,6 @@ func NewStream(client gDcp.Client,
 		config:           config,
 		vBucketDiscovery: vBucketDiscovery,
 		offsetsLock:      sync.Mutex{},
-		observers:        map[uint16]gDcp.Observer{},
-		mainListenerCh:   make(models.ListenerCh, config.Dcp.Listener.BufferSize),
 		collectionIDs:    collectionIDs,
 		rebalanceLock:    sync.Mutex{},
 		activeStreams:    sync.WaitGroup{},

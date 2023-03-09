@@ -1,12 +1,11 @@
 package dcp
 
 import (
-	"reflect"
 	"sync"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp-client/helpers"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -25,9 +24,10 @@ type Observer interface {
 	ModifyCollection(modification models.DcpCollectionModification)
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced models.DcpSeqNoAdvanced)
-	GetMetric() ObserverMetric
+	GetMetrics() map[uint16]ObserverMetric
 	Listen() models.ListenerCh
 	Close()
+	CloseEnd()
 	ListenEnd() chan models.DcpStreamEnd
 }
 
@@ -38,13 +38,19 @@ type ObserverMetric struct {
 }
 
 type observer struct {
-	currentSnapshot *models.SnapshotMarker
-	uuID            gocbcore.VbUUID
-	collectionIDs   map[uint32]string
-	metric          ObserverMetric
-	metricLock      sync.Mutex
-	listenerCh      models.ListenerCh
-	endCh           chan models.DcpStreamEnd
+	currentSnapshots     map[uint16]*models.SnapshotMarker
+	currentSnapshotsLock sync.Mutex
+
+	uuIDs     map[uint16]gocbcore.VbUUID
+	uuIDsLock sync.Mutex
+
+	metrics     map[uint16]ObserverMetric
+	metricsLock sync.Mutex
+
+	collectionIDs map[uint32]string
+
+	listenerCh models.ListenerCh
+	endCh      chan models.DcpStreamEnd
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) *string {
@@ -55,10 +61,11 @@ func (so *observer) convertToCollectionName(collectionID uint32) *string {
 	return nil
 }
 
+//nolint:staticcheck
 func (so *observer) sendOrSkip(args models.ListenerArgs) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Debug("%v, skipping event: %s", r, reflect.TypeOf(args.Event))
+			// listener channel is closed
 		}
 	}()
 
@@ -66,7 +73,7 @@ func (so *observer) sendOrSkip(args models.ListenerArgs) {
 }
 
 func (so *observer) SnapshotMarker(marker models.DcpSnapshotMarker) {
-	so.currentSnapshot = &models.SnapshotMarker{
+	so.currentSnapshots[marker.VbID] = &models.SnapshotMarker{
 		StartSeqNo: marker.StartSeqNo,
 		EndSeqNo:   marker.EndSeqNo,
 	}
@@ -77,13 +84,13 @@ func (so *observer) SnapshotMarker(marker models.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
-	if so.currentSnapshot != nil {
+	if currentSnapshot, ok := so.currentSnapshots[mutation.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
 				DcpMutation: mutation,
 				Offset: models.Offset{
-					SnapshotMarker: *so.currentSnapshot,
-					VbUUID:         so.uuID,
+					SnapshotMarker: *currentSnapshot,
+					VbUUID:         so.uuIDs[mutation.VbID],
 					SeqNo:          mutation.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(mutation.CollectionID),
@@ -91,21 +98,26 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 		})
 	}
 
-	so.metricLock.Lock()
+	so.metricsLock.Lock()
+	defer so.metricsLock.Unlock()
 
-	so.metric.TotalMutations++
-
-	so.metricLock.Unlock()
+	if metric, ok := so.metrics[mutation.VbID]; ok {
+		metric.TotalMutations++
+	} else {
+		so.metrics[mutation.VbID] = ObserverMetric{
+			TotalMutations: 1,
+		}
+	}
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
-	if so.currentSnapshot != nil {
+	if currentSnapshot, ok := so.currentSnapshots[deletion.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpDeletion{
 				DcpDeletion: deletion,
 				Offset: models.Offset{
-					SnapshotMarker: *so.currentSnapshot,
-					VbUUID:         so.uuID,
+					SnapshotMarker: *currentSnapshot,
+					VbUUID:         so.uuIDs[deletion.VbID],
 					SeqNo:          deletion.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(deletion.CollectionID),
@@ -113,21 +125,26 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 		})
 	}
 
-	so.metricLock.Lock()
+	so.metricsLock.Lock()
+	defer so.metricsLock.Unlock()
 
-	so.metric.TotalDeletions++
-
-	so.metricLock.Unlock()
+	if metric, ok := so.metrics[deletion.VbID]; ok {
+		metric.TotalDeletions++
+	} else {
+		so.metrics[deletion.VbID] = ObserverMetric{
+			TotalDeletions: 1,
+		}
+	}
 }
 
 func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
-	if so.currentSnapshot != nil {
+	if currentSnapshot, ok := so.currentSnapshots[expiration.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpExpiration{
 				DcpExpiration: expiration,
 				Offset: models.Offset{
-					SnapshotMarker: *so.currentSnapshot,
-					VbUUID:         so.uuID,
+					SnapshotMarker: *currentSnapshot,
+					VbUUID:         so.uuIDs[expiration.VbID],
 					SeqNo:          expiration.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(expiration.CollectionID),
@@ -135,11 +152,16 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 		})
 	}
 
-	so.metricLock.Lock()
+	so.metricsLock.Lock()
+	defer so.metricsLock.Unlock()
 
-	so.metric.TotalExpirations++
-
-	so.metricLock.Unlock()
+	if metric, ok := so.metrics[expiration.VbID]; ok {
+		metric.TotalExpirations++
+	} else {
+		so.metrics[expiration.VbID] = ObserverMetric{
+			TotalExpirations: 1,
+		}
+	}
 }
 
 func (so *observer) End(end models.DcpStreamEnd, _ error) {
@@ -189,7 +211,7 @@ func (so *observer) OSOSnapshot(snapshot models.DcpOSOSnapshot) {
 }
 
 func (so *observer) SeqNoAdvanced(advanced models.DcpSeqNoAdvanced) {
-	so.currentSnapshot = &models.SnapshotMarker{
+	so.currentSnapshots[advanced.VbID] = &models.SnapshotMarker{
 		StartSeqNo: advanced.SeqNo,
 		EndSeqNo:   advanced.SeqNo,
 	}
@@ -199,11 +221,11 @@ func (so *observer) SeqNoAdvanced(advanced models.DcpSeqNoAdvanced) {
 	})
 }
 
-func (so *observer) GetMetric() ObserverMetric {
-	so.metricLock.Lock()
-	defer so.metricLock.Unlock()
+func (so *observer) GetMetrics() map[uint16]ObserverMetric {
+	so.metricsLock.Lock()
+	defer so.metricsLock.Unlock()
 
-	return so.metric
+	return so.metrics
 }
 
 func (so *observer) Listen() models.ListenerCh {
@@ -214,31 +236,46 @@ func (so *observer) ListenEnd() chan models.DcpStreamEnd {
 	return so.endCh
 }
 
+//nolint:staticcheck
 func (so *observer) Close() {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Debug("panic ignored: %v", r)
+			// listener channel is closed
 		}
 	}()
 
 	close(so.listenerCh)
+}
+
+//nolint:staticcheck
+func (so *observer) CloseEnd() {
+	defer func() {
+		if r := recover(); r != nil {
+			// listener channel is closed
+		}
+	}()
+
 	close(so.endCh)
 }
 
 func NewObserver(
+	config helpers.Config,
 	collectionIDs map[uint32]string,
-	uuID gocbcore.VbUUID,
+	uuIDMap map[uint16]gocbcore.VbUUID,
 ) Observer {
 	return &observer{
-		currentSnapshot: nil,
-		uuID:            uuID,
+		currentSnapshots:     map[uint16]*models.SnapshotMarker{},
+		currentSnapshotsLock: sync.Mutex{},
 
-		metricLock: sync.Mutex{},
-		metric:     ObserverMetric{},
+		uuIDs:     uuIDMap,
+		uuIDsLock: sync.Mutex{},
+
+		metrics:     map[uint16]ObserverMetric{},
+		metricsLock: sync.Mutex{},
 
 		collectionIDs: collectionIDs,
 
-		listenerCh: make(models.ListenerCh, 1),
+		listenerCh: make(models.ListenerCh, config.Dcp.Listener.BufferSize),
 		endCh:      make(chan models.DcpStreamEnd, 1),
 	}
 }

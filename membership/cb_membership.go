@@ -44,6 +44,7 @@ const (
 	_heartbeatToleranceSec = 2
 	_monitorIntervalMs     = 500
 	_timeoutSec            = 10
+	_initialDelaySec       = 15
 )
 
 func (h *cbMembership) GetInfo() *info.Model {
@@ -121,9 +122,10 @@ func (h *cbMembership) createIndex() {
 	defer cancel()
 
 	_, err := h.client.ExecuteQuery(ctx, h.indexQuery)
-	// 4300 -> Already exist error code for N1QL
-	if n1qlError, ok := err.(*gocbcore.N1QLError); !ok || n1qlError.Errors[0].Code != 4300 {
-		logger.Panic(err, "error while create index")
+
+	if err != nil {
+		logger.Error(err, "error while create index")
+		return
 	}
 }
 
@@ -229,6 +231,8 @@ func (h *cbMembership) startMonitor() {
 	monitorTicker := time.NewTicker(_monitorIntervalMs * time.Millisecond)
 
 	go func() {
+		time.Sleep(_initialDelaySec * time.Second)
+
 		for range monitorTicker.C {
 			h.monitor()
 		}

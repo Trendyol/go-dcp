@@ -79,8 +79,8 @@ $ go get github.com/Trendyol/go-dcp-client
 | `dcp.group.membership.memberNumber` | integer                     | no          |
 | `dcp.group.membership.totalMembers` | integer                     | no          |
 | `api.port`                          | integer                     | no          |
+| `api.enabled`                       | boolean *(true/false)*      | no          |
 | `metric.averageWindowSec`           | float                       | no          |
-| `metric.enabled`                    | boolean *(true/false)*      | no          |
 | `metric.path`                       | string                      | no          |
 | `leaderElection.enabled`            | boolean *(true/false)*      | no          |
 | `leaderElection.type`               | string                      | no          |

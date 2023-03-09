@@ -16,21 +16,21 @@ type SnapshotMarker struct {
 }
 
 type InternalDcpMutation struct {
+	CollectionName *string
 	gocbcore.DcpMutation
 	Offset
-	CollectionName *string
 }
 
 type InternalDcpDeletion struct {
+	CollectionName *string
 	gocbcore.DcpDeletion
 	Offset
-	CollectionName *string
 }
 
 type InternalDcpExpiration struct {
+	CollectionName *string
 	gocbcore.DcpExpiration
 	Offset
-	CollectionName *string
 }
 
 func (i *InternalDcpMutation) IsCreated() bool {

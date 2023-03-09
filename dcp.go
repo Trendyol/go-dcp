@@ -32,11 +32,11 @@ type dcp struct {
 	vBucketDiscovery  VBucketDiscovery
 	serviceDiscovery  servicediscovery.ServiceDiscovery
 	listener          models.Listener
-	config            helpers.Config
 	apiShutdown       chan struct{}
 	cancelCh          chan os.Signal
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
+	config            helpers.Config
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {

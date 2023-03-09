@@ -39,17 +39,13 @@ type ObserverMetric struct {
 
 type observer struct {
 	currentSnapshots     map[uint16]*models.SnapshotMarker
+	uuIDs                map[uint16]gocbcore.VbUUID
+	metrics              map[uint16]ObserverMetric
+	collectionIDs        map[uint32]string
+	listenerCh           models.ListenerCh
+	endCh                chan models.DcpStreamEnd
 	currentSnapshotsLock sync.Mutex
-
-	uuIDs map[uint16]gocbcore.VbUUID
-
-	metrics     map[uint16]ObserverMetric
-	metricsLock sync.Mutex
-
-	collectionIDs map[uint32]string
-
-	listenerCh models.ListenerCh
-	endCh      chan models.DcpStreamEnd
+	metricsLock          sync.Mutex
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) *string {

@@ -37,20 +37,20 @@ type stream struct {
 	client           gDcp.Client
 	metadata         Metadata
 	checkpoint       Checkpoint
-	offsetsLock      sync.Mutex
+	metric           StreamMetric
 	observer         gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
-	offsets          map[uint16]models.Offset
-	dirty            bool
-	config           helpers.Config
+	collectionIDs    map[uint32]string
 	listener         models.Listener
+	offsets          map[uint16]models.Offset
+	stopCh           chan struct{}
+	config           helpers.Config
 	activeStreams    sync.WaitGroup
 	streamsLock      sync.Mutex
-	collectionIDs    map[uint32]string
-	metric           StreamMetric
+	offsetsLock      sync.Mutex
 	rebalanceLock    sync.Mutex
+	dirty            bool
 	balancing        bool
-	stopCh           chan struct{}
 }
 
 func (s *stream) setOffset(vbID uint16, offset models.Offset) {

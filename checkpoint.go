@@ -55,8 +55,8 @@ type checkpoint struct {
 	metadata   Metadata
 	schedule   *time.Ticker
 	bucketUUID string
-	config     helpers.Config
 	vbIds      []uint16
+	config     helpers.Config
 	saveLock   sync.Mutex
 	loadLock   sync.Mutex
 }

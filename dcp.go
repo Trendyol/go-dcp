@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	gDcp "github.com/Trendyol/go-dcp-client/dcp"
 
@@ -24,17 +25,18 @@ type Dcp interface {
 }
 
 type dcp struct {
-	client           gDcp.Client
-	stream           Stream
-	api              API
-	leaderElection   LeaderElection
-	vBucketDiscovery VBucketDiscovery
-	serviceDiscovery servicediscovery.ServiceDiscovery
-	listener         models.Listener
-	config           helpers.Config
-	apiShutdown      chan struct{}
-	dcpShutdown      chan struct{}
-	cancelCh         chan os.Signal
+	client            gDcp.Client
+	stream            Stream
+	api               API
+	leaderElection    LeaderElection
+	vBucketDiscovery  VBucketDiscovery
+	serviceDiscovery  servicediscovery.ServiceDiscovery
+	listener          models.Listener
+	config            helpers.Config
+	apiShutdown       chan struct{}
+	cancelCh          chan os.Signal
+	stopCh            chan struct{}
+	healCheckFailedCh chan struct{}
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -52,6 +54,22 @@ func (s *dcp) getCollectionIDs() map[uint32]string {
 	return collectionIDs
 }
 
+func (s *dcp) healthCheck() {
+	timer := time.NewTicker(time.Second * 4)
+
+	go func() {
+		for range timer.C {
+			status, err := s.client.Ping()
+			if err != nil || !status {
+				timer.Stop()
+				logger.Error(err, "health check failed")
+				s.healCheckFailedCh <- struct{}{}
+				break
+			}
+		}
+	}()
+}
+
 func (s *dcp) Start() {
 	infoHandler := info.NewHandler()
 
@@ -60,7 +78,7 @@ func (s *dcp) Start() {
 	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
 
 	metadata := NewCBMetadata(s.client, s.config)
-	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.cancelCh)
+	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
 
 	if s.config.LeaderElection.Enabled {
 		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
@@ -91,13 +109,20 @@ func (s *dcp) Start() {
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
-	logger.Info("dcp stream started")
+	s.healthCheck()
 
-	<-s.cancelCh
-	s.dcpShutdown <- struct{}{}
+	logger.Info("dcp stream started")
+	select {
+	case <-s.stopCh:
+	case <-s.cancelCh:
+	case <-s.healCheckFailedCh:
+	}
 }
 
 func (s *dcp) Close() {
+	s.stream.Save()
+	s.stream.Close()
+
 	if s.config.LeaderElection.Enabled {
 		s.leaderElection.Stop()
 
@@ -109,11 +134,8 @@ func (s *dcp) Close() {
 		s.apiShutdown <- struct{}{}
 	}
 
-	s.stream.Save()
-	s.stream.Close()
 	s.client.DcpClose()
 	s.client.Close()
-	<-s.dcpShutdown
 
 	logger.Info("dcp stream closed")
 }
@@ -140,12 +162,13 @@ func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
 	}
 
 	return &dcp{
-		client:      client,
-		listener:    listener,
-		config:      config,
-		apiShutdown: make(chan struct{}, 1),
-		dcpShutdown: make(chan struct{}, 1),
-		cancelCh:    make(chan os.Signal, 1),
+		client:            client,
+		listener:          listener,
+		config:            config,
+		apiShutdown:       make(chan struct{}, 1),
+		cancelCh:          make(chan os.Signal, 1),
+		stopCh:            make(chan struct{}, 1),
+		healCheckFailedCh: make(chan struct{}, 1),
 	}, nil
 }
 

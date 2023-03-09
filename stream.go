@@ -2,7 +2,6 @@ package godcpclient
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -51,7 +50,7 @@ type stream struct {
 	metric           StreamMetric
 	rebalanceLock    sync.Mutex
 	balancing        bool
-	cancelCh         chan os.Signal
+	stopCh           chan struct{}
 }
 
 func (s *stream) setOffset(vbID uint16, offset models.Offset) {
@@ -160,12 +159,7 @@ func (s *stream) Open() {
 
 	s.checkpoint.StartSchedule()
 
-	go func() {
-		s.activeStreams.Wait()
-		if !s.balancing {
-			close(s.cancelCh)
-		}
-	}()
+	go s.wait()
 }
 
 func (s *stream) Rebalance() {
@@ -184,9 +178,7 @@ func (s *stream) Rebalance() {
 }
 
 func (s *stream) Save() {
-	if s.checkpoint != nil {
-		s.checkpoint.Save()
-	}
+	s.checkpoint.Save()
 }
 
 func (s *stream) closeAllStreams() error {
@@ -212,6 +204,13 @@ func (s *stream) closeAllStreams() error {
 		return ctx.Err()
 	case err := <-errCh:
 		return err
+	}
+}
+
+func (s *stream) wait() {
+	s.activeStreams.Wait()
+	if !s.balancing {
+		close(s.stopCh)
 	}
 }
 
@@ -265,7 +264,7 @@ func NewStream(client gDcp.Client,
 	vBucketDiscovery VBucketDiscovery,
 	listener models.Listener,
 	collectionIDs map[uint32]string,
-	cancelCh chan os.Signal,
+	stopCh chan struct{},
 ) Stream {
 	return &stream{
 		client:           client,
@@ -277,7 +276,7 @@ func NewStream(client gDcp.Client,
 		collectionIDs:    collectionIDs,
 		rebalanceLock:    sync.Mutex{},
 		activeStreams:    sync.WaitGroup{},
-		cancelCh:         cancelCh,
+		stopCh:           stopCh,
 		metric: StreamMetric{
 			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},

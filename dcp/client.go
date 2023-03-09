@@ -55,10 +55,13 @@ type client struct {
 }
 
 func (s *client) Ping() (bool, error) {
-	opm := helpers.NewAsyncOp(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	opm := helpers.NewAsyncOp(ctx)
 
 	errorCh := make(chan error)
-	successCh := make(chan bool)
+	var status bool
 
 	op, err := s.agent.Ping(gocbcore.PingOptions{}, func(result *gocbcore.PingResult, err error) {
 		opm.Resolve()
@@ -76,7 +79,7 @@ func (s *client) Ping() (bool, error) {
 			}
 		}
 
-		successCh <- success
+		status = success
 		errorCh <- err
 	})
 
@@ -86,10 +89,7 @@ func (s *client) Ping() (bool, error) {
 		return false, err
 	}
 
-	success := <-successCh
-	err = <-errorCh
-
-	return success, err
+	return status, <-errorCh
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {

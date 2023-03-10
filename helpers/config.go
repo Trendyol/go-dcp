@@ -105,11 +105,11 @@ func applyUnhandledDefaults(_config *Config) {
 	}
 
 	if _config.HealthCheck.Interval == 0 {
-		_config.HealthCheck.Interval = 30 * time.Second
+		_config.HealthCheck.Interval = 10 * time.Second
 	}
 
 	if _config.HealthCheck.Timeout == 0 {
-		_config.HealthCheck.Timeout = 10 * time.Second
+		_config.HealthCheck.Timeout = 5 * time.Second
 	}
 
 	if _config.MetadataBucket == "" {

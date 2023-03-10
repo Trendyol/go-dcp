@@ -28,6 +28,8 @@ type cbMembership struct {
 	monitorQuery        []byte
 	indexQuery          []byte
 	clusterJoinTime     int64
+	scopeName           string
+	collectionName      string
 }
 
 type Instance struct {
@@ -69,14 +71,14 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	err := h.client.UpdateDocument(ctx, h.id, instance, _expirySec)
+	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = h.client.CreateDocument(ctx, h.id, instance, _expirySec)
+		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 
 		if err == nil {
-			err = h.client.UpdateDocument(ctx, h.id, instance, _expirySec)
+			err = h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 		}
 	}
 
@@ -110,7 +112,7 @@ func (h *cbMembership) heartbeat() {
 		ClusterJoinTime: h.clusterJoinTime,
 	}
 
-	err := h.client.UpdateDocument(ctx, h.id, instance, _expirySec)
+	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 	if err != nil {
 		logger.Error(err, "error while heartbeat")
 		return
@@ -164,14 +166,17 @@ func (h *cbMembership) monitor() {
 	}
 }
 
-func getMonitorQuery(metadataBucket string) []byte {
+func getMonitorQuery(metadataBucket string, metadataScope string, metadataCollection string) []byte {
 	var query []byte
 
 	query = append(query, []byte("SELECT meta().id, type, heartbeatTime, clusterJoinTime FROM ")...)
 	query = append(query, []byte("`")...)
 	query = append(query, []byte(metadataBucket)...)
-	query = append(query, []byte("`")...)
-	query = append(query, []byte(" WHERE type = '")...)
+	query = append(query, []byte("`.`")...)
+	query = append(query, []byte(metadataScope)...)
+	query = append(query, []byte("`.`")...)
+	query = append(query, []byte(metadataCollection)...)
+	query = append(query, []byte("` WHERE type = '")...)
 	query = append(query, []byte(_type)...)
 	query = append(query, []byte("' ")...)
 	query = append(query, []byte("order by clusterJoinTime")...)
@@ -179,13 +184,17 @@ func getMonitorQuery(metadataBucket string) []byte {
 	return query
 }
 
-func getIndexQuery(metadataBucket string) []byte {
+func getIndexQuery(metadataBucket string, metadataScope string, metadataCollection string) []byte {
 	var query []byte
 
 	query = append(query, []byte("CREATE INDEX ")...)
 	query = append(query, []byte("ids_metadata_instance on ")...)
 	query = append(query, []byte("`")...)
 	query = append(query, []byte(metadataBucket)...)
+	query = append(query, []byte("`.`")...)
+	query = append(query, []byte(metadataScope)...)
+	query = append(query, []byte("`.`")...)
+	query = append(query, []byte(metadataCollection)...)
 	query = append(query, []byte("`(`type`)")...)
 	query = append(query, []byte(" where type = '")...)
 	query = append(query, []byte(_type)...)
@@ -240,12 +249,14 @@ func (h *cbMembership) startMonitor() {
 
 func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Handler) Membership {
 	cbm := &cbMembership{
-		infoChan:     make(chan *info.Model),
-		client:       client,
-		id:           []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
-		handler:      handler,
-		monitorQuery: getMonitorQuery(config.MetadataBucket),
-		indexQuery:   getIndexQuery(config.MetadataBucket),
+		infoChan:       make(chan *info.Model),
+		client:         client,
+		id:             []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
+		handler:        handler,
+		monitorQuery:   getMonitorQuery(config.MetadataBucket, config.MetadataScope, config.MetadataCollection),
+		indexQuery:     getIndexQuery(config.MetadataBucket, config.MetadataScope, config.MetadataCollection),
+		scopeName:      config.MetadataScope,
+		collectionName: config.MetadataCollection,
 	}
 
 	cbm.createIndex()

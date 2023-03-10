@@ -30,14 +30,14 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error 
 
 		for vbID, checkpointDocument := range state {
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-			err = s.client.UpsertXattrs(ctx, id, helpers.Name, checkpointDocument, 0)
+			err = s.client.UpsertXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name, checkpointDocument, 0)
 
 			var kvErr *gocbcore.KeyValueError
 			if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-				err = s.client.CreateDocument(ctx, id, []byte{}, 0)
+				err = s.client.CreateDocument(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, []byte{}, 0)
 
 				if err == nil {
-					err = s.client.UpsertXattrs(ctx, id, helpers.Name, checkpointDocument, 0)
+					err = s.client.UpsertXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name, checkpointDocument, 0)
 				}
 			}
 
@@ -70,7 +70,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 		for _, vbID := range vbIds {
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-			data, err := s.client.GetXattrs(ctx, id, helpers.Name)
+			data, err := s.client.GetXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name)
 
 			var doc *CheckpointDocument
 
@@ -110,7 +110,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	for _, vbID := range vbIds {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-		s.client.DeleteDocument(ctx, id)
+		s.client.DeleteDocument(ctx, s.config.MetadataScope, s.config.MetadataCollection, id)
 	}
 
 	return nil

@@ -39,12 +39,12 @@ type Client interface {
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
 	GetCollectionID(scopeName string, collectionName string) (uint32, error)
-	UpsertXattrs(ctx context.Context, id []byte, path string, xattrs interface{}, expiry uint32) error
-	CreateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error
+	UpsertXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string, xattrs interface{}, expiry uint32) error
+	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
 	ExecuteQuery(ctx context.Context, query []byte) ([][]byte, error)
-	UpdateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error
-	DeleteDocument(ctx context.Context, id []byte)
-	GetXattrs(ctx context.Context, id []byte, path string) ([]byte, error)
+	UpdateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
+	DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte)
+	GetXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string) ([]byte, error)
 }
 
 type client struct {
@@ -115,6 +115,9 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 			},
 			CompressionConfig: gocbcore.CompressionConfig{
 				Enabled: true,
+			},
+			IoConfig: gocbcore.IoConfig{
+				UseCollections: true,
 			},
 		},
 	)
@@ -461,7 +464,14 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) (m
 	return collectionIDs, nil
 }
 
-func (s *client) UpsertXattrs(ctx context.Context, id []byte, path string, xattrs interface{}, expiry uint32) error {
+func (s *client) UpsertXattrs(ctx context.Context,
+	scopeName string,
+	collectionName string,
+	id []byte,
+	path string,
+	xattrs interface{},
+	expiry uint32,
+) error {
 	opm := helpers.NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -480,8 +490,10 @@ func (s *client) UpsertXattrs(ctx context.Context, id []byte, path string, xattr
 				Value: payload,
 			},
 		},
-		Expiry:   expiry,
-		Deadline: deadline,
+		Expiry:         expiry,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}, func(result *gocbcore.MutateInResult, err error) {
 		opm.Resolve()
 
@@ -499,7 +511,13 @@ func (s *client) UpsertXattrs(ctx context.Context, id []byte, path string, xattr
 	return err
 }
 
-func (s *client) UpdateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error {
+func (s *client) UpdateDocument(ctx context.Context,
+	scopeName string,
+	collectionName string,
+	id []byte,
+	value interface{},
+	expiry uint32,
+) error {
 	opm := helpers.NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -516,8 +534,10 @@ func (s *client) UpdateDocument(ctx context.Context, id []byte, value interface{
 				Value: payload,
 			},
 		},
-		Expiry:   expiry,
-		Deadline: deadline,
+		Expiry:         expiry,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}, func(result *gocbcore.MutateInResult, err error) {
 		opm.Resolve()
 
@@ -535,7 +555,13 @@ func (s *client) UpdateDocument(ctx context.Context, id []byte, value interface{
 	return err
 }
 
-func (s *client) CreateDocument(ctx context.Context, id []byte, value interface{}, expiry uint32) error {
+func (s *client) CreateDocument(ctx context.Context,
+	scopeName string,
+	collectionName string,
+	id []byte,
+	value interface{},
+	expiry uint32,
+) error {
 	opm := helpers.NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -545,11 +571,13 @@ func (s *client) CreateDocument(ctx context.Context, id []byte, value interface{
 	ch := make(chan error)
 
 	op, err := s.metaAgent.Set(gocbcore.SetOptions{
-		Key:      id,
-		Value:    payload,
-		Flags:    50333696,
-		Deadline: deadline,
-		Expiry:   expiry,
+		Key:            id,
+		Value:          payload,
+		Flags:          50333696,
+		Deadline:       deadline,
+		Expiry:         expiry,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}, func(result *gocbcore.StoreResult, err error) {
 		opm.Resolve()
 
@@ -612,7 +640,7 @@ func (s *client) ExecuteQuery(ctx context.Context, query []byte) ([][]byte, erro
 	return result, <-ch
 }
 
-func (s *client) DeleteDocument(ctx context.Context, id []byte) {
+func (s *client) DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte) {
 	opm := helpers.NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -620,8 +648,10 @@ func (s *client) DeleteDocument(ctx context.Context, id []byte) {
 	ch := make(chan error)
 
 	op, err := s.metaAgent.Delete(gocbcore.DeleteOptions{
-		Key:      id,
-		Deadline: deadline,
+		Key:            id,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}, func(result *gocbcore.DeleteResult, err error) {
 		opm.Resolve()
 
@@ -641,7 +671,7 @@ func (s *client) DeleteDocument(ctx context.Context, id []byte) {
 	}
 }
 
-func (s *client) GetXattrs(ctx context.Context, id []byte, path string) ([]byte, error) {
+func (s *client) GetXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string) ([]byte, error) {
 	opm := helpers.NewAsyncOp(context.Background())
 
 	deadline, _ := ctx.Deadline()
@@ -658,7 +688,9 @@ func (s *client) GetXattrs(ctx context.Context, id []byte, path string) ([]byte,
 				Path:  path,
 			},
 		},
-		Deadline: deadline,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
 	}, func(result *gocbcore.LookupInResult, err error) {
 		opm.Resolve()
 

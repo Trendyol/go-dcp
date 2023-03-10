@@ -66,20 +66,22 @@ type ConfigHealthCheck struct {
 }
 
 type Config struct {
-	LeaderElection  ConfigLeaderElection `yaml:"leaderElector"`
-	Metric          ConfigMetric         `yaml:"metric"`
-	BucketName      string               `yaml:"bucketName"`
-	ScopeName       string               `yaml:"scopeName" default:"_default"`
-	CollectionNames []string             `yaml:"collectionNames"`
-	MetadataBucket  string               `yaml:"metadataBucket"`
-	Password        string               `yaml:"password"`
-	Username        string               `yaml:"username"`
-	Logging         ConfigLogging        `yaml:"logging"`
-	Hosts           []string             `yaml:"hosts"`
-	Checkpoint      ConfigCheckpoint     `yaml:"checkpoint"`
-	Dcp             ConfigDCP            `yaml:"dcp"`
-	API             ConfigAPI            `yaml:"api"`
-	HealthCheck     ConfigHealthCheck    `yaml:"healthCheck"`
+	LeaderElection     ConfigLeaderElection `yaml:"leaderElector"`
+	Metric             ConfigMetric         `yaml:"metric"`
+	BucketName         string               `yaml:"bucketName"`
+	ScopeName          string               `yaml:"scopeName" default:"_default"`
+	CollectionNames    []string             `yaml:"collectionNames"`
+	MetadataBucket     string               `yaml:"metadataBucket"`
+	MetadataScope      string               `yaml:"metadataScope" default:"_default"`
+	MetadataCollection string               `yaml:"metadataCollection" default:"_default"`
+	Password           string               `yaml:"password"`
+	Username           string               `yaml:"username"`
+	Logging            ConfigLogging        `yaml:"logging"`
+	Hosts              []string             `yaml:"hosts"`
+	Checkpoint         ConfigCheckpoint     `yaml:"checkpoint"`
+	Dcp                ConfigDCP            `yaml:"dcp"`
+	API                ConfigAPI            `yaml:"api"`
+	HealthCheck        ConfigHealthCheck    `yaml:"healthCheck"`
 }
 
 func (c *Config) IsCollectionModeEnabled() bool {

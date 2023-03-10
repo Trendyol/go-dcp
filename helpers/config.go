@@ -30,12 +30,12 @@ type ConfigDCP struct {
 }
 
 type ConfigAPI struct {
-	Port int `yaml:"port" default:"8080"`
+	Port    int  `yaml:"port" default:"8080"`
+	Enabled bool `yaml:"enabled" default:"true"`
 }
 
 type ConfigMetric struct {
 	Path             string  `yaml:"path" default:"/metrics"`
-	Enabled          bool    `yaml:"enabled" default:"true"`
 	AverageWindowSec float64 `yaml:"averageWindowSec" default:"10.0"`
 }
 

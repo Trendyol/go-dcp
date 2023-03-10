@@ -95,7 +95,7 @@ func (s *dcp) Start() {
 		s.stream.Rebalance()
 	})
 
-	if s.config.Metric.Enabled {
+	if s.config.API.Enabled {
 		go func() {
 			go func() {
 				<-s.apiShutdown
@@ -130,7 +130,7 @@ func (s *dcp) Close() {
 		s.serviceDiscovery.StopHealthCheck()
 	}
 
-	if s.api != nil && s.config.Metric.Enabled {
+	if s.api != nil && s.config.API.Enabled {
 		s.apiShutdown <- struct{}{}
 	}
 

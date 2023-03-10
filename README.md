@@ -63,37 +63,37 @@ $ go get github.com/Trendyol/go-dcp-client
 
 ### Configuration
 
-| Variable                            | Type                        | Is Required |
-|-------------------------------------|-----------------------------|-------------|
-| `hosts`                             | array                       | yes         |
-| `username`                          | string                      | yes         |
-| `password`                          | string                      | yes         |
-| `bucketName`                        | string                      | yes         |
-| `dcp.group.name`                    | string                      | yes         |
-| `dcp.group.membership.type`         | string                      | yes         |
-| `scopeName`                         | string                      | no          |
-| `collectionNames`                   | array                       | no          |
-| `metadataBucket`                    | string                      | no          |
-| `metadataScope`                     | string                      | no          |
-| `metadataCollection`                | string                      | no          |
-| `dcp.bufferSizeKb`                  | integer                     | no          |
-| `dcp.listener.bufferSize`           | integer                     | no          |
-| `dcp.group.membership.memberNumber` | integer                     | no          |
-| `dcp.group.membership.totalMembers` | integer                     | no          |
-| `api.port`                          | integer                     | no          |
-| `api.enabled`                       | boolean *(true/false)*      | no          |
-| `metric.averageWindowSec`           | float                       | no          |
-| `metric.path`                       | string                      | no          |
-| `leaderElection.enabled`            | boolean *(true/false)*      | no          |
-| `leaderElection.type`               | string                      | no          |
-| `leaderElection.config`             | string/string key value map | no          |
-| `leaderElection.rpc.port`           | integer                     | no          |
-| `logger.level`                      | string                      | no          |
-| `checkpoint.type`                   | string                      | no          |
-| `checkpoint.interval`               | integer                     | no          |
-| `checkpoint.timeout`                | integer                     | no          |
-| `healthCheck.interval`              | integer                     | no          |
-| `healthCheck.timeout`               | integer                     | no          |
+| Variable                            | Type                        | Required    | Default              |
+|-------------------------------------|-----------------------------|-------------|----------------------|
+| `hosts`                             | array                       | yes         |                      |
+| `username`                          | string                      | yes         |                      |
+| `password`                          | string                      | yes         |                      |
+| `bucketName`                        | string                      | yes         |                      |
+| `dcp.group.name`                    | string                      | yes         |                      |
+| `dcp.group.membership.type`         | string                      | yes         |                      |
+| `scopeName`                         | string                      | no          | _default             |
+| `collectionNames`                   | array                       | no          | _default             |
+| `metadataBucket`                    | string                      | no          | *same with scopeName |
+| `metadataScope`                     | string                      | no          | _default             |
+| `metadataCollection`                | string                      | no          | _default             |
+| `dcp.bufferSizeKb`                  | integer                     | no          | 16384                |
+| `dcp.listener.bufferSize`           | integer                     | no          | 1                    |
+| `dcp.group.membership.memberNumber` | integer                     | no          | *not set             |
+| `dcp.group.membership.totalMembers` | integer                     | no          | *not set             |
+| `api.port`                          | integer                     | no          | 8080                 |
+| `api.enabled`                       | boolean                     | no          | true                 |
+| `metric.averageWindowSec`           | float                       | no          | 10.0                 |
+| `metric.path`                       | string                      | no          | /metrics             |
+| `leaderElection.enabled`            | boolean                     | no          | false                |
+| `leaderElection.type`               | string                      | no          | *not set             |
+| `leaderElection.config`             | string/string key value map | no          | *not set             |
+| `leaderElection.rpc.port`           | integer                     | no          | 8081                 |
+| `logger.level`                      | string                      | no          | info                 |
+| `checkpoint.type`                   | string                      | no          | auto                 |
+| `checkpoint.interval`               | integer                     | no          | 10s                  |
+| `checkpoint.timeout`                | integer                     | no          | 5s                   |
+| `healthCheck.interval`              | integer                     | no          | 10s                  |
+| `healthCheck.timeout`               | integer                     | no          | 5s                   |
 
 ### Examples
 

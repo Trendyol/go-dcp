@@ -135,10 +135,16 @@ func (s *serviceDiscovery) StopHealthCheck() {
 	s.healthCheckSchedule.Stop()
 }
 
+const (
+	_initialDelaySec = 15
+)
+
 func (s *serviceDiscovery) StartRebalance() {
 	s.rebalanceSchedule = time.NewTicker(3 * time.Second)
 
 	go func() {
+		time.Sleep(_initialDelaySec * time.Second)
+
 		for range s.rebalanceSchedule.C {
 			if !s.amILeader {
 				continue

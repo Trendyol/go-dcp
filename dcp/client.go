@@ -32,7 +32,7 @@ type Client interface {
 		vbID uint16,
 		vbUUID gocbcore.VbUUID,
 		collectionIDs map[uint32]string,
-		offset models.Offset,
+		offset *models.Offset,
 		observer Observer,
 		callback gocbcore.OpenStreamCallback,
 	) error
@@ -51,7 +51,7 @@ type client struct {
 	agent     *gocbcore.Agent
 	metaAgent *gocbcore.Agent
 	dcpAgent  *gocbcore.DCPAgent
-	config    helpers.Config
+	config    *helpers.Config
 }
 
 func (s *client) Ping() (bool, error) {
@@ -346,7 +346,7 @@ func (s *client) OpenStream(
 	vbID uint16,
 	vbUUID gocbcore.VbUUID,
 	collectionIDs map[uint32]string,
-	offset models.Offset,
+	offset *models.Offset,
 	observer Observer,
 	callback gocbcore.OpenStreamCallback,
 ) error {
@@ -683,7 +683,7 @@ func (s *client) GetXattrs(ctx context.Context, id []byte, path string) ([]byte,
 	return document, err
 }
 
-func NewClient(config helpers.Config) Client {
+func NewClient(config *helpers.Config) Client {
 	return &client{
 		agent:    nil,
 		dcpAgent: nil,

@@ -22,7 +22,7 @@ type api struct {
 	stream           Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
-	config           helpers.Config
+	config           *helpers.Config
 }
 
 func (s *api) Listen() {
@@ -72,7 +72,7 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func NewAPI(config helpers.Config, client gDcp.Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) API {
+func NewAPI(config *helpers.Config, client gDcp.Client, stream Stream, serviceDiscovery servicediscovery.ServiceDiscovery) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
 	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client)

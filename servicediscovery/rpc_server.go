@@ -30,14 +30,14 @@ type Handler struct {
 
 func (rh *Handler) Ping(_ Ping, reply *Pong) error {
 	*reply = Pong{
-		From: *rh.myIdentity,
+		From: rh.myIdentity,
 	}
 
 	return nil
 }
 
 func (rh *Handler) Register(payload Register, reply *bool) error {
-	followerClient, err := NewClient(rh.port, rh.myIdentity, &payload.Identity)
+	followerClient, err := NewClient(rh.port, rh.myIdentity, payload.Identity)
 	if err != nil {
 		*reply = false
 		return err

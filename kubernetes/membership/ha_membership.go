@@ -19,7 +19,7 @@ func (h *haMembership) GetInfo() *info.Model {
 	return <-h.infoChan
 }
 
-func NewHaMembership(_ helpers.ConfigDCPGroupMembership, handler info.Handler) membership.Membership {
+func NewHaMembership(_ *helpers.Config, handler info.Handler) membership.Membership {
 	ham := &haMembership{
 		infoChan: make(chan *info.Model),
 	}

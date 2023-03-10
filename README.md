@@ -69,13 +69,13 @@ $ go get github.com/Trendyol/go-dcp-client
 | `username`                          | string                      | yes         |
 | `password`                          | string                      | yes         |
 | `bucketName`                        | string                      | yes         |
+| `dcp.group.name`                    | string                      | yes         |
+| `dcp.group.membership.type`         | string                      | yes         |
 | `scopeName`                         | string                      | no          |
 | `collectionNames`                   | array                       | no          |
 | `metadataBucket`                    | string                      | no          |
 | `dcp.bufferSizeKb`                  | integer                     | no          |
 | `dcp.listener.bufferSize`           | integer                     | no          |
-| `dcp.group.name`                    | string                      | yes         |
-| `dcp.group.membership.type`         | string                      | yes         |
 | `dcp.group.membership.memberNumber` | integer                     | no          |
 | `dcp.group.membership.totalMembers` | integer                     | no          |
 | `api.port`                          | integer                     | no          |

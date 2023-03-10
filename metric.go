@@ -118,7 +118,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 }
 
-func NewMetricMiddleware(app *fiber.App, config helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
+func NewMetricMiddleware(app *fiber.App, config *helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
 	err := prometheus.DefaultRegisterer.Register(&metricCollector{
 		stream: stream,
 		client: client,

@@ -119,7 +119,7 @@ func applyUnhandledDefaults(_config *Config) {
 	}
 }
 
-func NewConfig(name string, filePath string) Config {
+func NewConfig(name string, filePath string) *Config {
 	conf := config.New(name).WithOptions(Options).WithDriver(yamlv3.Driver)
 
 	err := conf.LoadFiles(filePath)
@@ -127,8 +127,8 @@ func NewConfig(name string, filePath string) Config {
 		logger.Panic(err, "cannot load config file")
 	}
 
-	_config := Config{}
-	err = conf.Decode(&_config)
+	_config := &Config{}
+	err = conf.Decode(_config)
 
 	if err != nil {
 		logger.Panic(err, "cannot decode config file")
@@ -136,7 +136,7 @@ func NewConfig(name string, filePath string) Config {
 
 	logger.Debug("config loaded from file: %v", filePath)
 
-	applyUnhandledDefaults(&_config)
+	applyUnhandledDefaults(_config)
 
 	return _config
 }

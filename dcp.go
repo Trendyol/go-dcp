@@ -1,7 +1,6 @@
 package godcpclient
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -36,7 +35,7 @@ type dcp struct {
 	cancelCh          chan os.Signal
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
-	config            helpers.Config
+	config            *helpers.Config
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -85,7 +84,7 @@ func (s *dcp) Start() {
 		s.serviceDiscovery.StartHealthCheck()
 		s.serviceDiscovery.StartRebalance()
 
-		s.leaderElection = NewLeaderElection(s.config.LeaderElection, s.serviceDiscovery, infoHandler)
+		s.leaderElection = NewLeaderElection(s.config, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
 	}
 
@@ -140,7 +139,7 @@ func (s *dcp) Close() {
 	logger.Info("dcp stream closed")
 }
 
-func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
+func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 	client := gDcp.NewClient(config)
 
 	loggingLevel, err := zerolog.ParseLevel(config.Logging.Level)
@@ -176,12 +175,7 @@ func newDcp(config helpers.Config, listener models.Listener) (Dcp, error) {
 //
 //	config: path to a configuration file or a configuration struct
 //	listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(config interface{}, listener models.Listener) (Dcp, error) {
-	if path, ok := config.(string); ok {
-		return newDcp(helpers.NewConfig(helpers.Name, path), listener)
-	} else if config, ok := config.(helpers.Config); ok {
-		return newDcp(config, listener)
-	} else {
-		return nil, fmt.Errorf("invalid config type")
-	}
+func NewDcp(configPath string, listener models.Listener) (Dcp, error) {
+	config := helpers.NewConfig(helpers.Name, configPath)
+	return newDcp(config, listener)
 }

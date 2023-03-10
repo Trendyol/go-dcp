@@ -14,7 +14,7 @@ import (
 
 type Checkpoint interface {
 	Save()
-	Load() map[uint16]models.Offset
+	Load() map[uint16]*models.Offset
 	Clear()
 	StartSchedule()
 	StopSchedule()
@@ -26,22 +26,22 @@ type checkpointDocumentSnapshot struct {
 }
 
 type checkpointDocumentCheckpoint struct {
-	VbUUID   uint64                     `json:"vbuuid"`
-	SeqNo    uint64                     `json:"seqno"`
-	Snapshot checkpointDocumentSnapshot `json:"snapshot"`
+	VbUUID   uint64                      `json:"vbuuid"`
+	SeqNo    uint64                      `json:"seqno"`
+	Snapshot *checkpointDocumentSnapshot `json:"snapshot"`
 }
 
 type CheckpointDocument struct {
-	BucketUUID string                       `json:"bucketUuid"`
-	Checkpoint checkpointDocumentCheckpoint `json:"checkpoint"`
+	BucketUUID string                        `json:"bucketUuid"`
+	Checkpoint *checkpointDocumentCheckpoint `json:"checkpoint"`
 }
 
-func NewEmptyCheckpointDocument(bucketUUID string) CheckpointDocument {
-	return CheckpointDocument{
-		Checkpoint: checkpointDocumentCheckpoint{
+func NewEmptyCheckpointDocument(bucketUUID string) *CheckpointDocument {
+	return &CheckpointDocument{
+		Checkpoint: &checkpointDocumentCheckpoint{
 			VbUUID: 0,
 			SeqNo:  0,
-			Snapshot: checkpointDocumentSnapshot{
+			Snapshot: &checkpointDocumentSnapshot{
 				StartSeqNo: 0,
 				EndSeqNo:   0,
 			},
@@ -56,9 +56,9 @@ type checkpoint struct {
 	schedule   *time.Ticker
 	bucketUUID string
 	vbIds      []uint16
-	config     helpers.Config
-	saveLock   sync.Mutex
-	loadLock   sync.Mutex
+	config     *helpers.Config
+	saveLock   *sync.Mutex
+	loadLock   *sync.Mutex
 }
 
 func (s *checkpoint) Save() {
@@ -75,14 +75,14 @@ func (s *checkpoint) Save() {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
-	dump := map[uint16]CheckpointDocument{}
+	dump := map[uint16]*CheckpointDocument{}
 
 	for vbID, offset := range offsets {
-		dump[vbID] = CheckpointDocument{
-			Checkpoint: checkpointDocumentCheckpoint{
+		dump[vbID] = &CheckpointDocument{
+			Checkpoint: &checkpointDocumentCheckpoint{
 				VbUUID: uint64(offset.VbUUID),
 				SeqNo:  offset.SeqNo,
-				Snapshot: checkpointDocumentSnapshot{
+				Snapshot: &checkpointDocumentSnapshot{
 					StartSeqNo: offset.StartSeqNo,
 					EndSeqNo:   offset.EndSeqNo,
 				},
@@ -100,7 +100,7 @@ func (s *checkpoint) Save() {
 	}
 }
 
-func (s *checkpoint) Load() map[uint16]models.Offset {
+func (s *checkpoint) Load() map[uint16]*models.Offset {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
@@ -111,11 +111,11 @@ func (s *checkpoint) Load() map[uint16]models.Offset {
 		logger.Panic(err, "error while loading checkpoint document")
 	}
 
-	offsets := map[uint16]models.Offset{}
+	offsets := map[uint16]*models.Offset{}
 
 	for vbID, doc := range dump {
-		offsets[vbID] = models.Offset{
-			SnapshotMarker: models.SnapshotMarker{
+		offsets[vbID] = &models.Offset{
+			SnapshotMarker: &models.SnapshotMarker{
 				StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
 				EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
 			},
@@ -163,7 +163,8 @@ func NewCheckpoint(
 	stream Stream,
 	vbIds []uint16,
 	bucketUUID string,
-	metadata Metadata, config helpers.Config,
+	metadata Metadata,
+	config *helpers.Config,
 ) Checkpoint {
 	return &checkpoint{
 		stream:     stream,
@@ -171,5 +172,7 @@ func NewCheckpoint(
 		bucketUUID: bucketUUID,
 		metadata:   metadata,
 		config:     config,
+		saveLock:   &sync.Mutex{},
+		loadLock:   &sync.Mutex{},
 	}
 }

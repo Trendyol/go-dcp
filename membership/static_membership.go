@@ -13,11 +13,11 @@ func (s *staticMembership) GetInfo() *info.Model {
 	return s.info
 }
 
-func NewStaticMembership(config helpers.ConfigDCPGroupMembership) Membership {
+func NewStaticMembership(config *helpers.Config) Membership {
 	return &staticMembership{
 		info: &info.Model{
-			MemberNumber: config.MemberNumber,
-			TotalMembers: config.TotalMembers,
+			MemberNumber: config.Dcp.Group.Membership.MemberNumber,
+			TotalMembers: config.Dcp.Group.Membership.TotalMembers,
 		},
 	}
 }

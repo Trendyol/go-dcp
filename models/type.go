@@ -5,7 +5,7 @@ import (
 )
 
 type Offset struct {
-	SnapshotMarker
+	*SnapshotMarker
 	VbUUID gocbcore.VbUUID
 	SeqNo  uint64
 }
@@ -17,20 +17,20 @@ type SnapshotMarker struct {
 
 type InternalDcpMutation struct {
 	CollectionName *string
-	gocbcore.DcpMutation
-	Offset
+	*gocbcore.DcpMutation
+	*Offset
 }
 
 type InternalDcpDeletion struct {
 	CollectionName *string
-	gocbcore.DcpDeletion
-	Offset
+	*gocbcore.DcpDeletion
+	*Offset
 }
 
 type InternalDcpExpiration struct {
 	CollectionName *string
-	gocbcore.DcpExpiration
-	Offset
+	*gocbcore.DcpExpiration
+	*Offset
 }
 
 func (i *InternalDcpMutation) IsCreated() bool {

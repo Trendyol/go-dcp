@@ -13,16 +13,16 @@ type fileMetadata struct { //nolint:unused
 	fileName string
 }
 
-func (s *fileMetadata) Save(state map[uint16]CheckpointDocument, _ string) error { //nolint:unused
+func (s *fileMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error { //nolint:unused
 	file, _ := jsoniter.MarshalIndent(state, "", "  ")
 	_ = os.WriteFile(s.fileName, file, 0o644) //nolint:gosec
 	return nil
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]CheckpointDocument, error) { //nolint:unused
+func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*CheckpointDocument, error) { //nolint:unused
 	file, err := os.ReadFile(s.fileName)
 
-	state := map[uint16]CheckpointDocument{}
+	state := map[uint16]*CheckpointDocument{}
 
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -44,7 +44,7 @@ func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 	return nil
 }
 
-func _(fileName string, _ helpers.Config) Metadata {
+func _(fileName string, _ *helpers.Config) Metadata {
 	return &fileMetadata{
 		fileName: fileName,
 	}

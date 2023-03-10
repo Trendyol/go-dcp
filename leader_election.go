@@ -26,8 +26,8 @@ type leaderElection struct {
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	infoHandler      info.Handler
 	myIdentity       *identity.Identity
-	config           helpers.ConfigLeaderElection
-	newLeaderLock    sync.Mutex
+	config           *helpers.Config
+	newLeaderLock    *sync.Mutex
 }
 
 func (l *leaderElection) OnBecomeLeader() {
@@ -48,7 +48,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 	l.serviceDiscovery.RemoveAll()
 	l.serviceDiscovery.RemoveLeader()
 
-	leaderClient, err := servicediscovery.NewClient(l.config.RPC.Port, l.myIdentity, leaderIdentity)
+	leaderClient, err := servicediscovery.NewClient(l.config.LeaderElection.RPC.Port, l.myIdentity, leaderIdentity)
 	if err != nil {
 		return
 	}
@@ -65,12 +65,12 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
 }
 
 func (l *leaderElection) Start() {
-	l.rpcServer = servicediscovery.NewServer(l.config.RPC.Port, l.myIdentity, l.serviceDiscovery)
+	l.rpcServer = servicediscovery.NewServer(l.config.LeaderElection.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
 	var elector kle.LeaderElector
 
-	if l.config.Type == helpers.KubernetesLeaderElectionType {
+	if l.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
 		kubernetesClient := kubernetes.NewClient(l.myIdentity)
 		elector = kle.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
 	}
@@ -83,14 +83,14 @@ func (l *leaderElection) Stop() {
 }
 
 func NewLeaderElection(
-	config helpers.ConfigLeaderElection,
+	config *helpers.Config,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
 	infoHandler info.Handler,
 ) LeaderElection {
 	return &leaderElection{
 		config:           config,
 		serviceDiscovery: serviceDiscovery,
-		newLeaderLock:    sync.Mutex{},
+		newLeaderLock:    &sync.Mutex{},
 		myIdentity:       identity.NewIdentityFromEnv(),
 		infoHandler:      infoHandler,
 	}

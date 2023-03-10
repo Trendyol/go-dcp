@@ -58,7 +58,7 @@ dcp:
 	}, nil
 }
 
-func setupContainer(b *testing.B, config helpers.Config) func() {
+func setupContainer(b *testing.B, config *helpers.Config) func() {
 	ctx := context.Background()
 
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -83,7 +83,7 @@ func setupContainer(b *testing.B, config helpers.Config) func() {
 	}
 }
 
-func insertDataToContainer(b *testing.B, mockDataSize int, config helpers.Config) {
+func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Config) {
 	client := gDcp.NewClient(config)
 
 	_ = client.Connect()
@@ -101,7 +101,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config helpers.Config
 
 	for _, iteration := range iterations {
 		for _, chunk := range iteration {
-			wg := sync.WaitGroup{}
+			wg := &sync.WaitGroup{}
 			wg.Add(len(chunk))
 
 			for _, id := range chunk {
@@ -167,7 +167,7 @@ func BenchmarkDcp(benchmark *testing.B) {
 	var dcp Dcp
 
 	counter := 0
-	finish := make(chan bool, 1)
+	finish := make(chan struct{}, 1)
 
 	dcp, err = NewDcp(configPath, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
@@ -180,7 +180,7 @@ func BenchmarkDcp(benchmark *testing.B) {
 			}
 
 			if counter == mockDataSize {
-				finish <- true
+				finish <- struct{}{}
 			}
 		}
 	})

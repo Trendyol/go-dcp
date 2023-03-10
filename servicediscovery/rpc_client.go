@@ -79,7 +79,7 @@ func (c *client) Ping() error {
 		func() error {
 			var reply Pong
 
-			return c.client.Call("Handler.Ping", Ping{From: *c.myIdentity}, &reply)
+			return c.client.Call("Handler.Ping", Ping{From: c.myIdentity}, &reply)
 		},
 		retry.Attempts(3),
 		retry.DelayType(retry.FixedDelay),
@@ -92,7 +92,7 @@ func (c *client) Register() error {
 		func() error {
 			var reply bool
 
-			return c.client.Call("Handler.Register", Register{From: *c.myIdentity, Identity: *c.myIdentity}, &reply)
+			return c.client.Call("Handler.Register", Register{From: c.myIdentity, Identity: c.myIdentity}, &reply)
 		},
 		retry.Attempts(3),
 		retry.DelayType(retry.FixedDelay),
@@ -107,7 +107,7 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 
 			return c.client.Call(
 				"Handler.Rebalance",
-				Rebalance{From: *c.myIdentity, MemberNumber: memberNumber, TotalMembers: totalMembers},
+				Rebalance{From: c.myIdentity, MemberNumber: memberNumber, TotalMembers: totalMembers},
 				&reply,
 			)
 		},

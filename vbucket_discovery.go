@@ -42,24 +42,23 @@ func (s *vBucketDiscovery) Get() []uint16 {
 }
 
 func NewVBucketDiscovery(client gDcp.Client,
-	config helpers.Config,
+	config *helpers.Config,
 	vBucketNumber int,
 	infoHandler info.Handler,
 ) VBucketDiscovery {
-	membershipConfig := config.Dcp.Group.Membership
 	var ms membership.Membership
 
 	switch {
-	case membershipConfig.Type == helpers.StaticMembershipType:
-		ms = membership.NewStaticMembership(membershipConfig)
-	case membershipConfig.Type == helpers.CouchbaseMembershipType:
+	case config.Dcp.Group.Membership.Type == helpers.StaticMembershipType:
+		ms = membership.NewStaticMembership(config)
+	case config.Dcp.Group.Membership.Type == helpers.CouchbaseMembershipType:
 		ms = membership.NewCBMembership(config, client, infoHandler)
-	case membershipConfig.Type == helpers.KubernetesStatefulSetMembershipType:
-		ms = kms.NewStatefulSetMembership(membershipConfig)
-	case membershipConfig.Type == helpers.KubernetesHaMembershipType:
-		ms = kms.NewHaMembership(membershipConfig, infoHandler)
+	case config.Dcp.Group.Membership.Type == helpers.KubernetesStatefulSetMembershipType:
+		ms = kms.NewStatefulSetMembership(config)
+	case config.Dcp.Group.Membership.Type == helpers.KubernetesHaMembershipType:
+		ms = kms.NewHaMembership(config, infoHandler)
 	default:
-		logger.Panic(fmt.Errorf("unknown membership"), "membership: %s", membershipConfig.Type)
+		logger.Panic(fmt.Errorf("unknown membership"), "membership: %s", config.Dcp.Group.Membership.Type)
 	}
 
 	return &vBucketDiscovery{

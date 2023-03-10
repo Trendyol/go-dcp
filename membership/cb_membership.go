@@ -24,7 +24,7 @@ type cbMembership struct {
 	info                *info.Model
 	infoChan            chan *info.Model
 	id                  []byte
-	lastActiveInstances []Instance
+	lastActiveInstances []*Instance
 	monitorQuery        []byte
 	indexQuery          []byte
 	clusterJoinTime     int64
@@ -86,7 +86,7 @@ func (h *cbMembership) register() {
 	}
 }
 
-func (h *cbMembership) isClusterChanged(currentActiveInstances []Instance) bool {
+func (h *cbMembership) isClusterChanged(currentActiveInstances []*Instance) bool {
 	if len(h.lastActiveInstances) != len(currentActiveInstances) {
 		return true
 	}
@@ -104,7 +104,7 @@ func (h *cbMembership) heartbeat() {
 	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
 	defer cancel()
 
-	instance := Instance{
+	instance := &Instance{
 		Type:            _type,
 		HeartbeatTime:   time.Now().UnixNano(),
 		ClusterJoinTime: h.clusterJoinTime,
@@ -141,11 +141,11 @@ func (h *cbMembership) monitor() {
 		logger.Debug("error while monitor %v", err)
 	}
 
-	var instances []Instance
+	var instances []*Instance
 
 	for _, row := range rows {
-		var instance Instance
-		err = jsoniter.Unmarshal(row, &instance)
+		instance := &Instance{}
+		err = jsoniter.Unmarshal(row, instance)
 
 		if err != nil {
 			logger.Error(err, "cannot unmarshal %v", string(row))
@@ -194,7 +194,7 @@ func getIndexQuery(metadataBucket string) []byte {
 	return query
 }
 
-func (h *cbMembership) rebalance(instances []Instance) {
+func (h *cbMembership) rebalance(instances []*Instance) {
 	selfOrder := 0
 
 	for index, instance := range instances {
@@ -238,7 +238,7 @@ func (h *cbMembership) startMonitor() {
 	}()
 }
 
-func NewCBMembership(config helpers.Config, client dcp.Client, handler info.Handler) Membership {
+func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Handler) Membership {
 	cbm := &cbMembership{
 		infoChan:     make(chan *info.Model),
 		client:       client,

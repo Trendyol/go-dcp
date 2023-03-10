@@ -90,7 +90,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 
 func NewLeaderElector(
 	client kubernetes.Client,
-	config helpers.ConfigLeaderElection,
+	config *helpers.Config,
 	myIdentity *dcpModel.Identity,
 	handler Handler,
 	infoHandler info.Handler,
@@ -98,13 +98,13 @@ func NewLeaderElector(
 	var leaseLockName string
 	var leaseLockNamespace string
 
-	if val, ok := config.Config["leaseLockName"]; ok {
+	if val, ok := config.LeaderElection.Config["leaseLockName"]; ok {
 		leaseLockName = val
 	} else {
 		logger.Panic(fmt.Errorf("leaseLockName is not defined"), "error while creating leader elector")
 	}
 
-	if val, ok := config.Config["leaseLockNamespace"]; ok {
+	if val, ok := config.LeaderElection.Config["leaseLockNamespace"]; ok {
 		leaseLockNamespace = val
 	} else {
 		logger.Panic(fmt.Errorf("leaseLockNamespace is not defined"), "error while creating leader elector")

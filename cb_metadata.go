@@ -16,10 +16,10 @@ import (
 
 type cbMetadata struct {
 	client gDcp.Client
-	config helpers.Config
+	config *helpers.Config
 }
 
-func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) error {
+func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
 
@@ -57,11 +57,11 @@ func (s *cbMetadata) Save(state map[uint16]CheckpointDocument, _ string) error {
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]CheckpointDocument, error) {
+func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*CheckpointDocument, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
 
-	state := map[uint16]CheckpointDocument{}
+	state := map[uint16]*CheckpointDocument{}
 	errCh := make(chan error, 1)
 
 	go func(ctx context.Context) {
@@ -72,7 +72,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]Checkpo
 
 			data, err := s.client.GetXattrs(ctx, id, helpers.Name)
 
-			var doc CheckpointDocument
+			var doc *CheckpointDocument
 
 			if err == nil {
 				err = jsoniter.Unmarshal(data, &doc)
@@ -116,7 +116,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	return nil
 }
 
-func NewCBMetadata(client gDcp.Client, config helpers.Config) Metadata {
+func NewCBMetadata(client gDcp.Client, config *helpers.Config) Metadata {
 	return &cbMetadata{
 		client: client,
 		config: config,

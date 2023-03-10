@@ -24,7 +24,7 @@ type Observer interface {
 	ModifyCollection(modification models.DcpCollectionModification)
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced models.DcpSeqNoAdvanced)
-	GetMetrics() map[uint16]ObserverMetric
+	GetMetrics() map[uint16]*ObserverMetric
 	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
@@ -40,12 +40,12 @@ type ObserverMetric struct {
 type observer struct {
 	currentSnapshots     map[uint16]*models.SnapshotMarker
 	uuIDs                map[uint16]gocbcore.VbUUID
-	metrics              map[uint16]ObserverMetric
+	metrics              map[uint16]*ObserverMetric
 	collectionIDs        map[uint32]string
 	listenerCh           models.ListenerCh
 	endCh                chan models.DcpStreamEnd
-	currentSnapshotsLock sync.Mutex
-	metricsLock          sync.Mutex
+	currentSnapshotsLock *sync.Mutex
+	metricsLock          *sync.Mutex
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) *string {
@@ -88,9 +88,9 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 	if currentSnapshot, ok := so.currentSnapshots[mutation.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
-				DcpMutation: mutation,
-				Offset: models.Offset{
-					SnapshotMarker: *currentSnapshot,
+				DcpMutation: &mutation,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
 					VbUUID:         so.uuIDs[mutation.VbID],
 					SeqNo:          mutation.SeqNo,
 				},
@@ -107,7 +107,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 	if metric, ok := so.metrics[mutation.VbID]; ok {
 		metric.TotalMutations++
 	} else {
-		so.metrics[mutation.VbID] = ObserverMetric{
+		so.metrics[mutation.VbID] = &ObserverMetric{
 			TotalMutations: 1,
 		}
 	}
@@ -119,9 +119,9 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 	if currentSnapshot, ok := so.currentSnapshots[deletion.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpDeletion{
-				DcpDeletion: deletion,
-				Offset: models.Offset{
-					SnapshotMarker: *currentSnapshot,
+				DcpDeletion: &deletion,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
 					VbUUID:         so.uuIDs[deletion.VbID],
 					SeqNo:          deletion.SeqNo,
 				},
@@ -138,7 +138,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 	if metric, ok := so.metrics[deletion.VbID]; ok {
 		metric.TotalDeletions++
 	} else {
-		so.metrics[deletion.VbID] = ObserverMetric{
+		so.metrics[deletion.VbID] = &ObserverMetric{
 			TotalDeletions: 1,
 		}
 	}
@@ -150,9 +150,9 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 	if currentSnapshot, ok := so.currentSnapshots[expiration.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpExpiration{
-				DcpExpiration: expiration,
-				Offset: models.Offset{
-					SnapshotMarker: *currentSnapshot,
+				DcpExpiration: &expiration,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
 					VbUUID:         so.uuIDs[expiration.VbID],
 					SeqNo:          expiration.SeqNo,
 				},
@@ -169,7 +169,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 	if metric, ok := so.metrics[expiration.VbID]; ok {
 		metric.TotalExpirations++
 	} else {
-		so.metrics[expiration.VbID] = ObserverMetric{
+		so.metrics[expiration.VbID] = &ObserverMetric{
 			TotalExpirations: 1,
 		}
 	}
@@ -236,7 +236,7 @@ func (so *observer) SeqNoAdvanced(advanced models.DcpSeqNoAdvanced) {
 	})
 }
 
-func (so *observer) GetMetrics() map[uint16]ObserverMetric {
+func (so *observer) GetMetrics() map[uint16]*ObserverMetric {
 	so.metricsLock.Lock()
 	defer so.metricsLock.Unlock()
 
@@ -274,18 +274,18 @@ func (so *observer) CloseEnd() {
 }
 
 func NewObserver(
-	config helpers.Config,
+	config *helpers.Config,
 	collectionIDs map[uint32]string,
 	uuIDMap map[uint16]gocbcore.VbUUID,
 ) Observer {
 	return &observer{
 		currentSnapshots:     map[uint16]*models.SnapshotMarker{},
-		currentSnapshotsLock: sync.Mutex{},
+		currentSnapshotsLock: &sync.Mutex{},
 
 		uuIDs: uuIDMap,
 
-		metrics:     map[uint16]ObserverMetric{},
-		metricsLock: sync.Mutex{},
+		metrics:     map[uint16]*ObserverMetric{},
+		metricsLock: &sync.Mutex{},
 
 		collectionIDs: collectionIDs,
 

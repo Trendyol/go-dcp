@@ -119,7 +119,9 @@ func (s *dcp) Start() {
 }
 
 func (s *dcp) Close() {
-	s.stream.Save()
+	if s.config.Checkpoint.Type == helpers.CheckpointTypeAuto {
+		s.stream.Save()
+	}
 	s.stream.Close()
 
 	if s.config.LeaderElection.Enabled {

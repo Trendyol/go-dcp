@@ -45,6 +45,8 @@ type Client interface {
 	UpdateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
 	DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte)
 	GetXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string) ([]byte, error)
+	CreatePath(ctx context.Context, scopeName string, collectionName string, id []byte, path []byte, value interface{}) error
+	Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error)
 }
 
 type client struct {
@@ -555,6 +557,50 @@ func (s *client) UpdateDocument(ctx context.Context,
 	return err
 }
 
+func (s *client) CreatePath(ctx context.Context,
+	scopeName string,
+	collectionName string,
+	id []byte,
+	path []byte,
+	value interface{},
+) error {
+	opm := helpers.NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	payload, _ := jsoniter.Marshal(value)
+
+	ch := make(chan error)
+
+	op, err := s.metaAgent.MutateIn(gocbcore.MutateInOptions{
+		Key: id,
+		Ops: []gocbcore.SubDocOp{
+			{
+				Op:    memd.SubDocOpDictSet,
+				Value: payload,
+				Path:  string(path),
+			},
+		},
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+	}, func(result *gocbcore.MutateInResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return err
+	}
+
+	err = <-ch
+
+	return err
+}
+
 func (s *client) CreateDocument(ctx context.Context,
 	scopeName string,
 	collectionName string,
@@ -696,6 +742,43 @@ func (s *client) GetXattrs(ctx context.Context, scopeName string, collectionName
 
 		if err == nil {
 			documentCh <- result.Ops[0].Value
+		} else {
+			documentCh <- nil
+		}
+
+		errorCh <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	document := <-documentCh
+	err = <-errorCh
+
+	return document, err
+}
+
+func (s *client) Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error) {
+	opm := helpers.NewAsyncOp(context.Background())
+
+	deadline, _ := ctx.Deadline()
+
+	errorCh := make(chan error)
+	documentCh := make(chan []byte)
+
+	op, err := s.metaAgent.Get(gocbcore.GetOptions{
+		Key:            id,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+	}, func(result *gocbcore.GetResult, err error) {
+		opm.Resolve()
+
+		if err == nil {
+			documentCh <- result.Value
 		} else {
 			documentCh <- nil
 		}

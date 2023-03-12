@@ -3,6 +3,7 @@ package membership
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -25,12 +26,11 @@ type cbMembership struct {
 	infoChan            chan *info.Model
 	id                  []byte
 	lastActiveInstances []*Instance
-	monitorQuery        []byte
-	indexQuery          []byte
 	clusterJoinTime     int64
 	scopeName           string
 	collectionName      string
 	config              *helpers.Config
+	instanceAll         []byte
 }
 
 type Instance struct {
@@ -63,6 +63,12 @@ func (h *cbMembership) register() {
 
 	now := time.Now().UnixNano()
 
+	err := h.createIndex(ctx, now)
+	if err != nil {
+		logger.Panic(err, "error while create index")
+		return
+	}
+
 	h.clusterJoinTime = now
 
 	instance := Instance{
@@ -71,7 +77,7 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	err = h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
@@ -86,6 +92,21 @@ func (h *cbMembership) register() {
 		logger.Panic(err, "error while register")
 		return
 	}
+}
+
+func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
+	err := h.client.CreatePath(ctx, h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
+
+	var kvErr *gocbcore.KeyValueError
+	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.instanceAll, struct{}{}, 0)
+
+		if err == nil {
+			err = h.client.CreatePath(ctx, h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
+		}
+	}
+
+	return err
 }
 
 func (h *cbMembership) isClusterChanged(currentActiveInstances []*Instance) bool {
@@ -119,17 +140,6 @@ func (h *cbMembership) heartbeat() {
 	}
 }
 
-func (h *cbMembership) createIndex() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
-	defer cancel()
-
-	_, err := h.client.ExecuteQuery(ctx, h.indexQuery)
-	if err != nil {
-		logger.Error(err, "error while create index")
-		return
-	}
-}
-
 func (h *cbMembership) isAlive(heartbeatTime int64) bool {
 	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+(_heartbeatToleranceSec*1000*1000*1000)
 }
@@ -138,20 +148,48 @@ func (h *cbMembership) monitor() {
 	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
 	defer cancel()
 
-	rows, err := h.client.ExecuteQuery(ctx, h.monitorQuery)
+	data, err := h.client.Get(ctx, h.scopeName, h.collectionName, h.instanceAll)
 	if err != nil {
-		logger.Debug("error while monitor %v", err)
+		logger.Error(err, "error while monitor try to get index")
+		return
 	}
+
+	all := map[string]int64{}
+
+	err = jsoniter.Unmarshal(data, &all)
+	if err != nil {
+		logger.Error(err, "error while monitor try to unmarshal index")
+		return
+	}
+
+	ids := make([]string, 0, len(all))
+
+	for k := range all {
+		ids = append(ids, k)
+	}
+	sort.SliceStable(ids, func(i, j int) bool {
+		return all[ids[i]] < all[ids[j]]
+	})
 
 	var instances []*Instance
 
-	for _, row := range rows {
-		instance := &Instance{}
-		err = jsoniter.Unmarshal(row, instance)
+	for _, id := range ids {
+		doc, err := h.client.Get(ctx, h.scopeName, h.collectionName, []byte(id))
+		var kvErr *gocbcore.KeyValueError
+		if err != nil {
+			if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+				continue
+			} else {
+				logger.Panic(err, "error while monitor try to get instance")
+			}
+		}
+
+		copyID := id
+		instance := &Instance{ID: &copyID}
+		err = jsoniter.Unmarshal(doc, instance)
 
 		if err != nil {
-			logger.Error(err, "cannot unmarshal %v", string(row))
-			continue
+			logger.Panic(err, "error while monitor try to unmarshal instance %v", string(doc))
 		}
 
 		if h.isAlive(instance.HeartbeatTime) {
@@ -163,44 +201,22 @@ func (h *cbMembership) monitor() {
 
 	if h.isClusterChanged(instances) {
 		h.rebalance(instances)
+		h.updateIndex(ctx)
 	}
 }
 
-func getMonitorQuery(metadataBucket string, metadataScope string, metadataCollection string) []byte {
-	var query []byte
+func (h *cbMembership) updateIndex(ctx context.Context) {
+	all := map[string]int64{}
 
-	query = append(query, []byte("SELECT meta().id, type, heartbeatTime, clusterJoinTime FROM ")...)
-	query = append(query, []byte("`")...)
-	query = append(query, []byte(metadataBucket)...)
-	query = append(query, []byte("`.`")...)
-	query = append(query, []byte(metadataScope)...)
-	query = append(query, []byte("`.`")...)
-	query = append(query, []byte(metadataCollection)...)
-	query = append(query, []byte("` WHERE type = '")...)
-	query = append(query, []byte(_type)...)
-	query = append(query, []byte("' ")...)
-	query = append(query, []byte("order by clusterJoinTime")...)
+	for _, instance := range h.lastActiveInstances {
+		all[*instance.ID] = instance.ClusterJoinTime
+	}
 
-	return query
-}
-
-func getIndexQuery(metadataBucket string, metadataScope string, metadataCollection string) []byte {
-	var query []byte
-
-	query = append(query, []byte("CREATE INDEX ")...)
-	query = append(query, []byte("ids_metadata_instance on ")...)
-	query = append(query, []byte("`")...)
-	query = append(query, []byte(metadataBucket)...)
-	query = append(query, []byte("`.`")...)
-	query = append(query, []byte(metadataScope)...)
-	query = append(query, []byte("`.`")...)
-	query = append(query, []byte(metadataCollection)...)
-	query = append(query, []byte("`(`type`)")...)
-	query = append(query, []byte(" where type = '")...)
-	query = append(query, []byte(_type)...)
-	query = append(query, []byte("'")...)
-
-	return query
+	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.instanceAll, all, 0)
+	if err != nil {
+		logger.Error(err, "error while update instances")
+		return
+	}
 }
 
 func (h *cbMembership) rebalance(instances []*Instance) {
@@ -214,7 +230,7 @@ func (h *cbMembership) rebalance(instances []*Instance) {
 	}
 
 	if selfOrder == 0 {
-		logger.Panic(errors.New("cant find self in cluster"), "error while rebalance")
+		logger.Panic(errors.New("cant find self in cluster"), "error while rebalance, self = %v", string(h.id))
 	} else {
 		h.handler.OnModelChange(&info.Model{
 			MemberNumber: selfOrder,
@@ -252,15 +268,13 @@ func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Han
 		infoChan:       make(chan *info.Model),
 		client:         client,
 		id:             []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
+		instanceAll:    []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
 		handler:        handler,
-		monitorQuery:   getMonitorQuery(config.MetadataBucket, config.MetadataScope, config.MetadataCollection),
-		indexQuery:     getIndexQuery(config.MetadataBucket, config.MetadataScope, config.MetadataCollection),
 		scopeName:      config.MetadataScope,
 		collectionName: config.MetadataCollection,
 		config:         config,
 	}
 
-	cbm.createIndex()
 	cbm.register()
 
 	cbm.startHeartbeat()

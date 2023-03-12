@@ -30,6 +30,7 @@ type cbMembership struct {
 	clusterJoinTime     int64
 	scopeName           string
 	collectionName      string
+	config              *helpers.Config
 }
 
 type Instance struct {
@@ -46,7 +47,6 @@ const (
 	_heartbeatToleranceSec = 2
 	_monitorIntervalMs     = 500
 	_timeoutSec            = 10
-	_initialDelaySec       = 15
 )
 
 func (h *cbMembership) GetInfo() *info.Model {
@@ -239,7 +239,7 @@ func (h *cbMembership) startMonitor() {
 	monitorTicker := time.NewTicker(_monitorIntervalMs * time.Millisecond)
 
 	go func() {
-		time.Sleep(_initialDelaySec * time.Second)
+		time.Sleep(h.config.Dcp.Group.Membership.RebalanceDelay)
 
 		for range monitorTicker.C {
 			h.monitor()
@@ -257,6 +257,7 @@ func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Han
 		indexQuery:     getIndexQuery(config.MetadataBucket, config.MetadataScope, config.MetadataCollection),
 		scopeName:      config.MetadataScope,
 		collectionName: config.MetadataCollection,
+		config:         config,
 	}
 
 	cbm.createIndex()

@@ -80,7 +80,7 @@ func (s *dcp) Start() {
 	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
 
 	if s.config.LeaderElection.Enabled {
-		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(infoHandler)
+		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, infoHandler)
 		s.serviceDiscovery.StartHealthCheck()
 		s.serviceDiscovery.StartRebalance()
 

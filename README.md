@@ -63,37 +63,38 @@ $ go get github.com/Trendyol/go-dcp-client
 
 ### Configuration
 
-| Variable                            | Type              | Required    | Default               |
-|-------------------------------------|-------------------|-------------|-----------------------|
-| `hosts`                             | []string          | yes         |                       |
-| `username`                          | string            | yes         |                       |
-| `password`                          | string            | yes         |                       |
-| `bucketName`                        | string            | yes         |                       |
-| `dcp.group.name`                    | string            | yes         |                       |
-| `dcp.group.membership.type`         | string            | yes         |                       |
-| `scopeName`                         | string            | no          | _default              |
-| `collectionNames`                   | []string          | no          | _default              |
-| `metadataBucket`                    | string            | no          | *same with bucketName |
-| `metadataScope`                     | string            | no          | _default              |
-| `metadataCollection`                | string            | no          | _default              |
-| `dcp.bufferSizeKb`                  | int               | no          | 16384                 |
-| `dcp.listener.bufferSize`           | int               | no          | 1                     |
-| `dcp.group.membership.memberNumber` | int               | no          | *not set              |
-| `dcp.group.membership.totalMembers` | int               | no          | *not set              |
-| `api.port`                          | int               | no          | 8080                  |
-| `api.enabled`                       | bool              | no          | true                  |
-| `metric.averageWindowSec`           | float64           | no          | 10.0                  |
-| `metric.path`                       | string            | no          | /metrics              |
-| `leaderElection.enabled`            | bool              | no          | false                 |
-| `leaderElection.type`               | string            | no          | *not set              |
-| `leaderElection.config`             | map[string]string | no          | *not set              |
-| `leaderElection.rpc.port`           | int               | no          | 8081                  |
-| `logger.level`                      | string            | no          | info                  |
-| `checkpoint.type`                   | string            | no          | auto                  |
-| `checkpoint.interval`               | time.Duration     | no          | 10s                   |
-| `checkpoint.timeout`                | time.Duration     | no          | 5s                    |
-| `healthCheck.interval`              | time.Duration     | no          | 10s                   |
-| `healthCheck.timeout`               | time.Duration     | no          | 5s                    |
+| Variable                              | Type              | Required    | Default               |
+|---------------------------------------|-------------------|-------------|-----------------------|
+| `hosts`                               | []string          | yes         |                       |
+| `username`                            | string            | yes         |                       |
+| `password`                            | string            | yes         |                       |
+| `bucketName`                          | string            | yes         |                       |
+| `dcp.group.name`                      | string            | yes         |                       |
+| `dcp.group.membership.type`           | string            | yes         |                       |
+| `scopeName`                           | string            | no          | _default              |
+| `collectionNames`                     | []string          | no          | _default              |
+| `metadataBucket`                      | string            | no          | *same with bucketName |
+| `metadataScope`                       | string            | no          | _default              |
+| `metadataCollection`                  | string            | no          | _default              |
+| `dcp.bufferSizeKb`                    | int               | no          | 16384                 |
+| `dcp.listener.bufferSize`             | int               | no          | 1                     |
+| `dcp.group.membership.memberNumber`   | int               | no          | *not set              |
+| `dcp.group.membership.totalMembers`   | int               | no          | *not set              |
+| `dcp.group.membership.rebalanceDelay` | time.Duration     | no          | 20s                   |
+| `api.port`                            | int               | no          | 8080                  |
+| `api.enabled`                         | bool              | no          | true                  |
+| `metric.averageWindowSec`             | float64           | no          | 10.0                  |
+| `metric.path`                         | string            | no          | /metrics              |
+| `leaderElection.enabled`              | bool              | no          | false                 |
+| `leaderElection.type`                 | string            | no          | *not set              |
+| `leaderElection.config`               | map[string]string | no          | *not set              |
+| `leaderElection.rpc.port`             | int               | no          | 8081                  |
+| `logger.level`                        | string            | no          | info                  |
+| `checkpoint.type`                     | string            | no          | auto                  |
+| `checkpoint.interval`                 | time.Duration     | no          | 10s                   |
+| `checkpoint.timeout`                  | time.Duration     | no          | 5s                    |
+| `healthCheck.interval`                | time.Duration     | no          | 10s                   |
+| `healthCheck.timeout`                 | time.Duration     | no          | 5s                    |
 
 ### Examples
 

@@ -32,8 +32,9 @@ func (s *vBucketDiscovery) Get() []uint16 {
 
 	readyToStreamVBuckets := helpers.ChunkSlice[uint16](vBuckets, receivedInfo.TotalMembers)[receivedInfo.MemberNumber-1]
 	logger.Debug(
-		"ready to stream member number: %v, vBuckets range: %v-%v",
+		"ready to stream for member: %v/%v, vBuckets range: %v-%v",
 		receivedInfo.MemberNumber,
+		receivedInfo.TotalMembers,
 		readyToStreamVBuckets[0],
 		readyToStreamVBuckets[len(readyToStreamVBuckets)-1],
 	)

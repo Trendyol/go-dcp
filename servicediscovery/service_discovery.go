@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/helpers"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/membership/info"
@@ -37,6 +39,7 @@ type serviceDiscovery struct {
 	info                *info.Model
 	servicesLock        *sync.RWMutex
 	amILeader           bool
+	config              *helpers.Config
 }
 
 func (s *serviceDiscovery) Add(service *Service) {
@@ -135,15 +138,11 @@ func (s *serviceDiscovery) StopHealthCheck() {
 	s.healthCheckSchedule.Stop()
 }
 
-const (
-	_initialDelaySec = 15
-)
-
 func (s *serviceDiscovery) StartRebalance() {
 	s.rebalanceSchedule = time.NewTicker(3 * time.Second)
 
 	go func() {
-		time.Sleep(_initialDelaySec * time.Second)
+		time.Sleep(s.config.Dcp.Group.Membership.RebalanceDelay)
 
 		for range s.rebalanceSchedule.C {
 			if !s.amILeader {
@@ -195,16 +194,17 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 	if newInfo.IsChanged(s.info) {
 		s.info = newInfo
 
-		logger.Debug("new info arrived, member number: %d, total members: %d", memberNumber, totalMembers)
+		logger.Debug("new info arrived for member: %v/%v", memberNumber, totalMembers)
 
 		s.infoHandler.OnModelChange(newInfo)
 	}
 }
 
-func NewServiceDiscovery(infoHandler info.Handler) ServiceDiscovery {
+func NewServiceDiscovery(config *helpers.Config, infoHandler info.Handler) ServiceDiscovery {
 	return &serviceDiscovery{
 		services:     make(map[string]*Service),
 		infoHandler:  infoHandler,
 		servicesLock: &sync.RWMutex{},
+		config:       config,
 	}
 }

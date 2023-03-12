@@ -9,9 +9,10 @@ import (
 )
 
 type ConfigDCPGroupMembership struct {
-	Type         string `yaml:"type"`
-	MemberNumber int    `yaml:"memberNumber"`
-	TotalMembers int    `yaml:"totalMembers"`
+	Type           string        `yaml:"type"`
+	MemberNumber   int           `yaml:"memberNumber"`
+	TotalMembers   int           `yaml:"totalMembers"`
+	RebalanceDelay time.Duration `yaml:"rebalanceDelay"`
 }
 
 type ConfigDCPGroup struct {
@@ -110,6 +111,10 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.HealthCheck.Timeout == 0 {
 		_config.HealthCheck.Timeout = 5 * time.Second
+	}
+
+	if _config.Dcp.Group.Membership.RebalanceDelay == 0 {
+		_config.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
 	}
 
 	if _config.MetadataBucket == "" {

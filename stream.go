@@ -48,9 +48,9 @@ type stream struct {
 	activeStreams    *sync.WaitGroup
 	streamsLock      *sync.Mutex
 	offsetsLock      *sync.Mutex
-	rebalanceLock    *sync.Mutex
 	dirty            bool
 	balancing        bool
+	rebalanceTimer   *time.Timer
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset) {
@@ -162,10 +162,7 @@ func (s *stream) Open() {
 	go s.wait()
 }
 
-func (s *stream) Rebalance() {
-	s.rebalanceLock.Lock()
-	defer s.rebalanceLock.Unlock()
-
+func (s *stream) rebalance() {
 	s.balancing = true
 
 	s.Save()
@@ -175,6 +172,17 @@ func (s *stream) Rebalance() {
 	s.balancing = false
 
 	logger.Debug("rebalance is finished")
+}
+
+func (s *stream) Rebalance() {
+	if s.rebalanceTimer != nil {
+		s.rebalanceTimer.Stop()
+		logger.Debug("latest rebalance is canceled")
+	}
+
+	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
+
+	logger.Debug("rebalance will be started in %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 }
 
 func (s *stream) Save() {
@@ -275,7 +283,6 @@ func NewStream(client gDcp.Client,
 		offsetsLock:      &sync.Mutex{},
 		streamsLock:      &sync.Mutex{},
 		collectionIDs:    collectionIDs,
-		rebalanceLock:    &sync.Mutex{},
 		activeStreams:    &sync.WaitGroup{},
 		stopCh:           stopCh,
 		metric: StreamMetric{

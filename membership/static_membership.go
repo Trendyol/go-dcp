@@ -13,6 +13,9 @@ func (s *staticMembership) GetInfo() *info.Model {
 	return s.info
 }
 
+func (s *staticMembership) Close() {
+}
+
 func NewStaticMembership(config *helpers.Config) Membership {
 	return &staticMembership{
 		info: &info.Model{

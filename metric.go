@@ -38,9 +38,6 @@ func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 //nolint:funlen
 func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	seqNoMap, err := s.client.GetVBucketSeqNos()
-	if err != nil {
-		logger.Error(err, "cannot get seqNoMap")
-	}
 
 	for vbID, metric := range s.stream.GetObserver().GetMetrics() {
 		ch <- prometheus.MustNewConstMetric(
@@ -92,20 +89,19 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			strconv.Itoa(int(vbID)),
 		)
 
-		var endSeqNo uint64
-
-		if seqNoMap == nil {
-			endSeqNo = offset.EndSeqNo
+		if err != nil {
+			ch <- prometheus.NewInvalidMetric(
+				s.lag,
+				err,
+			)
 		} else {
-			endSeqNo = seqNoMap[vbID]
+			ch <- prometheus.MustNewConstMetric(
+				s.lag,
+				prometheus.CounterValue,
+				float64(seqNoMap[vbID]-offset.SeqNo),
+				strconv.Itoa(int(vbID)),
+			)
 		}
-
-		ch <- prometheus.MustNewConstMetric(
-			s.lag,
-			prometheus.CounterValue,
-			float64(endSeqNo-offset.SeqNo),
-			strconv.Itoa(int(vbID)),
-		)
 	}
 
 	streamMetric := s.stream.GetMetric()
@@ -118,8 +114,8 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 }
 
-func NewMetricMiddleware(app *fiber.App, config *helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
-	err := prometheus.DefaultRegisterer.Register(&metricCollector{
+func newMetricCollector(client gDcp.Client, stream Stream) *metricCollector {
+	return &metricCollector{
 		stream: stream,
 		client: client,
 
@@ -171,7 +167,11 @@ func NewMetricMiddleware(app *fiber.App, config *helpers.Config, stream Stream, 
 			[]string{},
 			nil,
 		),
-	})
+	}
+}
+
+func NewMetricMiddleware(app *fiber.App, config *helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
+	err := prometheus.DefaultRegisterer.Register(newMetricCollector(client, stream))
 	if err != nil {
 		return nil, err
 	}

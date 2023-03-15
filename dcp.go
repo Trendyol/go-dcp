@@ -37,6 +37,7 @@ type dcp struct {
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
 	config            *helpers.Config
+	healthCheckTicker *time.Ticker
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -54,20 +55,24 @@ func (s *dcp) getCollectionIDs() map[uint32]string {
 	return collectionIDs
 }
 
-func (s *dcp) healthCheck() {
-	timer := time.NewTicker(s.config.HealthCheck.Interval)
+func (s *dcp) startHealthCheck() {
+	s.healthCheckTicker = time.NewTicker(s.config.HealthCheck.Interval)
 
 	go func() {
-		for range timer.C {
+		for range s.healthCheckTicker.C {
 			status, err := s.client.Ping()
 			if err != nil || !status {
-				timer.Stop()
+				s.healthCheckTicker.Stop()
 				logger.Error(err, "health check failed")
 				s.healCheckFailedCh <- struct{}{}
 				break
 			}
 		}
 	}()
+}
+
+func (s *dcp) stopHealthCheck() {
+	s.healthCheckTicker.Stop()
 }
 
 func (s *dcp) Start() {
@@ -82,8 +87,8 @@ func (s *dcp) Start() {
 
 	if s.config.LeaderElection.Enabled {
 		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, infoHandler)
-		s.serviceDiscovery.StartHealthCheck()
-		s.serviceDiscovery.StartRebalance()
+		s.serviceDiscovery.StartHeartbeat()
+		s.serviceDiscovery.StartMonitor()
 
 		s.leaderElection = NewLeaderElection(s.config, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
@@ -109,7 +114,7 @@ func (s *dcp) Start() {
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
-	s.healthCheck()
+	s.startHealthCheck()
 
 	logger.Info("dcp stream started")
 	select {
@@ -120,6 +125,9 @@ func (s *dcp) Start() {
 }
 
 func (s *dcp) Close() {
+	s.stopHealthCheck()
+	s.vBucketDiscovery.Close()
+
 	if s.config.Checkpoint.Type == helpers.CheckpointTypeAuto {
 		s.stream.Save()
 	}
@@ -128,8 +136,8 @@ func (s *dcp) Close() {
 	if s.config.LeaderElection.Enabled {
 		s.leaderElection.Stop()
 
-		s.serviceDiscovery.StopRebalance()
-		s.serviceDiscovery.StopHealthCheck()
+		s.serviceDiscovery.StopMonitor()
+		s.serviceDiscovery.StopHeartbeat()
 	}
 
 	if s.api != nil && s.config.API.Enabled {

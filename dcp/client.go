@@ -320,7 +320,7 @@ func (s *client) GetNumVBuckets() int {
 		}
 	}
 
-	logger.Panic(err, "failed to get number of vBuckets")
+	logger.Panic(err, "failed to get number of vbucket")
 	return 0
 }
 

@@ -17,6 +17,10 @@ func Error(err error, format string, v ...interface{}) {
 	log.Error().Err(err).Msgf(format, v...)
 }
 
+func Trace(format string, v ...interface{}) {
+	log.Trace().Msgf(format, v...)
+}
+
 func Panic(err error, format string, v ...interface{}) {
 	log.Panic().Err(err).Msgf(format, v...)
 }

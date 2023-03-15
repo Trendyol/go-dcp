@@ -31,6 +31,8 @@ type cbMembership struct {
 	collectionName      string
 	config              *helpers.Config
 	instanceAll         []byte
+	heartbeatTicker     *time.Ticker
+	monitorTicker       *time.Ticker
 }
 
 type Instance struct {
@@ -242,25 +244,32 @@ func (h *cbMembership) rebalance(instances []*Instance) {
 }
 
 func (h *cbMembership) startHeartbeat() {
-	heartbeatTicker := time.NewTicker(_heartbeatIntervalSec * time.Second)
+	h.heartbeatTicker = time.NewTicker(_heartbeatIntervalSec * time.Second)
 
 	go func() {
-		for range heartbeatTicker.C {
+		for range h.heartbeatTicker.C {
 			h.heartbeat()
 		}
 	}()
 }
 
 func (h *cbMembership) startMonitor() {
-	monitorTicker := time.NewTicker(_monitorIntervalMs * time.Millisecond)
+	h.monitorTicker = time.NewTicker(_monitorIntervalMs * time.Millisecond)
 
 	go func() {
+		logger.Info("couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(h.config.Dcp.Group.Membership.RebalanceDelay)
 
-		for range monitorTicker.C {
+		for range h.monitorTicker.C {
 			h.monitor()
 		}
 	}()
+}
+
+func (h *cbMembership) Close() {
+	close(h.infoChan)
+	h.monitorTicker.Stop()
+	h.heartbeatTicker.Stop()
 }
 
 func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Handler) Membership {

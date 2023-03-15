@@ -16,19 +16,19 @@ type SnapshotMarker struct {
 }
 
 type InternalDcpMutation struct {
-	CollectionName *string
+	CollectionName string
 	*gocbcore.DcpMutation
 	*Offset
 }
 
 type InternalDcpDeletion struct {
-	CollectionName *string
+	CollectionName string
 	*gocbcore.DcpDeletion
 	*Offset
 }
 
 type InternalDcpExpiration struct {
-	CollectionName *string
+	CollectionName string
 	*gocbcore.DcpExpiration
 	*Offset
 }

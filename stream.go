@@ -171,18 +171,18 @@ func (s *stream) rebalance() {
 
 	s.balancing = false
 
-	logger.Debug("rebalance is finished")
+	logger.Info("rebalance is finished")
 }
 
 func (s *stream) Rebalance() {
 	if s.rebalanceTimer != nil {
 		s.rebalanceTimer.Stop()
-		logger.Debug("latest rebalance is canceled")
+		logger.Info("latest rebalance is canceled")
 	}
 
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
 
-	logger.Debug("rebalance will be started in %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	logger.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 }
 
 func (s *stream) Save() {

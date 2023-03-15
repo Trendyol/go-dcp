@@ -35,7 +35,7 @@ func (le *client) AddLabel(namespace string, key string, value string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		logger.Panic(err, "failed to add label")
+		logger.Error(err, "failed to add label")
 	}
 }
 
@@ -47,7 +47,7 @@ func (le *client) RemoveLabel(namespace string, key string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		logger.Panic(err, "failed to remove label")
+		logger.Error(err, "failed to remove label")
 	}
 }
 

@@ -19,6 +19,10 @@ func (h *haMembership) GetInfo() *info.Model {
 	return <-h.infoChan
 }
 
+func (h *haMembership) Close() {
+	close(h.infoChan)
+}
+
 func NewHaMembership(_ *helpers.Config, handler info.Handler) membership.Membership {
 	ham := &haMembership{
 		infoChan: make(chan *info.Model),

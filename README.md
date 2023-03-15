@@ -98,8 +98,8 @@ $ go get github.com/Trendyol/go-dcp-client
 
 ### Examples
 
-- [example with static membership](example/main.go)
-- [static membership config](example/config.yml)
+- [example with couchbase membership](example/main.go)
+- [couchbase membership config](example/config.yml) - thanks to [@onursak](https://github.com/onursak)
 - [kubernetesStatefulSet membership config](example/config_k8s_stateful_set.yml)
 - [kubernetesHa membership config](example/config_k8s_leader_election.yml)
-- [couchbase membership config](example/config_couchbase.yml) - thanks to [@onursak](https://github.com/onursak)
+- [static membership config](example/config_static.yml)

@@ -20,10 +20,10 @@ type ServiceDiscovery interface {
 	AssignLeader(leaderService *Service)
 	RemoveLeader()
 	ReassignLeader() error
-	StartHealthCheck()
-	StopHealthCheck()
-	StartRebalance()
-	StopRebalance()
+	StartHeartbeat()
+	StopHeartbeat()
+	StartMonitor()
+	StopMonitor()
 	GetAll() []string
 	SetInfo(memberNumber int, totalMembers int)
 	BeLeader()
@@ -31,15 +31,15 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
-	infoHandler         info.Handler
-	leaderService       *Service
-	services            map[string]*Service
-	healthCheckSchedule *time.Ticker
-	rebalanceSchedule   *time.Ticker
-	info                *info.Model
-	servicesLock        *sync.RWMutex
-	amILeader           bool
-	config              *helpers.Config
+	infoHandler     info.Handler
+	leaderService   *Service
+	services        map[string]*Service
+	heartbeatTicker *time.Ticker
+	monitorTicker   *time.Ticker
+	info            *info.Model
+	servicesLock    *sync.RWMutex
+	amILeader       bool
+	config          *helpers.Config
 }
 
 func (s *serviceDiscovery) Add(service *Service) {
@@ -96,11 +96,11 @@ func (s *serviceDiscovery) ReassignLeader() error {
 	return err
 }
 
-func (s *serviceDiscovery) StartHealthCheck() {
-	s.healthCheckSchedule = time.NewTicker(3 * time.Second)
+func (s *serviceDiscovery) StartHeartbeat() {
+	s.heartbeatTicker = time.NewTicker(5 * time.Second)
 
 	go func() {
-		for range s.healthCheckSchedule.C {
+		for range s.heartbeatTicker.C {
 			s.servicesLock.Lock()
 
 			if s.leaderService != nil {
@@ -134,17 +134,18 @@ func (s *serviceDiscovery) StartHealthCheck() {
 	}()
 }
 
-func (s *serviceDiscovery) StopHealthCheck() {
-	s.healthCheckSchedule.Stop()
+func (s *serviceDiscovery) StopHeartbeat() {
+	s.heartbeatTicker.Stop()
 }
 
-func (s *serviceDiscovery) StartRebalance() {
-	s.rebalanceSchedule = time.NewTicker(3 * time.Second)
+func (s *serviceDiscovery) StartMonitor() {
+	s.monitorTicker = time.NewTicker(5 * time.Second)
 
 	go func() {
+		logger.Info("service discovery will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(s.config.Dcp.Group.Membership.RebalanceDelay)
 
-		for range s.rebalanceSchedule.C {
+		for range s.monitorTicker.C {
 			if !s.amILeader {
 				continue
 			}
@@ -169,8 +170,8 @@ func (s *serviceDiscovery) StartRebalance() {
 	}()
 }
 
-func (s *serviceDiscovery) StopRebalance() {
-	s.rebalanceSchedule.Stop()
+func (s *serviceDiscovery) StopMonitor() {
+	s.monitorTicker.Stop()
 }
 
 func (s *serviceDiscovery) GetAll() []string {

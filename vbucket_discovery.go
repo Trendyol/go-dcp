@@ -14,6 +14,7 @@ import (
 
 type VBucketDiscovery interface {
 	Get() []uint16
+	Close()
 }
 
 type vBucketDiscovery struct {
@@ -31,8 +32,8 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	receivedInfo := s.membership.GetInfo()
 
 	readyToStreamVBuckets := helpers.ChunkSlice[uint16](vBuckets, receivedInfo.TotalMembers)[receivedInfo.MemberNumber-1]
-	logger.Debug(
-		"ready to stream for member: %v/%v, vBuckets range: %v-%v",
+	logger.Info(
+		"member: %v/%v, vbucket range: %v-%v",
 		receivedInfo.MemberNumber,
 		receivedInfo.TotalMembers,
 		readyToStreamVBuckets[0],
@@ -40,6 +41,11 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	)
 
 	return readyToStreamVBuckets
+}
+
+func (s *vBucketDiscovery) Close() {
+	s.membership.Close()
+	logger.Debug("vbucket discovery closed")
 }
 
 func NewVBucketDiscovery(client gDcp.Client,
@@ -61,6 +67,8 @@ func NewVBucketDiscovery(client gDcp.Client,
 	default:
 		logger.Panic(fmt.Errorf("unknown membership"), "membership: %s", config.Dcp.Group.Membership.Type)
 	}
+
+	logger.Debug("vbucket discovery opened with membership type: %s", config.Dcp.Group.Membership.Type)
 
 	return &vBucketDiscovery{
 		vBucketNumber: vBucketNumber,

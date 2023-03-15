@@ -17,6 +17,9 @@ func (s *statefulSetMembership) GetInfo() *info.Model {
 	return s.info
 }
 
+func (s *statefulSetMembership) Close() {
+}
+
 func NewStatefulSetMembership(config *helpers.Config) membership.Membership {
 	statefulSetInfo, err := NewStatefulSetInfoFromHostname()
 	if err != nil {

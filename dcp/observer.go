@@ -48,12 +48,12 @@ type observer struct {
 	metricsLock          *sync.Mutex
 }
 
-func (so *observer) convertToCollectionName(collectionID uint32) *string {
+func (so *observer) convertToCollectionName(collectionID uint32) string {
 	if name, ok := so.collectionIDs[collectionID]; ok {
-		return &name
+		return name
 	}
 
-	return nil
+	return helpers.DefaultCollectionName
 }
 
 //nolint:staticcheck

@@ -1,5 +1,5 @@
 hosts:
-  - couchbase.couchbase.svc.cluster.local:8091
+  - localhost:8091
 username: user
 password: password
 bucketName: dcp-test
@@ -8,6 +8,6 @@ dcp:
   group:
     name: groupName
     membership:
-      type: couchbase
-logging:
-  level: debug
+      type: static
+      memberNumber: 1
+      totalMembers: 1

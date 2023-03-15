@@ -21,6 +21,7 @@ import (
 type Dcp interface {
 	Start()
 	Close()
+	Commit()
 }
 
 type dcp struct {
@@ -139,6 +140,10 @@ func (s *dcp) Close() {
 	s.client.Close()
 
 	logger.Info("dcp stream closed")
+}
+
+func (s *dcp) Commit() {
+	s.stream.Save()
 }
 
 func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {

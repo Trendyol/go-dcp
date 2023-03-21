@@ -60,10 +60,9 @@ func (s *dcp) startHealthCheck() {
 
 	go func() {
 		for range s.healthCheckTicker.C {
-			status, err := s.client.Ping()
-			if err != nil || !status {
-				s.healthCheckTicker.Stop()
+			if err := s.client.Ping(); err != nil {
 				logger.Error(err, "health check failed")
+				s.healthCheckTicker.Stop()
 				s.healCheckFailedCh <- struct{}{}
 				break
 			}

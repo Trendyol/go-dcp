@@ -18,7 +18,7 @@ import (
 )
 
 type Client interface {
-	Ping() (bool, error)
+	Ping() error
 	GetAgent() *gocbcore.Agent
 	GetMetaAgent() *gocbcore.Agent
 	Connect() error
@@ -56,30 +56,45 @@ type client struct {
 	config    *helpers.Config
 }
 
-func (s *client) Ping() (bool, error) {
+func (s *client) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.HealthCheck.Timeout)
 	defer cancel()
 
 	opm := helpers.NewAsyncOp(ctx)
 
 	errorCh := make(chan error)
-	var status bool
 
-	op, err := s.agent.Ping(gocbcore.PingOptions{}, func(result *gocbcore.PingResult, err error) {
-		success := false
+	op, err := s.agent.Ping(gocbcore.PingOptions{
+		ServiceTypes: []gocbcore.ServiceType{gocbcore.MemdService, gocbcore.MgmtService},
+	}, func(result *gocbcore.PingResult, err error) {
+		memdSuccess := false
+		mgmtSuccess := false
 
 		if err == nil {
 			if memdServiceResults, ok := result.Services[gocbcore.MemdService]; ok {
 				for _, memdServiceResult := range memdServiceResults {
 					if memdServiceResult.Error == nil && memdServiceResult.State == gocbcore.PingStateOK {
-						success = true
+						memdSuccess = true
+						break
+					}
+				}
+			}
+
+			if mgmtServiceResults, ok := result.Services[gocbcore.MgmtService]; ok {
+				for _, mgmtServiceResult := range mgmtServiceResults {
+					if mgmtServiceResult.Error == nil && mgmtServiceResult.State == gocbcore.PingStateOK {
+						mgmtSuccess = true
 						break
 					}
 				}
 			}
 		}
 
-		status = success
+		if !memdSuccess || !mgmtSuccess {
+			if err == nil {
+				err = errors.New("some services are not healthy")
+			}
+		}
 
 		opm.Resolve()
 
@@ -89,10 +104,10 @@ func (s *client) Ping() (bool, error) {
 	err = opm.Wait(op, err)
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return status, <-errorCh
+	return <-errorCh
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {

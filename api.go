@@ -45,8 +45,7 @@ func (s *api) Shutdown() {
 }
 
 func (s *api) status(c *fiber.Ctx) error {
-	_, err := s.client.Ping()
-	if err != nil {
+	if err := s.client.Ping(); err != nil {
 		return err
 	}
 

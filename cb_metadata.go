@@ -3,9 +3,10 @@ package godcpclient
 import (
 	"context"
 	"errors"
-	"github.com/Trendyol/go-dcp-client/logger"
 	"strconv"
 	"sync"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	jsoniter "github.com/json-iterator/go"
 

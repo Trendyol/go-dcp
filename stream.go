@@ -13,7 +13,6 @@ import (
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/couchbase/gocbcore/v10"
 )
 
 type Stream interface {
@@ -123,23 +122,8 @@ func (s *stream) Open() {
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
-			ch := make(chan error)
-
-			err := s.client.OpenStream(
-				innerVbId,
-				uuIDMap[innerVbId],
-				s.collectionIDs,
-				s.offsets[innerVbId],
-				observer,
-				func(entries []gocbcore.FailoverEntry, err error) {
-					ch <- err
-				},
-			)
+			err := s.client.OpenStream(innerVbId, uuIDMap[innerVbId], s.collectionIDs, s.offsets[innerVbId], observer)
 			if err != nil {
-				logger.Panic(err, "cannot open stream, vbID: %d", innerVbId)
-			}
-
-			if err = <-ch; err != nil {
 				logger.Panic(err, "cannot open stream, vbID: %d", innerVbId)
 			}
 

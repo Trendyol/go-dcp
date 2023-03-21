@@ -2,6 +2,7 @@ package dcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,7 +35,6 @@ type Client interface {
 		collectionIDs map[uint32]string,
 		offset *models.Offset,
 		observer Observer,
-		callback gocbcore.OpenStreamCallback,
 	) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
@@ -44,7 +44,7 @@ type Client interface {
 	ExecuteQuery(ctx context.Context, query []byte) ([][]byte, error)
 	UpdateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
 	DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte)
-	GetXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string) ([]byte, error)
+	GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error)
 	CreatePath(ctx context.Context, scopeName string, collectionName string, id []byte, path []byte, value interface{}) error
 	Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error)
 }
@@ -66,8 +66,6 @@ func (s *client) Ping() (bool, error) {
 	var status bool
 
 	op, err := s.agent.Ping(gocbcore.PingOptions{}, func(result *gocbcore.PingResult, err error) {
-		opm.Resolve()
-
 		success := false
 
 		if err == nil {
@@ -82,6 +80,9 @@ func (s *client) Ping() (bool, error) {
 		}
 
 		status = success
+
+		opm.Resolve()
+
 		errorCh <- err
 	})
 
@@ -144,10 +145,6 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 	}
 
 	if err = <-ch; err != nil {
-		return nil, err
-	}
-
-	if err != nil {
 		return nil, err
 	}
 
@@ -347,13 +344,47 @@ func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, 
 	return uuIDMap, nil
 }
 
+func (s *client) openStreamWithRollback(vbID uint16,
+	vbUUID gocbcore.VbUUID,
+	seqNo gocbcore.SeqNo,
+	observer Observer,
+	openStreamOptions gocbcore.OpenStreamOptions,
+) error {
+	opm := helpers.NewAsyncOp(context.Background())
+
+	ch := make(chan error)
+
+	op, err := s.dcpAgent.OpenStream(
+		vbID,
+		0,
+		vbUUID,
+		seqNo,
+		0xffffffffffffffff,
+		seqNo,
+		seqNo,
+		observer,
+		openStreamOptions,
+		func(_ []gocbcore.FailoverEntry, err error) {
+			opm.Resolve()
+
+			ch <- err
+		},
+	)
+
+	err = opm.Wait(op, err)
+	if err != nil {
+		return err
+	}
+
+	return <-ch
+}
+
 func (s *client) OpenStream(
 	vbID uint16,
 	vbUUID gocbcore.VbUUID,
 	collectionIDs map[uint32]string,
 	offset *models.Offset,
 	observer Observer,
-	callback gocbcore.OpenStreamCallback,
 ) error {
 	opm := helpers.NewAsyncOp(context.Background())
 
@@ -371,6 +402,8 @@ func (s *client) OpenStream(
 		openStreamOptions.FilterOptions = options
 	}
 
+	ch := make(chan error)
+
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
 		0,
@@ -381,17 +414,28 @@ func (s *client) OpenStream(
 		gocbcore.SeqNo(offset.EndSeqNo),
 		observer,
 		openStreamOptions,
-		func(entries []gocbcore.FailoverEntry, err error) {
+		func(_ []gocbcore.FailoverEntry, err error) {
 			opm.Resolve()
 
-			callback(entries, err)
+			ch <- err
 		},
 	)
+
+	err = opm.Wait(op, err)
 	if err != nil {
 		return err
 	}
 
-	return opm.Wait(op, err)
+	err = <-ch
+
+	if err != nil {
+		if errors.Is(err, gocbcore.ErrMemdRollback) {
+			logger.Info("rollback started for vbID: %d", vbID)
+			return s.openStreamWithRollback(vbID, vbUUID, gocbcore.SeqNo(0), observer, openStreamOptions)
+		}
+	}
+
+	return err
 }
 
 func (s *client) CloseStream(vbID uint16) error {
@@ -717,10 +761,8 @@ func (s *client) DeleteDocument(ctx context.Context, scopeName string, collectio
 	}
 }
 
-func (s *client) GetXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string) ([]byte, error) {
+func (s *client) GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error) {
 	opm := helpers.NewAsyncOp(context.Background())
-
-	deadline, _ := ctx.Deadline()
 
 	errorCh := make(chan error)
 	documentCh := make(chan []byte)
@@ -734,7 +776,6 @@ func (s *client) GetXattrs(ctx context.Context, scopeName string, collectionName
 				Path:  path,
 			},
 		},
-		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
 	}, func(result *gocbcore.LookupInResult, err error) {

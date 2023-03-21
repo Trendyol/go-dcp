@@ -25,6 +25,8 @@ type Observer interface {
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced models.DcpSeqNoAdvanced)
 	GetMetrics() map[uint16]*ObserverMetric
+	LockMetrics()
+	UnlockMetrics()
 	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
@@ -101,8 +103,8 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) {
 
 	so.currentSnapshotsLock.Unlock()
 
-	so.metricsLock.Lock()
-	defer so.metricsLock.Unlock()
+	so.LockMetrics()
+	defer so.UnlockMetrics()
 
 	if metric, ok := so.metrics[mutation.VbID]; ok {
 		metric.TotalMutations++
@@ -132,8 +134,8 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) {
 
 	so.currentSnapshotsLock.Unlock()
 
-	so.metricsLock.Lock()
-	defer so.metricsLock.Unlock()
+	so.LockMetrics()
+	defer so.UnlockMetrics()
 
 	if metric, ok := so.metrics[deletion.VbID]; ok {
 		metric.TotalDeletions++
@@ -163,8 +165,8 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) {
 
 	so.currentSnapshotsLock.Unlock()
 
-	so.metricsLock.Lock()
-	defer so.metricsLock.Unlock()
+	so.LockMetrics()
+	defer so.UnlockMetrics()
 
 	if metric, ok := so.metrics[expiration.VbID]; ok {
 		metric.TotalExpirations++
@@ -237,10 +239,15 @@ func (so *observer) SeqNoAdvanced(advanced models.DcpSeqNoAdvanced) {
 }
 
 func (so *observer) GetMetrics() map[uint16]*ObserverMetric {
-	so.metricsLock.Lock()
-	defer so.metricsLock.Unlock()
-
 	return so.metrics
+}
+
+func (so *observer) LockMetrics() {
+	so.metricsLock.Lock()
+}
+
+func (so *observer) UnlockMetrics() {
+	so.metricsLock.Unlock()
 }
 
 func (so *observer) Listen() models.ListenerCh {

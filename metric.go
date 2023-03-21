@@ -39,7 +39,11 @@ func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	seqNoMap, err := s.client.GetVBucketSeqNos()
 
-	for vbID, metric := range s.stream.GetObserver().GetMetrics() {
+	observer := s.stream.GetObserver()
+
+	observer.LockMetrics()
+
+	for vbID, metric := range observer.GetMetrics() {
 		ch <- prometheus.MustNewConstMetric(
 			s.mutation,
 			prometheus.CounterValue,
@@ -62,8 +66,9 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		)
 	}
 
+	observer.UnlockMetrics()
+
 	s.stream.LockOffsets()
-	defer s.stream.UnlockOffsets()
 
 	offsets, _ := s.stream.GetOffsetsWithDirty()
 
@@ -103,6 +108,8 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			)
 		}
 	}
+
+	s.stream.UnlockOffsets()
 
 	streamMetric := s.stream.GetMetric()
 

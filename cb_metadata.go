@@ -3,7 +3,9 @@ package godcpclient
 import (
 	"context"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"strconv"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 
@@ -58,19 +60,19 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error 
 }
 
 func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*CheckpointDocument, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
-	defer cancel()
-
 	state := map[uint16]*CheckpointDocument{}
-	errCh := make(chan error, 1)
+	stateLock := &sync.Mutex{}
 
-	go func(ctx context.Context) {
-		var err error
+	wg := &sync.WaitGroup{}
+	wg.Add(len(vbIds))
 
-		for _, vbID := range vbIds {
+	for _, vbID := range vbIds {
+		go func(vbID uint16) {
+			var err error
+
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-			data, err := s.client.GetXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name)
+			data, err := s.client.GetXattrs(s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name)
 
 			var doc *CheckpointDocument
 
@@ -86,21 +88,20 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 
 			var kvErr *gocbcore.KeyValueError
 			if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+				stateLock.Lock()
 				state[vbID] = doc
+				stateLock.Unlock()
 			} else {
-				break
+				logger.Panic(err, "cannot load checkpoint, vbID: %d", vbID)
 			}
-		}
 
-		errCh <- err
-	}(ctx)
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case err := <-errCh:
-		return state, err
+			wg.Done()
+		}(vbID)
 	}
+
+	wg.Wait()
+
+	return state, nil
 }
 
 func (s *cbMetadata) Clear(vbIds []uint16) error {

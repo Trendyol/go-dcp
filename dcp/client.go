@@ -444,8 +444,8 @@ func (s *client) OpenStream(
 	err = <-ch
 
 	if err != nil {
-		if errors.Is(err, gocbcore.ErrMemdRollback) {
-			logger.Info("rollback started for vbID: %d", vbID)
+		if errors.Is(err, gocbcore.ErrMemdRollback) && s.config.RollbackMitigation.Enabled {
+			logger.Info("rollback for vbID: %d", vbID)
 			return s.openStreamWithRollback(vbID, vbUUID, gocbcore.SeqNo(0), observer, openStreamOptions)
 		}
 	}

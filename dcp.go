@@ -113,7 +113,9 @@ func (s *dcp) Start() {
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
-	s.startHealthCheck()
+	if s.config.HealthCheck.Enabled {
+		s.startHealthCheck()
+	}
 
 	logger.Info("dcp stream started")
 	select {
@@ -124,7 +126,9 @@ func (s *dcp) Start() {
 }
 
 func (s *dcp) Close() {
-	s.stopHealthCheck()
+	if s.config.HealthCheck.Enabled {
+		s.stopHealthCheck()
+	}
 	s.vBucketDiscovery.Close()
 
 	if s.config.Checkpoint.Type == helpers.CheckpointTypeAuto {

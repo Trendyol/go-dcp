@@ -90,7 +90,9 @@ func NewAPI(config *helpers.Config, client gDcp.Client, stream Stream, serviceDi
 		serviceDiscovery: serviceDiscovery,
 	}
 
-	app.Get("/status", api.status)
+	if config.HealthCheck.Enabled {
+		app.Get("/status", api.status)
+	}
 	app.Get("/states/offset", api.offset)
 	app.Get("/states/followers", api.followers)
 	app.Get("/rebalance", api.rebalance)

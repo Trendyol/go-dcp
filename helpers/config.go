@@ -10,8 +10,8 @@ import (
 
 type ConfigDCPGroupMembership struct {
 	Type           string        `yaml:"type"`
-	MemberNumber   int           `yaml:"memberNumber"`
-	TotalMembers   int           `yaml:"totalMembers"`
+	MemberNumber   int           `yaml:"memberNumber" default:"1"`
+	TotalMembers   int           `yaml:"totalMembers" default:"1"`
 	RebalanceDelay time.Duration `yaml:"rebalanceDelay"`
 }
 

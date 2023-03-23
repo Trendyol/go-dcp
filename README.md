@@ -78,8 +78,8 @@ $ go get github.com/Trendyol/go-dcp-client
 | `metadataCollection`                  | string            | no       | _default              |
 | `dcp.bufferSizeKb`                    | int               | no       | 16384                 |
 | `dcp.listener.bufferSize`             | int               | no       | 1                     |
-| `dcp.group.membership.memberNumber`   | int               | no       | *not set              |
-| `dcp.group.membership.totalMembers`   | int               | no       | *not set              |
+| `dcp.group.membership.memberNumber`   | int               | no       | 1                     |
+| `dcp.group.membership.totalMembers`   | int               | no       | 1                     |
 | `dcp.group.membership.rebalanceDelay` | time.Duration     | no       | 20s                   |
 | `api.port`                            | int               | no       | 8080                  |
 | `api.enabled`                         | bool              | no       | true                  |

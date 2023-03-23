@@ -44,7 +44,7 @@ func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 	return nil
 }
 
-func _(fileName string, _ *helpers.Config) Metadata {
+func NewFSMetadata(fileName string, _ *helpers.Config) Metadata { //nolint:unused
 	return &fileMetadata{
 		fileName: fileName,
 	}

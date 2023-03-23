@@ -3,6 +3,7 @@ package godcpclient
 import (
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 	"time"
 
@@ -38,6 +39,7 @@ type dcp struct {
 	healCheckFailedCh chan struct{}
 	config            *helpers.Config
 	healthCheckTicker *time.Ticker
+	metadata          Metadata
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -81,8 +83,7 @@ func (s *dcp) Start() {
 
 	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
 
-	metadata := NewCBMetadata(s.client, s.config)
-	s.stream = NewStream(s.client, metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
+	s.stream = NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
 
 	if s.config.LeaderElection.Enabled {
 		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, infoHandler)
@@ -157,7 +158,7 @@ func (s *dcp) Commit() {
 	s.stream.Save()
 }
 
-func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
+func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadata) (Dcp, error) {
 	client := gDcp.NewClient(config)
 
 	loggingLevel, err := zerolog.ParseLevel(config.Logging.Level)
@@ -178,7 +179,7 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 		return nil, err
 	}
 
-	return &dcp{
+	dcp := &dcp{
 		client:            client,
 		listener:          listener,
 		config:            config,
@@ -186,14 +187,24 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 		cancelCh:          make(chan os.Signal, 1),
 		stopCh:            make(chan struct{}, 1),
 		healCheckFailedCh: make(chan struct{}, 1),
-	}, nil
+	}
+
+	if len(metadata) > 0 {
+		logger.Debug("using %v metadata", reflect.TypeOf(metadata[0]))
+		dcp.metadata = metadata[0]
+	} else {
+		logger.Debug("using default metadata which is couchbase")
+		dcp.metadata = NewCBMetadata(client, config)
+	}
+
+	return dcp, nil
 }
 
 // NewDcp creates a new DCP client
 //
 //	config: path to a configuration file or a configuration struct
 //	listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(configPath string, listener models.Listener) (Dcp, error) {
+func NewDcp(configPath string, listener models.Listener, metadata ...Metadata) (Dcp, error) {
 	config := helpers.NewConfig(helpers.Name, configPath)
-	return newDcp(config, listener)
+	return newDcp(config, listener, metadata)
 }

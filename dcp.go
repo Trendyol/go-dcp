@@ -202,8 +202,9 @@ func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadat
 
 // NewDcp creates a new DCP client
 //
-//	config: path to a configuration file or a configuration struct
-//	listener is a callback function that will be called when a mutation, deletion or expiration event occurs
+// config: path to a configuration file or a configuration struct
+// listener is a callback function that will be called when a mutation, deletion or expiration event occurs
+// metadata is an optional parameter that can be used to pass custom metadata to the listener
 func NewDcp(configPath string, listener models.Listener, metadata ...Metadata) (Dcp, error) {
 	config := helpers.NewConfig(helpers.Name, configPath)
 	return newDcp(config, listener, metadata)

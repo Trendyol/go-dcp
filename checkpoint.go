@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
@@ -14,7 +16,7 @@ import (
 
 type Checkpoint interface {
 	Save()
-	Load() map[uint16]*models.Offset
+	Load() (map[uint16]*models.Offset, map[uint16]bool, bool)
 	Clear()
 	StartSchedule()
 	StopSchedule()
@@ -52,6 +54,7 @@ func NewEmptyCheckpointDocument(bucketUUID string) *CheckpointDocument {
 
 type checkpoint struct {
 	stream     Stream
+	client     gDcp.Client
 	metadata   Metadata
 	schedule   *time.Ticker
 	bucketUUID string
@@ -65,9 +68,9 @@ func (s *checkpoint) Save() {
 	s.stream.LockOffsets()
 	defer s.stream.UnlockOffsets()
 
-	offsets, dirty := s.stream.GetOffsetsWithDirty()
+	offsets, dirtyOffsets, anyDirtyOffset := s.stream.GetOffsets()
 
-	if !dirty {
+	if !anyDirtyOffset {
 		logger.Debug("no need to save checkpoint")
 		return
 	}
@@ -91,20 +94,20 @@ func (s *checkpoint) Save() {
 		}
 	}
 
-	err := s.metadata.Save(dump, s.bucketUUID)
+	err := s.metadata.Save(dump, dirtyOffsets, s.bucketUUID)
 	if err == nil {
 		logger.Debug("saved checkpoint")
-		s.stream.UnmarkDirty()
+		s.stream.UnmarkAnyDirtyOffset()
 	} else {
 		logger.Error(err, "error while saving checkpoint document")
 	}
 }
 
-func (s *checkpoint) Load() map[uint16]*models.Offset {
+func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
-	dump, err := s.metadata.Load(s.vbIds, s.bucketUUID)
+	dump, exist, err := s.metadata.Load(s.vbIds, s.bucketUUID)
 	if err == nil {
 		logger.Debug("loaded checkpoint")
 	} else {
@@ -112,6 +115,35 @@ func (s *checkpoint) Load() map[uint16]*models.Offset {
 	}
 
 	offsets := map[uint16]*models.Offset{}
+	dirtyOffsets := map[uint16]bool{}
+	anyDirtyOffset := false
+
+	if !exist && s.config.Checkpoint.AutoReset == helpers.CheckpointAutoResetTypeLatest {
+		logger.Debug("auto reset checkpoint to latest")
+
+		seqNoMap, err := s.client.GetVBucketSeqNos()
+		if err != nil {
+			logger.Panic(err, "error while getting vbucket seqNos")
+		}
+
+		for vbID, doc := range dump {
+			if seqNoMap[vbID] != 0 {
+				dirtyOffsets[vbID] = true
+				anyDirtyOffset = true
+			}
+
+			offsets[vbID] = &models.Offset{
+				SnapshotMarker: &models.SnapshotMarker{
+					StartSeqNo: seqNoMap[vbID],
+					EndSeqNo:   seqNoMap[vbID],
+				},
+				VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
+				SeqNo:  seqNoMap[vbID],
+			}
+		}
+
+		return offsets, dirtyOffsets, anyDirtyOffset
+	}
 
 	for vbID, doc := range dump {
 		offsets[vbID] = &models.Offset{
@@ -124,7 +156,7 @@ func (s *checkpoint) Load() map[uint16]*models.Offset {
 		}
 	}
 
-	return offsets
+	return offsets, dirtyOffsets, anyDirtyOffset
 }
 
 func (s *checkpoint) Clear() {
@@ -162,14 +194,15 @@ func (s *checkpoint) StopSchedule() {
 func NewCheckpoint(
 	stream Stream,
 	vbIds []uint16,
-	bucketUUID string,
+	client gDcp.Client,
 	metadata Metadata,
 	config *helpers.Config,
 ) Checkpoint {
 	return &checkpoint{
+		client:     client,
 		stream:     stream,
 		vbIds:      vbIds,
-		bucketUUID: bucketUUID,
+		bucketUUID: client.GetBucketUUID(),
 		metadata:   metadata,
 		config:     config,
 		saveLock:   &sync.Mutex{},

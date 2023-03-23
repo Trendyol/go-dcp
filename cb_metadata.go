@@ -22,7 +22,7 @@ type cbMetadata struct {
 	config *helpers.Config
 }
 
-func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error {
+func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, dirtyOffsets map[uint16]bool, _ string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
 
@@ -32,6 +32,12 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error 
 		var err error
 
 		for vbID, checkpointDocument := range state {
+			if !dirtyOffsets[vbID] {
+				continue
+			} else {
+				logger.Debug("saving checkpoint, vbID: %d", vbID)
+			}
+
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 			err = s.client.UpsertXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name, checkpointDocument, 0)
 
@@ -60,12 +66,14 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, _ string) error 
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*CheckpointDocument, error) {
+func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*CheckpointDocument, bool, error) {
 	state := map[uint16]*CheckpointDocument{}
 	stateLock := &sync.Mutex{}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(vbIds))
+
+	exist := false
 
 	for _, vbID := range vbIds {
 		go func(vbID uint16) {
@@ -82,6 +90,8 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 
 				if err != nil {
 					doc = NewEmptyCheckpointDocument(bucketUUID)
+				} else {
+					exist = true
 				}
 			} else {
 				doc = NewEmptyCheckpointDocument(bucketUUID)
@@ -102,7 +112,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 
 	wg.Wait()
 
-	return state, nil
+	return state, exist, nil
 }
 
 func (s *cbMetadata) Clear(vbIds []uint16) error {

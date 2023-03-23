@@ -91,6 +91,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `leaderElection.rpc.port`             | int               | no       | 8081                  |
 | `logger.level`                        | string            | no       | info                  |
 | `checkpoint.type`                     | string            | no       | auto                  |
+| `checkpoint.autoReset`                | string            | no       | earliest              |
 | `checkpoint.interval`                 | time.Duration     | no       | 10s                   |
 | `checkpoint.timeout`                  | time.Duration     | no       | 5s                    |
 | `healthCheck.enabled`                 | bool              | no       | true                  |

@@ -56,9 +56,10 @@ type ConfigLogging struct {
 }
 
 type ConfigCheckpoint struct {
-	Type     string        `yaml:"type" default:"auto"`
-	Interval time.Duration `yaml:"interval"`
-	Timeout  time.Duration `yaml:"timeout"`
+	Type      string        `yaml:"type" default:"auto"`
+	AutoReset string        `yaml:"autoReset" default:"earliest"`
+	Interval  time.Duration `yaml:"interval"`
+	Timeout   time.Duration `yaml:"timeout"`
 }
 
 type ConfigHealthCheck struct {

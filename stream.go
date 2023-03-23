@@ -22,10 +22,11 @@ type Stream interface {
 	Close()
 	LockOffsets()
 	UnlockOffsets()
-	GetOffsetsWithDirty() (map[uint16]*models.Offset, bool)
+	GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool)
 	GetObserver() gDcp.Observer
 	GetMetric() StreamMetric
-	UnmarkDirty()
+	UnmarkDirty(vbID uint16)
+	UnmarkAnyDirtyOffset()
 }
 
 type StreamMetric struct {
@@ -42,20 +43,22 @@ type stream struct {
 	collectionIDs    map[uint32]string
 	listener         models.Listener
 	offsets          map[uint16]*models.Offset
+	dirtyOffsets     map[uint16]bool
 	stopCh           chan struct{}
 	config           *helpers.Config
 	activeStreams    *sync.WaitGroup
 	streamsLock      *sync.Mutex
 	offsetsLock      *sync.Mutex
-	dirty            bool
+	anyDirtyOffset   bool
 	balancing        bool
 	rebalanceTimer   *time.Timer
 }
 
-func (s *stream) setOffset(vbID uint16, offset *models.Offset) {
+func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 	s.LockOffsets()
 	defer s.UnlockOffsets()
 	s.offsets[vbID] = offset
+	s.dirtyOffsets[vbID] = dirty
 }
 
 func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID uint16) {
@@ -63,13 +66,13 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 		Commit: s.checkpoint.Save,
 		Event:  payload,
 		Ack: func() {
-			s.setOffset(vbID, offset)
-			s.dirty = true
+			s.setOffset(vbID, offset, true)
+			s.anyDirtyOffset = true
 		},
 	}
 
 	if helpers.IsMetadata(payload) {
-		s.setOffset(vbID, offset)
+		s.setOffset(vbID, offset, false)
 	} else {
 		start := time.Now()
 
@@ -115,8 +118,8 @@ func (s *stream) Open() {
 	openWg := &sync.WaitGroup{}
 	openWg.Add(vBucketNumber)
 
-	s.checkpoint = NewCheckpoint(s, vbIds, s.client.GetBucketUUID(), s.metadata, s.config)
-	s.offsets = s.checkpoint.Load()
+	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
+	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
 	observer := gDcp.NewObserver(s.config, s.collectionIDs, uuIDMap)
 
@@ -222,6 +225,7 @@ func (s *stream) Close() {
 	s.observer.CloseEnd()
 	s.observer = nil
 	s.offsets = map[uint16]*models.Offset{}
+	s.dirtyOffsets = map[uint16]bool{}
 
 	logger.Debug("stream stopped")
 }
@@ -234,8 +238,8 @@ func (s *stream) UnlockOffsets() {
 	s.offsetsLock.Unlock()
 }
 
-func (s *stream) GetOffsetsWithDirty() (map[uint16]*models.Offset, bool) {
-	return s.offsets, s.dirty
+func (s *stream) GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool) {
+	return s.offsets, s.dirtyOffsets, s.anyDirtyOffset
 }
 
 func (s *stream) GetObserver() gDcp.Observer {
@@ -246,8 +250,12 @@ func (s *stream) GetMetric() StreamMetric {
 	return s.metric
 }
 
-func (s *stream) UnmarkDirty() {
-	s.dirty = false
+func (s *stream) UnmarkDirty(vbID uint16) {
+	s.dirtyOffsets[vbID] = false
+}
+
+func (s *stream) UnmarkAnyDirtyOffset() {
+	s.anyDirtyOffset = false
 }
 
 func NewStream(client gDcp.Client,

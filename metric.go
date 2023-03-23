@@ -70,7 +70,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 	s.stream.LockOffsets()
 
-	offsets, _ := s.stream.GetOffsetsWithDirty()
+	offsets, _, _ := s.stream.GetOffsets()
 
 	for vbID, offset := range offsets {
 		ch <- prometheus.MustNewConstMetric(

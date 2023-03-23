@@ -12,4 +12,5 @@ const (
 	DefaultScopeName                    = "_default"
 	DefaultCollectionName               = "_default"
 	CheckpointTypeAuto                  = "auto"
+	CheckpointAutoResetTypeLatest       = "latest"
 )

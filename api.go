@@ -53,7 +53,7 @@ func (s *api) status(c *fiber.Ctx) error {
 }
 
 func (s *api) offset(c *fiber.Ctx) error {
-	offsets, _ := s.stream.GetOffsetsWithDirty()
+	offsets, _, _ := s.stream.GetOffsets()
 	return c.JSON(offsets)
 }
 

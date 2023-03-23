@@ -34,8 +34,6 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, dirtyOffsets map
 		for vbID, checkpointDocument := range state {
 			if !dirtyOffsets[vbID] {
 				continue
-			} else {
-				logger.Debug("saving checkpoint, vbID: %d", vbID)
 			}
 
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)

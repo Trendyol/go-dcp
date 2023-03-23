@@ -127,18 +127,20 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 		}
 
 		for vbID, doc := range dump {
-			if seqNoMap[vbID] != 0 {
+			currentSeqNo := seqNoMap[vbID]
+
+			if currentSeqNo != 0 {
 				dirtyOffsets[vbID] = true
 				anyDirtyOffset = true
 			}
 
 			offsets[vbID] = &models.Offset{
 				SnapshotMarker: &models.SnapshotMarker{
-					StartSeqNo: seqNoMap[vbID],
-					EndSeqNo:   seqNoMap[vbID],
+					StartSeqNo: currentSeqNo,
+					EndSeqNo:   currentSeqNo,
 				},
 				VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
-				SeqNo:  seqNoMap[vbID],
+				SeqNo:  currentSeqNo,
 			}
 		}
 

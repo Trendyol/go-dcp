@@ -25,6 +25,7 @@ type Dcp interface {
 	Close()
 	Commit()
 	GetConfig() *helpers.Config
+	SetMetadata(metadata Metadata)
 }
 
 type dcp struct {
@@ -78,7 +79,24 @@ func (s *dcp) stopHealthCheck() {
 	s.healthCheckTicker.Stop()
 }
 
+func (s *dcp) SetMetadata(metadata Metadata) {
+	s.metadata = metadata
+}
+
 func (s *dcp) Start() {
+	if s.metadata == nil {
+		switch {
+		case s.config.IsCouchbaseMetadata():
+			s.metadata = NewCBMetadata(s.client, s.config)
+		case s.config.IsFileMetadata():
+			s.metadata = NewFSMetadata(s.config)
+		default:
+			panic(errors.New("invalid metadata type"))
+		}
+	}
+
+	logger.Debug("using %v metadata", reflect.TypeOf(s.metadata))
+
 	infoHandler := info.NewHandler()
 
 	vBuckets := s.client.GetNumVBuckets()
@@ -164,7 +182,7 @@ func (s *dcp) GetConfig() *helpers.Config {
 	return s.config
 }
 
-func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadata) (Dcp, error) {
+func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 	client := gDcp.NewClient(config)
 
 	loggingLevel, err := zerolog.ParseLevel(config.Logging.Level)
@@ -185,7 +203,7 @@ func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadat
 		return nil, err
 	}
 
-	dcp := &dcp{
+	return &dcp{
 		client:            client,
 		listener:          listener,
 		config:            config,
@@ -193,30 +211,14 @@ func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadat
 		cancelCh:          make(chan os.Signal, 1),
 		stopCh:            make(chan struct{}, 1),
 		healCheckFailedCh: make(chan struct{}, 1),
-	}
-
-	switch {
-	case len(metadata) > 0:
-		dcp.metadata = metadata[0]
-	case config.IsCouchbaseMetadata():
-		dcp.metadata = NewCBMetadata(client, config)
-	case config.IsFileMetadata():
-		dcp.metadata = NewFSMetadata(config)
-	default:
-		return nil, errors.New("invalid metadata type")
-	}
-
-	logger.Debug("using %v metadata", reflect.TypeOf(dcp.metadata))
-
-	return dcp, nil
+	}, nil
 }
 
 // NewDcp creates a new DCP client
 //
 // config: path to a configuration file or a configuration struct
 // listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-// metadata is an optional parameter that can be used to pass custom metadata to the listener
-func NewDcp(configPath string, listener models.Listener, metadata ...Metadata) (Dcp, error) {
+func NewDcp(configPath string, listener models.Listener) (Dcp, error) {
 	config := helpers.NewConfig(helpers.Name, configPath)
-	return newDcp(config, listener, metadata)
+	return newDcp(config, listener)
 }

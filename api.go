@@ -26,21 +26,22 @@ type api struct {
 }
 
 func (s *api) Listen() {
-	logger.Info("api starting on port %d", s.config.API.Port)
+	logger.Log.Printf("api starting on port %d", s.config.API.Port)
 
 	err := s.app.Listen(fmt.Sprintf(":%d", s.config.API.Port))
 
 	if err != nil {
-		logger.Error(err, "api cannot start on port %d", s.config.API.Port)
+		logger.ErrorLog.Printf("api cannot start on port %d, err: %v", s.config.API.Port, err)
 	} else {
-		logger.Debug("api stopped")
+		logger.Log.Printf("api stopped")
 	}
 }
 
 func (s *api) Shutdown() {
 	err := s.app.Shutdown()
 	if err != nil {
-		logger.Panic(err, "api cannot be shutdown")
+		logger.ErrorLog.Printf("api cannot be shutdown, err: %v", err)
+		panic(err)
 	}
 }
 
@@ -79,7 +80,7 @@ func NewAPI(config *helpers.Config, client gDcp.Client, stream Stream, serviceDi
 	if err == nil {
 		app.Use(metricMiddleware)
 	} else {
-		logger.Error(err, "metric middleware cannot be initialized")
+		logger.ErrorLog.Printf("metric middleware cannot be initialized: %v", err)
 	}
 
 	api := &api{

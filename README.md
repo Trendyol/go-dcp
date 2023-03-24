@@ -89,10 +89,10 @@ $ go get github.com/Trendyol/go-dcp-client
 | `logger.level`                        | string            | no       | info      |
 | `checkpoint.type`                     | string            | no       | auto      |
 | `checkpoint.autoReset`                | string            | no       | earliest  |
-| `checkpoint.interval`                 | time.Duration     | no       | 10s       |
+| `checkpoint.interval`                 | time.Duration     | no       | 20s       |
 | `checkpoint.timeout`                  | time.Duration     | no       | 5s        |
 | `healthCheck.enabled`                 | bool              | no       | true      |
-| `healthCheck.interval`                | time.Duration     | no       | 10s       |
+| `healthCheck.interval`                | time.Duration     | no       | 20s       |
 | `healthCheck.timeout`                 | time.Duration     | no       | 5s        |
 | `rollbackMitigation.enabled`          | bool              | no       | true      |
 | `metadata.type`                       | string            | no       | couchbase |

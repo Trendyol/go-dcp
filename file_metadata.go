@@ -51,10 +51,9 @@ func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 
 func NewFSMetadata(config *helpers.Config) Metadata { //nolint:unused
 	if !config.IsFileMetadata() {
-		logger.Panic(
-			errors.New("unsupported metadata type"),
-			"cannot initialize file metadata",
-		)
+		err := errors.New("unsupported metadata type")
+		logger.ErrorLog.Printf("cannot initialize file metadata: %s", err)
+		panic(err)
 	}
 
 	fileName := config.GetFileMetadata()

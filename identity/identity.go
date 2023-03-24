@@ -16,7 +16,8 @@ type Identity struct {
 func (k *Identity) String() string {
 	str, err := jsoniter.Marshal(k)
 	if err != nil {
-		logger.Panic(err, "error while marshalling identity")
+		logger.ErrorLog.Printf("error while marshalling identity: %v", err)
+		panic(err)
 	}
 
 	return string(str)
@@ -31,7 +32,8 @@ func NewIdentityFromStr(str string) *Identity {
 
 	err := jsoniter.Unmarshal([]byte(str), &identity)
 	if err != nil {
-		logger.Panic(err, "error while unmarshalling identity")
+		logger.ErrorLog.Printf("error while unmarshalling identity: %v", err)
+		panic(err)
 	}
 
 	return &identity

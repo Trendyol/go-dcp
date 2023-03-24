@@ -7,18 +7,15 @@ require (
 	github.com/ansrivas/fiberprometheus/v2 v2.4.1
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/couchbase/gocbcore/v10 v10.2.0
-	github.com/go-logr/logr v1.2.2
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/google/uuid v1.3.0
 	github.com/gookit/config/v2 v2.1.8
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.14.0
-	github.com/rs/zerolog v1.28.0
 	github.com/stretchr/testify v1.8.1
 	github.com/testcontainers/testcontainers-go v0.14.0
 	k8s.io/apimachinery v0.22.5
 	k8s.io/client-go v0.22.5
-	k8s.io/klog/v2 v2.30.0
 )
 
 require (
@@ -36,6 +33,7 @@ require (
 	github.com/docker/docker v20.10.17+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/go-logr/logr v1.2.2 // indirect
 	github.com/gofiber/adaptor/v2 v2.1.25 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -87,6 +85,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.22.5 // indirect
+	k8s.io/klog/v2 v2.30.0 // indirect
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect

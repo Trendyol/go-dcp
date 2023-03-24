@@ -71,7 +71,7 @@ func (s *checkpoint) Save() {
 	offsets, dirtyOffsets, anyDirtyOffset := s.stream.GetOffsets()
 
 	if !anyDirtyOffset {
-		logger.Debug("no need to save checkpoint")
+		logger.Log.Printf("no need to save checkpoint")
 		return
 	}
 
@@ -96,10 +96,10 @@ func (s *checkpoint) Save() {
 
 	err := s.metadata.Save(dump, dirtyOffsets, s.bucketUUID)
 	if err == nil {
-		logger.Debug("saved checkpoint")
+		logger.Log.Printf("saved checkpoint")
 		s.stream.UnmarkDirtyOffsets()
 	} else {
-		logger.Error(err, "error while saving checkpoint document")
+		logger.ErrorLog.Printf("error while saving checkpoint document: %v", err)
 	}
 }
 
@@ -109,9 +109,10 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 
 	dump, exist, err := s.metadata.Load(s.vbIds, s.bucketUUID)
 	if err == nil {
-		logger.Debug("loaded checkpoint")
+		logger.Log.Printf("loaded checkpoint")
 	} else {
-		logger.Panic(err, "error while loading checkpoint document")
+		logger.ErrorLog.Printf("error while loading checkpoint document: %v", err)
+		panic(err)
 	}
 
 	offsets := map[uint16]*models.Offset{}
@@ -119,11 +120,12 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 	anyDirtyOffset := false
 
 	if !exist && s.config.Checkpoint.AutoReset == helpers.CheckpointAutoResetTypeLatest {
-		logger.Debug("auto reset checkpoint to latest")
+		logger.Log.Printf("no checkpoint found, auto reset checkpoint to latest")
 
 		seqNoMap, err := s.client.GetVBucketSeqNos()
 		if err != nil {
-			logger.Panic(err, "error while getting vbucket seqNos")
+			logger.ErrorLog.Printf("error while getting vbucket seqNos: %v", err)
+			panic(err)
 		}
 
 		for vbID, doc := range dump {
@@ -163,7 +165,7 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 
 func (s *checkpoint) Clear() {
 	_ = s.metadata.Clear(s.vbIds)
-	logger.Debug("cleared checkpoint")
+	logger.Log.Printf("cleared checkpoint")
 }
 
 func (s *checkpoint) StartSchedule() {
@@ -178,7 +180,7 @@ func (s *checkpoint) StartSchedule() {
 		}
 	}()
 
-	logger.Debug("started checkpoint schedule")
+	logger.Log.Printf("started checkpoint schedule")
 }
 
 func (s *checkpoint) StopSchedule() {
@@ -190,7 +192,7 @@ func (s *checkpoint) StopSchedule() {
 		s.schedule.Stop()
 	}
 
-	logger.Debug("stopped checkpoint schedule")
+	logger.Log.Printf("stopped checkpoint schedule")
 }
 
 func NewCheckpoint(

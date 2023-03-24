@@ -1,26 +1,31 @@
 package logger
 
-import (
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+import "fmt"
+
+// Logger interface API for log.Logger.
+type Logger interface {
+	Printf(string, ...interface{})
+}
+
+type DefaultLogger struct{}
+
+func (d *DefaultLogger) Printf(msg string, args ...interface{}) {
+	fmt.Printf(msg+"\n", args...)
+}
+
+var (
+	Log      Logger = &DefaultLogger{}
+	ErrorLog Logger = &DefaultLogger{}
 )
 
-func Info(format string, v ...interface{}) {
-	log.Info().Msgf(format, v...)
+type LogFunc func(string, ...interface{})
+
+func (f LogFunc) Printf(msg string, args ...interface{}) { f(msg, args...) }
+
+func SetLogger(logger Logger) {
+	Log = logger
 }
 
-func Debug(format string, v ...interface{}) {
-	log.Debug().Msgf(format, v...)
-}
-
-func Error(err error, format string, v ...interface{}) {
-	log.Error().Err(err).Msgf(format, v...)
-}
-
-func Panic(err error, format string, v ...interface{}) {
-	log.Panic().Err(err).Msgf(format, v...)
-}
-
-func SetLevel(level zerolog.Level) {
-	zerolog.SetGlobalLevel(level)
+func SetErrorLogger(logger Logger) {
+	ErrorLog = logger
 }

@@ -39,14 +39,14 @@ type leaderElector struct {
 func (le *leaderElector) Run(ctx context.Context) {
 	callback := leaderelection.LeaderCallbacks{
 		OnStartedLeading: func(c context.Context) {
-			logger.Debug("granted to leader")
+			logger.Log.Printf("granted to leader")
 
 			le.client.AddLabel(le.leaseLockNamespace, "role", "leader")
 
 			le.handler.OnBecomeLeader()
 		},
 		OnStoppedLeading: func() {
-			logger.Debug("revoked from leader")
+			logger.Log.Printf("revoked from leader")
 
 			le.client.RemoveLabel(le.leaseLockNamespace, "role")
 
@@ -59,7 +59,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 				return
 			}
 
-			logger.Debug("granted to follower for leader: %s", leaderIdentity.Name)
+			logger.Log.Printf("granted to follower for leader: %s", leaderIdentity.Name)
 
 			le.client.AddLabel(le.leaseLockNamespace, "role", "follower")
 
@@ -101,13 +101,17 @@ func NewLeaderElector(
 	if val, ok := config.LeaderElection.Config["leaseLockName"]; ok {
 		leaseLockName = val
 	} else {
-		logger.Panic(fmt.Errorf("leaseLockName is not defined"), "error while creating leader elector")
+		err := fmt.Errorf("leaseLockName is not defined")
+		logger.ErrorLog.Printf("error while creating leader elector: %v", err)
+		panic(err)
 	}
 
 	if val, ok := config.LeaderElection.Config["leaseLockNamespace"]; ok {
 		leaseLockNamespace = val
 	} else {
-		logger.Panic(fmt.Errorf("leaseLockNamespace is not defined"), "error while creating leader elector")
+		err := fmt.Errorf("leaseLockNamespace is not defined")
+		logger.ErrorLog.Printf("error while creating leader elector: %v", err)
+		panic(err)
 	}
 
 	le := &leaderElector{

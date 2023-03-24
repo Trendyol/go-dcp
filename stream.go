@@ -109,7 +109,8 @@ func (s *stream) Open() {
 
 	uuIDMap, err := s.client.GetVBucketUUIDMap(vbIds)
 	if err != nil {
-		logger.Panic(err, "cannot get vbucket uuid map")
+		logger.ErrorLog.Printf("cannot get vbucket uuid map: %v", err)
+		panic(err)
 	}
 
 	s.activeStreams.Add(vBucketNumber)
@@ -126,7 +127,8 @@ func (s *stream) Open() {
 		go func(innerVbId uint16) {
 			err := s.client.OpenStream(innerVbId, uuIDMap[innerVbId], s.collectionIDs, s.offsets[innerVbId], observer)
 			if err != nil {
-				logger.Panic(err, "cannot open stream, vbID: %d", innerVbId)
+				logger.ErrorLog.Printf("cannot open stream, vbID: %d, err: %v", innerVbId, err)
+				panic(err)
 			}
 
 			s.streamsLock.Lock()
@@ -141,7 +143,7 @@ func (s *stream) Open() {
 	go s.listenEnd()
 	go s.listen()
 
-	logger.Debug("stream started")
+	logger.Log.Printf("stream started")
 
 	s.checkpoint.StartSchedule()
 
@@ -157,18 +159,18 @@ func (s *stream) rebalance() {
 
 	s.balancing = false
 
-	logger.Info("rebalance is finished")
+	logger.Log.Printf("rebalance is finished")
 }
 
 func (s *stream) Rebalance() {
 	if s.rebalanceTimer != nil {
 		s.rebalanceTimer.Stop()
-		logger.Info("latest rebalance is canceled")
+		logger.Log.Printf("latest rebalance is canceled")
 	}
 
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
 
-	logger.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 }
 
 func (s *stream) Save() {
@@ -217,7 +219,7 @@ func (s *stream) Close() {
 
 	err := s.closeAllStreams()
 	if err != nil {
-		logger.Error(err, "cannot close all streams")
+		logger.ErrorLog.Printf("cannot close all streams: %v", err)
 	}
 
 	s.activeStreams.Wait()
@@ -226,7 +228,7 @@ func (s *stream) Close() {
 	s.offsets = map[uint16]*models.Offset{}
 	s.dirtyOffsets = map[uint16]bool{}
 
-	logger.Debug("stream stopped")
+	logger.Log.Printf("stream stopped")
 }
 
 func (s *stream) LockOffsets() {

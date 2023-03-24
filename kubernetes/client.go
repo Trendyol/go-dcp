@@ -7,13 +7,11 @@ import (
 
 	dcpModel "github.com/Trendyol/go-dcp-client/identity"
 
-	"github.com/go-logr/logr"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	clientSet "k8s.io/client-go/kubernetes"
 	v1 "k8s.io/client-go/kubernetes/typed/coordination/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 )
 
 type Client interface {
@@ -35,7 +33,7 @@ func (le *client) AddLabel(namespace string, key string, value string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		logger.Error(err, "failed to add label")
+		logger.ErrorLog.Printf("failed to add label: %v", err)
 	}
 }
 
@@ -47,16 +45,15 @@ func (le *client) RemoveLabel(namespace string, key string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		logger.Error(err, "failed to remove label")
+		logger.ErrorLog.Printf("failed to remove label: %v", err)
 	}
 }
 
 func NewClient(myIdentity *dcpModel.Identity) Client {
-	klog.SetLogger(logr.Discard())
-
 	kubernetesConfig, err := rest.InClusterConfig()
 	if err != nil {
-		logger.Panic(err, "failed to get kubernetes config")
+		logger.ErrorLog.Printf("failed to get kubernetes config: %v", err)
+		panic(err)
 	}
 
 	return &client{

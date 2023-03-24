@@ -12,10 +12,8 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/models"
 
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/rs/zerolog"
-
 	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
@@ -51,7 +49,8 @@ func (s *dcp) getCollectionIDs() map[uint32]string {
 	if s.config.IsCollectionModeEnabled() {
 		ids, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
 		if err != nil {
-			logger.Panic(err, "cannot get collection ids")
+			logger.ErrorLog.Printf("cannot get collection ids: %v", err)
+			panic(err)
 		}
 
 		collectionIDs = ids
@@ -66,7 +65,7 @@ func (s *dcp) startHealthCheck() {
 	go func() {
 		for range s.healthCheckTicker.C {
 			if err := s.client.Ping(); err != nil {
-				logger.Error(err, "health check failed")
+				logger.ErrorLog.Printf("health check failed: %v", err)
 				s.healthCheckTicker.Stop()
 				s.healCheckFailedCh <- struct{}{}
 				break
@@ -95,7 +94,7 @@ func (s *dcp) Start() {
 		}
 	}
 
-	logger.Debug("using %v metadata", reflect.TypeOf(s.metadata))
+	logger.Log.Printf("using %v metadata", reflect.TypeOf(s.metadata))
 
 	infoHandler := info.NewHandler()
 
@@ -138,7 +137,7 @@ func (s *dcp) Start() {
 		s.startHealthCheck()
 	}
 
-	logger.Info("dcp stream started")
+	logger.Log.Printf("dcp stream started")
 	select {
 	case <-s.stopCh:
 	case <-s.cancelCh:
@@ -171,7 +170,7 @@ func (s *dcp) Close() {
 	s.client.DcpClose()
 	s.client.Close()
 
-	logger.Info("dcp stream closed")
+	logger.Log.Printf("dcp stream closed")
 }
 
 func (s *dcp) Commit() {
@@ -185,14 +184,7 @@ func (s *dcp) GetConfig() *helpers.Config {
 func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 	client := gDcp.NewClient(config)
 
-	loggingLevel, err := zerolog.ParseLevel(config.Logging.Level)
-	if err != nil {
-		logger.Panic(err, "invalid logging level")
-	}
-
-	logger.SetLevel(loggingLevel)
-
-	err = client.Connect()
+	err := client.Connect()
 	if err != nil {
 		return nil, err
 	}
@@ -221,4 +213,11 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 func NewDcp(configPath string, listener models.Listener) (Dcp, error) {
 	config := helpers.NewConfig(helpers.Name, configPath)
 	return newDcp(config, listener)
+}
+
+func NewDcpWithLoggers(configPath string, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
+	logger.SetLogger(infoLogger)
+	logger.SetErrorLogger(errorLogger)
+
+	return NewDcp(configPath, listener)
 }

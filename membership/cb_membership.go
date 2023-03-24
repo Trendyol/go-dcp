@@ -67,8 +67,8 @@ func (h *cbMembership) register() {
 
 	err := h.createIndex(ctx, now)
 	if err != nil {
-		logger.Panic(err, "error while create index")
-		return
+		logger.ErrorLog.Printf("error while create index: %v", err)
+		panic(err)
 	}
 
 	h.clusterJoinTime = now
@@ -91,8 +91,8 @@ func (h *cbMembership) register() {
 	}
 
 	if err != nil {
-		logger.Panic(err, "error while register")
-		return
+		logger.ErrorLog.Printf("error while register: %v", err)
+		panic(err)
 	}
 }
 
@@ -137,7 +137,7 @@ func (h *cbMembership) heartbeat() {
 
 	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 	if err != nil {
-		logger.Error(err, "error while heartbeat")
+		logger.ErrorLog.Printf("error while heartbeat: %v", err)
 		return
 	}
 }
@@ -152,7 +152,7 @@ func (h *cbMembership) monitor() {
 
 	data, err := h.client.Get(ctx, h.scopeName, h.collectionName, h.instanceAll)
 	if err != nil {
-		logger.Error(err, "error while monitor try to get index")
+		logger.ErrorLog.Printf("error while monitor try to get index: %v", err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func (h *cbMembership) monitor() {
 
 	err = jsoniter.Unmarshal(data, &all)
 	if err != nil {
-		logger.Error(err, "error while monitor try to unmarshal index")
+		logger.ErrorLog.Printf("error while monitor try to unmarshal index: %v", err)
 		return
 	}
 
@@ -182,7 +182,8 @@ func (h *cbMembership) monitor() {
 			if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 				continue
 			} else {
-				logger.Panic(err, "error while monitor try to get instance")
+				logger.ErrorLog.Printf("error while monitor try to get instance: %v", err)
+				panic(err)
 			}
 		}
 
@@ -191,13 +192,14 @@ func (h *cbMembership) monitor() {
 		err = jsoniter.Unmarshal(doc, instance)
 
 		if err != nil {
-			logger.Panic(err, "error while monitor try to unmarshal instance %v", string(doc))
+			logger.ErrorLog.Printf("error while monitor try to unmarshal instance %v, err: %v", string(doc), err)
+			panic(err)
 		}
 
 		if h.isAlive(instance.HeartbeatTime) {
 			instances = append(instances, instance)
 		} else {
-			logger.Debug("instance %v is not alive", instance.ID)
+			logger.Log.Printf("instance %v is not alive", instance.ID)
 		}
 	}
 
@@ -216,7 +218,7 @@ func (h *cbMembership) updateIndex(ctx context.Context) {
 
 	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.instanceAll, all, 0)
 	if err != nil {
-		logger.Error(err, "error while update instances")
+		logger.ErrorLog.Printf("error while update instances: %v", err)
 		return
 	}
 }
@@ -232,7 +234,9 @@ func (h *cbMembership) rebalance(instances []*Instance) {
 	}
 
 	if selfOrder == 0 {
-		logger.Panic(errors.New("cant find self in cluster"), "error while rebalance, self = %v", string(h.id))
+		err := errors.New("cant find self in cluster")
+		logger.ErrorLog.Printf("error while rebalance, self = %v, err: %v", string(h.id), err)
+		panic(err)
 	} else {
 		h.handler.OnModelChange(&info.Model{
 			MemberNumber: selfOrder,
@@ -257,7 +261,7 @@ func (h *cbMembership) startMonitor() {
 	h.monitorTicker = time.NewTicker(_monitorIntervalMs * time.Millisecond)
 
 	go func() {
-		logger.Info("couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)
+		logger.Log.Printf("couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(h.config.Dcp.Group.Membership.RebalanceDelay)
 
 		for range h.monitorTicker.C {
@@ -274,10 +278,9 @@ func (h *cbMembership) Close() {
 
 func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Handler) Membership {
 	if !config.IsCouchbaseMetadata() {
-		logger.Panic(
-			errors.New("unsupported metadata type"),
-			"cannot initialize couchbase membership",
-		)
+		err := errors.New("unsupported metadata type")
+		logger.ErrorLog.Printf("cannot initialize couchbase membership, err: %v", err)
+		panic(err)
 	}
 
 	_, scope, collection := config.GetCouchbaseMetadata()

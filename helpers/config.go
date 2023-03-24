@@ -115,12 +115,14 @@ func (c *Config) GetFileMetadata() string {
 		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
 	} else {
 		err := errors.New("file metadata file name is not set")
-		logger.Panic(err, "failed to get metadata file name")
+		logger.ErrorLog.Printf("failed to get metadata file name: %v", err)
+		panic(err)
 	}
 
 	if fileName == "" {
 		err := errors.New("file metadata file name is empty")
-		logger.Panic(err, "failed to get metadata file name")
+		logger.ErrorLog.Printf("failed to get metadata file name: %v", err)
+		panic(err)
 	}
 
 	return fileName
@@ -133,7 +135,8 @@ func (c *Config) GetCouchbaseMetadata() (string, string, string) {
 		bucket = c.Metadata.Config[CouchbaseMetadataBucketConfig]
 	} else {
 		err := errors.New("couchbase metadata bucket name is not set")
-		logger.Panic(err, "failed to get metadata bucket name")
+		logger.ErrorLog.Printf("failed to get metadata bucket name: %v", err)
+		panic(err)
 	}
 
 	if _, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
@@ -160,7 +163,7 @@ func Options(opts *config.Options) {
 
 func applyUnhandledDefaults(_config *Config) {
 	if _config.Checkpoint.Interval == 0 {
-		_config.Checkpoint.Interval = 10 * time.Second
+		_config.Checkpoint.Interval = 20 * time.Second
 	}
 
 	if _config.Checkpoint.Timeout == 0 {
@@ -168,7 +171,7 @@ func applyUnhandledDefaults(_config *Config) {
 	}
 
 	if _config.HealthCheck.Interval == 0 {
-		_config.HealthCheck.Interval = 10 * time.Second
+		_config.HealthCheck.Interval = 20 * time.Second
 	}
 
 	if _config.HealthCheck.Timeout == 0 {
@@ -189,17 +192,19 @@ func NewConfig(name string, filePath string) *Config {
 
 	err := conf.LoadFiles(filePath)
 	if err != nil {
-		logger.Panic(err, "cannot load config file")
+		logger.ErrorLog.Printf("cannot load config file: %v", err)
+		panic(err)
 	}
 
 	_config := &Config{}
 	err = conf.Decode(_config)
 
 	if err != nil {
-		logger.Panic(err, "cannot decode config file")
+		logger.ErrorLog.Printf("cannot decode config file: %v", err)
+		panic(err)
 	}
 
-	logger.Debug("config loaded from file: %v", filePath)
+	logger.Log.Printf("config loaded from file: %v", filePath)
 
 	applyUnhandledDefaults(_config)
 

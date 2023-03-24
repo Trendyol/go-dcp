@@ -3,7 +3,6 @@ package dcp
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -188,11 +187,11 @@ func (s *client) Connect() error {
 			s.metaAgent = metaAgent
 		}
 
-		logger.Debug("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, metadataBucketName)
+		logger.Log.Printf("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, metadataBucketName)
 		return nil
 	}
 
-	logger.Debug("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
+	logger.Log.Printf("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
@@ -206,7 +205,7 @@ func (s *client) Close() {
 		_ = s.agent.Close()
 	}
 
-	logger.Debug("connections closed %s", s.config.Hosts)
+	logger.Log.Printf("connections closed %s", s.config.Hosts)
 }
 
 func (s *client) DcpConnect() error {
@@ -266,14 +265,14 @@ func (s *client) DcpConnect() error {
 	}
 
 	s.dcpAgent = client
-	logger.Debug("connected to %s as dcp, bucket: %s", s.config.Hosts, s.config.BucketName)
+	logger.Log.Printf("connected to %s as dcp, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
 
 func (s *client) DcpClose() {
 	_ = s.dcpAgent.Close()
-	logger.Debug("dcp connection closed %s", s.config.Hosts)
+	logger.Log.Printf("dcp connection closed %s", s.config.Hosts)
 }
 
 func (s *client) GetBucketUUID() string {
@@ -287,10 +286,6 @@ func (s *client) GetBucketUUID() string {
 }
 
 func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
-	if s.dcpAgent == nil {
-		return nil, fmt.Errorf("please connect to the dcp first")
-	}
-
 	snapshot, err := s.dcpAgent.ConfigSnapshot()
 	if err != nil {
 		return nil, err
@@ -329,10 +324,6 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 }
 
 func (s *client) GetNumVBuckets() int {
-	if s.dcpAgent == nil {
-		logger.Panic(fmt.Errorf("dcp agent is nil"), "please connect to the dcp first")
-	}
-
 	var err error
 
 	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
@@ -341,8 +332,8 @@ func (s *client) GetNumVBuckets() int {
 		}
 	}
 
-	logger.Panic(err, "failed to get number of vbucket")
-	return 0
+	logger.ErrorLog.Printf("failed to get number of vbucket: %v", err)
+	panic(err)
 }
 
 func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error) {
@@ -454,7 +445,7 @@ func (s *client) OpenStream(
 
 	if err != nil {
 		if errors.Is(err, gocbcore.ErrMemdRollback) && s.config.RollbackMitigation.Enabled {
-			logger.Debug("rollback for vbID: %d", vbID)
+			logger.Log.Printf("rollback for vbID: %d", vbID)
 			return s.openStreamWithRollback(vbID, vbUUID, gocbcore.SeqNo(0), observer, openStreamOptions)
 		}
 	}

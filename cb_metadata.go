@@ -103,7 +103,8 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 				state[vbID] = doc
 				stateLock.Unlock()
 			} else {
-				logger.Panic(err, "cannot load checkpoint, vbID: %d", vbID)
+				logger.ErrorLog.Printf("cannot load checkpoint, vbID: %d, err: %v", vbID, err)
+				panic(err)
 			}
 
 			wg.Done()
@@ -130,10 +131,9 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 
 func NewCBMetadata(client gDcp.Client, config *helpers.Config) Metadata {
 	if !config.IsCouchbaseMetadata() {
-		logger.Panic(
-			errors.New("unsupported metadata type"),
-			"cannot initialize couchbase metadata",
-		)
+		err := errors.New("unsupported metadata type")
+		logger.ErrorLog.Printf("cannot initialize couchbase metadata: %v", err)
+		panic(err)
 	}
 
 	_, scope, collection := config.GetCouchbaseMetadata()

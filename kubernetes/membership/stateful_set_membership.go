@@ -23,16 +23,16 @@ func (s *statefulSetMembership) Close() {
 func NewStatefulSetMembership(config *helpers.Config) membership.Membership {
 	statefulSetInfo, err := NewStatefulSetInfoFromHostname()
 	if err != nil {
-		logger.Panic(err, "error while creating statefulSet membership")
+		logger.ErrorLog.Printf("error while creating statefulSet membership: %v", err)
+		panic(err)
 	}
 
 	memberNumber := statefulSetInfo.PodOrdinal + 1
 
 	if memberNumber > config.Dcp.Group.Membership.TotalMembers {
-		logger.Panic(
-			fmt.Errorf("memberNumber is greater than totalMembers"),
-			"memberNumber: %v, totalMembers: %v", memberNumber, config.Dcp.Group.Membership.TotalMembers,
-		)
+		err := fmt.Errorf("memberNumber is greater than totalMembers")
+		logger.ErrorLog.Printf("memberNumber: %v, totalMembers: %v, err: %v", memberNumber, config.Dcp.Group.Membership.TotalMembers, err)
+		panic(err)
 	}
 
 	return &statefulSetMembership{

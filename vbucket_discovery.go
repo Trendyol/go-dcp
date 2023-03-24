@@ -1,7 +1,7 @@
 package godcpclient
 
 import (
-	"fmt"
+	"errors"
 
 	gDcp "github.com/Trendyol/go-dcp-client/dcp"
 
@@ -32,7 +32,7 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	receivedInfo := s.membership.GetInfo()
 
 	readyToStreamVBuckets := helpers.ChunkSlice[uint16](vBuckets, receivedInfo.TotalMembers)[receivedInfo.MemberNumber-1]
-	logger.Info(
+	logger.Log.Printf(
 		"member: %v/%v, vbucket range: %v-%v",
 		receivedInfo.MemberNumber,
 		receivedInfo.TotalMembers,
@@ -45,7 +45,7 @@ func (s *vBucketDiscovery) Get() []uint16 {
 
 func (s *vBucketDiscovery) Close() {
 	s.membership.Close()
-	logger.Debug("vbucket discovery closed")
+	logger.Log.Printf("vbucket discovery closed")
 }
 
 func NewVBucketDiscovery(client gDcp.Client,
@@ -65,10 +65,12 @@ func NewVBucketDiscovery(client gDcp.Client,
 	case config.Dcp.Group.Membership.Type == helpers.KubernetesHaMembershipType:
 		ms = kms.NewHaMembership(config, infoHandler)
 	default:
-		logger.Panic(fmt.Errorf("unknown membership"), "membership: %s", config.Dcp.Group.Membership.Type)
+		err := errors.New("unknown membership")
+		logger.ErrorLog.Printf("membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)
+		panic(err)
 	}
 
-	logger.Debug("vbucket discovery opened with membership type: %s", config.Dcp.Group.Membership.Type)
+	logger.Log.Printf("vbucket discovery opened with membership type: %s", config.Dcp.Group.Membership.Type)
 
 	return &vBucketDiscovery{
 		vBucketNumber: vBucketNumber,

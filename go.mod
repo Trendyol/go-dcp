@@ -6,13 +6,13 @@ require (
 	github.com/VividCortex/ewma v1.2.0
 	github.com/ansrivas/fiberprometheus/v2 v2.4.1
 	github.com/avast/retry-go/v4 v4.3.1
-	github.com/couchbase/gocbcore/v10 v10.2.0
+	github.com/couchbase/gocbcore/v10 v10.2.2
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/google/uuid v1.3.0
 	github.com/gookit/config/v2 v2.1.8
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.14.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/testcontainers/testcontainers-go v0.14.0
 	k8s.io/apimachinery v0.22.5
 	k8s.io/client-go v0.22.5

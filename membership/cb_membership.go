@@ -273,14 +273,23 @@ func (h *cbMembership) Close() {
 }
 
 func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Handler) Membership {
+	if !config.IsCouchbaseMetadata() {
+		logger.Panic(
+			errors.New("unsupported metadata type"),
+			"cannot initialize couchbase membership",
+		)
+	}
+
+	_, scope, collection := config.GetCouchbaseMetadata()
+
 	cbm := &cbMembership{
 		infoChan:       make(chan *info.Model),
 		client:         client,
 		id:             []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
 		instanceAll:    []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
 		handler:        handler,
-		scopeName:      config.MetadataScope,
-		collectionName: config.MetadataCollection,
+		scopeName:      scope,
+		collectionName: collection,
 		config:         config,
 	}
 

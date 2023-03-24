@@ -97,7 +97,7 @@ func (s *checkpoint) Save() {
 	err := s.metadata.Save(dump, dirtyOffsets, s.bucketUUID)
 	if err == nil {
 		logger.Debug("saved checkpoint")
-		s.stream.UnmarkAnyDirtyOffset()
+		s.stream.UnmarkDirtyOffsets()
 	} else {
 		logger.Error(err, "error while saving checkpoint document")
 	}

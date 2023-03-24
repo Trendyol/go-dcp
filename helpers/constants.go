@@ -13,4 +13,10 @@ const (
 	DefaultCollectionName               = "_default"
 	CheckpointTypeAuto                  = "auto"
 	CheckpointAutoResetTypeLatest       = "latest"
+	MetadataTypeCouchbase               = "couchbase"
+	MetadataTypeFile                    = "file"
+	CouchbaseMetadataBucketConfig       = "bucket"
+	CouchbaseMetadataScopeConfig        = "scope"
+	CouchbaseMetadataCollectionConfig   = "collection"
+	FileMetadataFileNameConfig          = "fileName"
 )

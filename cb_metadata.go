@@ -18,8 +18,10 @@ import (
 )
 
 type cbMetadata struct {
-	client gDcp.Client
-	config *helpers.Config
+	client         gDcp.Client
+	config         *helpers.Config
+	scopeName      string
+	collectionName string
 }
 
 func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, dirtyOffsets map[uint16]bool, _ string) error {
@@ -37,14 +39,14 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, dirtyOffsets map
 			}
 
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-			err = s.client.UpsertXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name, checkpointDocument, 0)
+			err = s.client.UpsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
 
 			var kvErr *gocbcore.KeyValueError
 			if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-				err = s.client.CreateDocument(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, []byte{}, 0)
+				err = s.client.CreateDocument(ctx, s.scopeName, s.collectionName, id, []byte{}, 0)
 
 				if err == nil {
-					err = s.client.UpsertXattrs(ctx, s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name, checkpointDocument, 0)
+					err = s.client.UpsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
 				}
 			}
 
@@ -79,7 +81,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-			data, err := s.client.GetXattrs(s.config.MetadataScope, s.config.MetadataCollection, id, helpers.Name)
+			data, err := s.client.GetXattrs(s.scopeName, s.collectionName, id, helpers.Name)
 
 			var doc *CheckpointDocument
 
@@ -120,16 +122,27 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	for _, vbID := range vbIds {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-		s.client.DeleteDocument(ctx, s.config.MetadataScope, s.config.MetadataCollection, id)
+		s.client.DeleteDocument(ctx, s.scopeName, s.collectionName, id)
 	}
 
 	return nil
 }
 
 func NewCBMetadata(client gDcp.Client, config *helpers.Config) Metadata {
+	if !config.IsCouchbaseMetadata() {
+		logger.Panic(
+			errors.New("unsupported metadata type"),
+			"cannot initialize couchbase metadata",
+		)
+	}
+
+	_, scope, collection := config.GetCouchbaseMetadata()
+
 	return &cbMetadata{
-		client: client,
-		config: config,
+		client:         client,
+		config:         config,
+		scopeName:      scope,
+		collectionName: collection,
 	}
 }
 

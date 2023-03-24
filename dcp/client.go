@@ -174,24 +174,33 @@ func (s *client) Connect() error {
 
 	s.agent = agent
 
-	if s.config.MetadataBucket == s.config.BucketName {
-		s.metaAgent = agent
-	} else {
-		metaAgent, err := s.connect(s.config.MetadataBucket)
-		if err != nil {
-			return err
+	if s.config.IsCouchbaseMetadata() {
+		metadataBucketName, _, _ := s.config.GetCouchbaseMetadata()
+
+		if metadataBucketName == s.config.BucketName {
+			s.metaAgent = agent
+		} else {
+			metaAgent, err := s.connect(metadataBucketName)
+			if err != nil {
+				return err
+			}
+
+			s.metaAgent = metaAgent
 		}
 
-		s.metaAgent = metaAgent
+		logger.Debug("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, metadataBucketName)
+		return nil
 	}
 
-	logger.Debug("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, s.config.MetadataBucket)
+	logger.Debug("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
 
 func (s *client) Close() {
-	_ = s.metaAgent.Close()
+	if s.metaAgent != nil {
+		_ = s.metaAgent.Close()
+	}
 
 	if s.metaAgent != s.agent {
 		_ = s.agent.Close()

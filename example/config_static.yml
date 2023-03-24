@@ -3,7 +3,9 @@ hosts:
 username: user
 password: password
 bucketName: dcp-test
-metadataBucket: dcp-test-meta
+metadata:
+  config:
+    bucket: dcp-test-meta
 dcp:
   group:
     name: groupName

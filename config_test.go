@@ -21,5 +21,4 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "sample", config.BucketName)
 	assert.Equal(t, "Administrator", config.Username)
 	assert.Equal(t, "password", config.Password)
-	assert.Equal(t, "sample", config.MetadataBucket)
 }

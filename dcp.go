@@ -1,6 +1,7 @@
 package godcpclient
 
 import (
+	"errors"
 	"os"
 	"os/signal"
 	"reflect"
@@ -23,6 +24,7 @@ type Dcp interface {
 	Start()
 	Close()
 	Commit()
+	GetConfig() *helpers.Config
 }
 
 type dcp struct {
@@ -158,6 +160,10 @@ func (s *dcp) Commit() {
 	s.stream.Save()
 }
 
+func (s *dcp) GetConfig() *helpers.Config {
+	return s.config
+}
+
 func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadata) (Dcp, error) {
 	client := gDcp.NewClient(config)
 
@@ -189,13 +195,18 @@ func newDcp(config *helpers.Config, listener models.Listener, metadata []Metadat
 		healCheckFailedCh: make(chan struct{}, 1),
 	}
 
-	if len(metadata) > 0 {
-		logger.Debug("using %v metadata", reflect.TypeOf(metadata[0]))
+	switch {
+	case len(metadata) > 0:
 		dcp.metadata = metadata[0]
-	} else {
-		logger.Debug("using default metadata which is couchbase")
+	case config.IsCouchbaseMetadata():
 		dcp.metadata = NewCBMetadata(client, config)
+	case config.IsFileMetadata():
+		dcp.metadata = NewFSMetadata(config)
+	default:
+		return nil, errors.New("invalid metadata type")
 	}
+
+	logger.Debug("using %v metadata", reflect.TypeOf(dcp.metadata))
 
 	return dcp, nil
 }

@@ -25,8 +25,7 @@ type Stream interface {
 	GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool)
 	GetObserver() gDcp.Observer
 	GetMetric() StreamMetric
-	UnmarkDirty(vbID uint16)
-	UnmarkAnyDirtyOffset()
+	UnmarkDirtyOffsets()
 }
 
 type StreamMetric struct {
@@ -250,12 +249,9 @@ func (s *stream) GetMetric() StreamMetric {
 	return s.metric
 }
 
-func (s *stream) UnmarkDirty(vbID uint16) {
-	s.dirtyOffsets[vbID] = false
-}
-
-func (s *stream) UnmarkAnyDirtyOffset() {
+func (s *stream) UnmarkDirtyOffsets() {
 	s.anyDirtyOffset = false
+	s.dirtyOffsets = map[uint16]bool{}
 }
 
 func NewStream(client gDcp.Client,

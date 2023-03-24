@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/logger"
@@ -9,7 +10,7 @@ import (
 )
 
 type ConfigDCPGroupMembership struct {
-	Type           string        `yaml:"type"`
+	Type           string        `yaml:"type" default:"couchbase"`
 	MemberNumber   int           `yaml:"memberNumber" default:"1"`
 	TotalMembers   int           `yaml:"totalMembers" default:"1"`
 	RebalanceDelay time.Duration `yaml:"rebalanceDelay"`
@@ -72,15 +73,17 @@ type ConfigRollbackMitigation struct {
 	Enabled bool `yaml:"enabled" default:"true"`
 }
 
+type ConfigMetadata struct {
+	Type   string            `yaml:"type" default:"couchbase"`
+	Config map[string]string `yaml:"config"`
+}
+
 type Config struct {
 	LeaderElection     ConfigLeaderElection     `yaml:"leaderElector"`
 	Metric             ConfigMetric             `yaml:"metric"`
 	BucketName         string                   `yaml:"bucketName"`
 	ScopeName          string                   `yaml:"scopeName" default:"_default"`
 	CollectionNames    []string                 `yaml:"collectionNames"`
-	MetadataBucket     string                   `yaml:"metadataBucket"`
-	MetadataScope      string                   `yaml:"metadataScope" default:"_default"`
-	MetadataCollection string                   `yaml:"metadataCollection" default:"_default"`
 	Password           string                   `yaml:"password"`
 	Username           string                   `yaml:"username"`
 	Logging            ConfigLogging            `yaml:"logging"`
@@ -90,10 +93,62 @@ type Config struct {
 	API                ConfigAPI                `yaml:"api"`
 	HealthCheck        ConfigHealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation ConfigRollbackMitigation `yaml:"rollbackMitigation"`
+	Metadata           ConfigMetadata           `yaml:"metadata"`
 }
 
 func (c *Config) IsCollectionModeEnabled() bool {
 	return !(c.ScopeName == DefaultScopeName && len(c.CollectionNames) == 1 && c.CollectionNames[0] == DefaultCollectionName)
+}
+
+func (c *Config) IsCouchbaseMetadata() bool {
+	return c.Metadata.Type == MetadataTypeCouchbase
+}
+
+func (c *Config) IsFileMetadata() bool {
+	return c.Metadata.Type == MetadataTypeFile
+}
+
+func (c *Config) GetFileMetadata() string {
+	var fileName string
+
+	if _, ok := c.Metadata.Config[FileMetadataFileNameConfig]; ok {
+		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
+	} else {
+		err := errors.New("file metadata file name is not set")
+		logger.Panic(err, "failed to get metadata file name")
+	}
+
+	if fileName == "" {
+		err := errors.New("file metadata file name is empty")
+		logger.Panic(err, "failed to get metadata file name")
+	}
+
+	return fileName
+}
+
+func (c *Config) GetCouchbaseMetadata() (string, string, string) {
+	var bucket, scope, collection string
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
+		bucket = c.Metadata.Config[CouchbaseMetadataBucketConfig]
+	} else {
+		err := errors.New("couchbase metadata bucket name is not set")
+		logger.Panic(err, "failed to get metadata bucket name")
+	}
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
+		scope = c.Metadata.Config[CouchbaseMetadataScopeConfig]
+	} else {
+		scope = DefaultScopeName
+	}
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
+		collection = c.Metadata.Config[CouchbaseMetadataCollectionConfig]
+	} else {
+		collection = DefaultCollectionName
+	}
+
+	return bucket, scope, collection
 }
 
 func Options(opts *config.Options) {
@@ -122,10 +177,6 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.Dcp.Group.Membership.RebalanceDelay == 0 {
 		_config.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
-	}
-
-	if _config.MetadataBucket == "" {
-		_config.MetadataBucket = _config.BucketName
 	}
 
 	if _config.CollectionNames == nil {

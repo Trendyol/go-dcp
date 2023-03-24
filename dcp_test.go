@@ -28,7 +28,9 @@ bucketName: sample
 scopeName: _default
 collectionNames:
   - _default
-metadataBucket: sample
+metadata:
+  config:
+    bucket: sample
 checkpoint:
   type: manual
 logging:
@@ -39,9 +41,7 @@ dcp:
   group:
     name: groupName
     membership:
-      type: static
-      memberNumber: 1
-      totalMembers: 1`
+      type: static`
 
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {

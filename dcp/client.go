@@ -129,6 +129,9 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 			IoConfig: gocbcore.IoConfig{
 				UseCollections: true,
 			},
+			KVConfig: gocbcore.KVConfig{
+				ConnectionBufferSize: s.config.Dcp.ConnectionBufferSizeKb * 1024,
+			},
 		},
 	)
 	if err != nil {
@@ -219,6 +222,9 @@ func (s *client) DcpConnect() error {
 		DCPConfig: gocbcore.DCPConfig{
 			BufferSize:      s.config.Dcp.BufferSizeKb * 1024,
 			UseExpiryOpcode: true,
+		},
+		KVConfig: gocbcore.KVConfig{
+			ConnectionBufferSize: s.config.Dcp.ConnectionBufferSizeKb * 1024,
 		},
 	}
 

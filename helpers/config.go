@@ -26,9 +26,10 @@ type ConfigDCPListener struct {
 }
 
 type ConfigDCP struct {
-	Group        ConfigDCPGroup    `yaml:"group"`
-	BufferSizeKb int               `yaml:"bufferSizeKb" default:"16384"`
-	Listener     ConfigDCPListener `yaml:"listener"`
+	Group                  ConfigDCPGroup    `yaml:"group"`
+	BufferSizeKb           int               `yaml:"bufferSizeKb" default:"16384"`
+	ConnectionBufferSizeKb uint              `yaml:"connectionBufferSizeKb" default:"20480"`
+	Listener               ConfigDCPListener `yaml:"listener"`
 }
 
 type ConfigAPI struct {

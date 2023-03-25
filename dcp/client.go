@@ -46,6 +46,7 @@ type Client interface {
 	GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error)
 	CreatePath(ctx context.Context, scopeName string, collectionName string, id []byte, path []byte, value interface{}) error
 	Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error)
+	ObserveVbID(vbID uint16, vbUUID gocbcore.VbUUID) (*gocbcore.ObserveVbResult, error)
 }
 
 type client struct {
@@ -361,10 +362,36 @@ func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, 
 
 func (s *client) openStreamWithRollback(vbID uint16,
 	vbUUID gocbcore.VbUUID,
-	seqNo gocbcore.SeqNo,
+	failedSeqNo gocbcore.SeqNo,
 	observer Observer,
 	openStreamOptions gocbcore.OpenStreamOptions,
 ) error {
+	observeResult, err := s.ObserveVbID(vbID, vbUUID)
+	if err != nil {
+		return err
+	}
+
+	persistReqNo := observeResult.PersistSeqNo
+
+	if persistReqNo >= failedSeqNo {
+		err := errors.New("failed seq no is less than persist seq no")
+		logger.ErrorLog.Printf("open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, err: %v",
+			vbID, vbUUID,
+			failedSeqNo, persistReqNo,
+			err,
+		)
+
+		return err
+	}
+
+	logger.Log.Printf(
+		"open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d",
+		vbID, vbUUID,
+		failedSeqNo, persistReqNo,
+	)
+
+	observer.AddCatchup(vbID, uint64(failedSeqNo))
+
 	opm := helpers.NewAsyncOp(context.Background())
 
 	ch := make(chan error)
@@ -373,10 +400,10 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		vbID,
 		0,
 		vbUUID,
-		seqNo,
+		persistReqNo,
 		0xffffffffffffffff,
-		seqNo,
-		seqNo,
+		persistReqNo,
+		persistReqNo,
 		observer,
 		openStreamOptions,
 		func(_ []gocbcore.FailoverEntry, err error) {
@@ -445,12 +472,38 @@ func (s *client) OpenStream(
 
 	if err != nil {
 		if errors.Is(err, gocbcore.ErrMemdRollback) && s.config.RollbackMitigation.Enabled {
-			logger.Log.Printf("rollback for vbID: %d", vbID)
-			return s.openStreamWithRollback(vbID, vbUUID, gocbcore.SeqNo(0), observer, openStreamOptions)
+			logger.Log.Printf("need to rollback for vbID: %d", vbID)
+			return s.openStreamWithRollback(vbID, vbUUID, gocbcore.SeqNo(offset.SeqNo), observer, openStreamOptions)
 		}
 	}
 
 	return err
+}
+
+func (s *client) ObserveVbID(vbID uint16, vbUUID gocbcore.VbUUID) (*gocbcore.ObserveVbResult, error) {
+	opm := helpers.NewAsyncOp(context.Background())
+	ch := make(chan error)
+
+	var response *gocbcore.ObserveVbResult
+
+	op, err := s.agent.ObserveVb(gocbcore.ObserveVbOptions{
+		VbID:   vbID,
+		VbUUID: vbUUID,
+	}, func(result *gocbcore.ObserveVbResult, err error) {
+		opm.Resolve()
+
+		response = result
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return response, <-ch
 }
 
 func (s *client) CloseStream(vbID uint16) error {

@@ -19,7 +19,6 @@ import (
 type Client interface {
 	Ping() error
 	GetAgent() *gocbcore.Agent
-	GetMetaAgent() *gocbcore.Agent
 	Connect() error
 	Close()
 	DcpConnect() error
@@ -37,16 +36,13 @@ type Client interface {
 	) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
-	GetCollectionID(scopeName string, collectionName string) (uint32, error)
 	UpsertXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string, xattrs interface{}, expiry uint32) error
 	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
-	ExecuteQuery(ctx context.Context, query []byte) ([][]byte, error)
 	UpdateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
 	DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte)
 	GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error)
 	CreatePath(ctx context.Context, scopeName string, collectionName string, id []byte, path []byte, value interface{}) error
 	Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error)
-	ObserveVbID(vbID uint16, vbUUID gocbcore.VbUUID) (*gocbcore.ObserveVbResult, error)
 }
 
 type client struct {
@@ -112,10 +108,6 @@ func (s *client) Ping() error {
 
 func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
-}
-
-func (s *client) GetMetaAgent() *gocbcore.Agent {
-	return s.metaAgent
 }
 
 func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
@@ -337,6 +329,30 @@ func (s *client) GetNumVBuckets() int {
 	panic(err)
 }
 
+func (s *client) getNumReplicas() int {
+	var err error
+
+	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
+		if replicas, err := snapshot.NumReplicas(); err == nil {
+			return replicas
+		}
+	}
+
+	logger.ErrorLog.Printf("failed to get number of replica: %v", err)
+	panic(err)
+}
+
+func (s *client) getConfigSnapshot() *gocbcore.ConfigSnapshot {
+	var err error
+
+	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
+		return snapshot
+	}
+
+	logger.ErrorLog.Printf("failed to get number of replica: %v", err)
+	panic(err)
+}
+
 func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error) {
 	uuIDMap := make(map[uint16]gocbcore.VbUUID)
 
@@ -360,24 +376,100 @@ func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, 
 	return uuIDMap, nil
 }
 
+func (s *client) getAbsentInstances(vbID uint16, replicas int) (map[int]bool, error) {
+	snapshot := s.getConfigSnapshot()
+	absentInstances := map[int]bool{}
+
+	for idx := 0; idx <= replicas; idx++ {
+		serverIndex, err := snapshot.VbucketToServer(vbID, uint32(idx))
+		if err != nil {
+			return nil, err
+		}
+
+		if serverIndex < 0 {
+			absentInstances[idx] = true
+		}
+	}
+
+	return absentInstances, nil
+}
+
+func (s *client) getObserveInstances(vbID uint16, vbUUID gocbcore.VbUUID, replicas int) (map[int]*gocbcore.ObserveVbResult, error) {
+	observeInstances := map[int]*gocbcore.ObserveVbResult{}
+
+	for idx := 0; idx <= replicas; idx++ {
+		observeResult, err := s.observeVbID(vbID, vbUUID, idx)
+		if err != nil {
+			return nil, err
+		}
+
+		observeInstances[idx] = observeResult
+	}
+
+	return observeInstances, nil
+}
+
+func (s *client) getMinSeqNo(vbID uint16, vbUUID gocbcore.VbUUID) (gocbcore.SeqNo, error) {
+	replicas := s.getNumReplicas()
+	absentInstances, err := s.getAbsentInstances(vbID, replicas)
+	if err != nil {
+		return 0, err
+	}
+
+	startIndex := -1
+
+	for i := 0; i <= replicas; i++ {
+		if !absentInstances[i] {
+			startIndex = i
+			break
+		}
+	}
+
+	if startIndex == -1 {
+		return 0, nil
+	}
+
+	observeInstances, err := s.getObserveInstances(vbID, vbUUID, replicas)
+	if err != nil {
+		return 0, err
+	}
+
+	vbuuid := observeInstances[startIndex].VbUUID
+	minSeqNo := observeInstances[startIndex].PersistSeqNo
+
+	for i := startIndex + 1; i <= replicas; i++ {
+		if absentInstances[i] {
+			continue
+		}
+
+		if vbuuid != observeInstances[i].VbUUID {
+			return 0, nil
+		}
+
+		if minSeqNo > observeInstances[i].PersistSeqNo {
+			minSeqNo = observeInstances[i].PersistSeqNo
+		}
+	}
+
+	return minSeqNo, nil
+}
+
 func (s *client) openStreamWithRollback(vbID uint16,
 	vbUUID gocbcore.VbUUID,
 	failedSeqNo gocbcore.SeqNo,
 	observer Observer,
 	openStreamOptions gocbcore.OpenStreamOptions,
 ) error {
-	observeResult, err := s.ObserveVbID(vbID, vbUUID)
+	persistSeqNo, err := s.getMinSeqNo(vbID, vbUUID)
 	if err != nil {
 		return err
 	}
 
-	persistReqNo := observeResult.PersistSeqNo
-
-	if persistReqNo >= failedSeqNo {
+	if persistSeqNo >= failedSeqNo {
 		err := errors.New("failed seq no is less than persist seq no")
 		logger.ErrorLog.Printf("open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, err: %v",
 			vbID, vbUUID,
-			failedSeqNo, persistReqNo,
+			failedSeqNo, persistSeqNo,
 			err,
 		)
 
@@ -387,7 +479,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 	logger.Log.Printf(
 		"open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d",
 		vbID, vbUUID,
-		failedSeqNo, persistReqNo,
+		failedSeqNo, persistSeqNo,
 	)
 
 	observer.AddCatchup(vbID, uint64(failedSeqNo))
@@ -400,10 +492,10 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		vbID,
 		0,
 		vbUUID,
-		persistReqNo,
+		persistSeqNo,
 		0xffffffffffffffff,
-		persistReqNo,
-		persistReqNo,
+		persistSeqNo,
+		persistSeqNo,
 		observer,
 		openStreamOptions,
 		func(_ []gocbcore.FailoverEntry, err error) {
@@ -480,15 +572,16 @@ func (s *client) OpenStream(
 	return err
 }
 
-func (s *client) ObserveVbID(vbID uint16, vbUUID gocbcore.VbUUID) (*gocbcore.ObserveVbResult, error) {
+func (s *client) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID, replica int) (*gocbcore.ObserveVbResult, error) {
 	opm := helpers.NewAsyncOp(context.Background())
 	ch := make(chan error)
 
 	var response *gocbcore.ObserveVbResult
 
 	op, err := s.agent.ObserveVb(gocbcore.ObserveVbOptions{
-		VbID:   vbID,
-		VbUUID: vbUUID,
+		VbID:       vbID,
+		VbUUID:     vbUUID,
+		ReplicaIdx: replica,
 	}, func(result *gocbcore.ObserveVbResult, err error) {
 		opm.Resolve()
 
@@ -530,7 +623,7 @@ func (s *client) CloseStream(vbID uint16) error {
 	return <-ch
 }
 
-func (s *client) GetCollectionID(scopeName string, collectionName string) (uint32, error) {
+func (s *client) getCollectionID(scopeName string, collectionName string) (uint32, error) {
 	ctx := context.Background()
 	opm := helpers.NewAsyncOp(ctx)
 
@@ -567,7 +660,7 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) (m
 	collectionIDs := make(map[uint32]string)
 
 	for _, collectionName := range collectionNames {
-		collectionID, err := s.GetCollectionID(scopeName, collectionName)
+		collectionID, err := s.getCollectionID(scopeName, collectionName)
 		if err != nil {
 			return nil, err
 		}
@@ -749,53 +842,6 @@ func (s *client) CreateDocument(ctx context.Context,
 	}
 
 	return <-ch
-}
-
-func (s *client) ExecuteQuery(ctx context.Context, query []byte) ([][]byte, error) {
-	opm := helpers.NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	ch := make(chan error)
-
-	var payload []byte
-
-	payload = append(payload, []byte("{\"statement\":\"")...)
-	payload = append(payload, query...)
-	payload = append(payload, []byte("\"}")...)
-
-	var result [][]byte
-
-	op, err := s.metaAgent.N1QLQuery(
-		gocbcore.N1QLQueryOptions{
-			Payload:  payload,
-			Deadline: deadline,
-		},
-		func(reader *gocbcore.N1QLRowReader, err error) {
-			if err == nil {
-				for {
-					row := reader.NextRow()
-					if row == nil {
-						break
-					} else {
-						result = append(result, row)
-					}
-				}
-			}
-
-			opm.Resolve()
-
-			ch <- err
-		},
-	)
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return result, <-ch
 }
 
 func (s *client) DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte) {

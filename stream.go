@@ -92,6 +92,8 @@ func (s *stream) listen() {
 			s.waitAndForward(v, v.Offset, v.VbID)
 		case models.DcpExpiration:
 			s.waitAndForward(v, v.Offset, v.VbID)
+		case models.DcpSeqNoAdvanced:
+			s.setOffset(v.VbID, v.Offset, true)
 		default:
 		}
 	}

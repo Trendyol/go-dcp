@@ -23,7 +23,7 @@ type Observer interface {
 	DeleteScope(deletion models.DcpScopeDeletion)
 	ModifyCollection(modification models.DcpCollectionModification)
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
-	SeqNoAdvanced(advanced models.DcpSeqNoAdvanced)
+	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
 	GetMetrics() map[uint16]*ObserverMetric
 	LockMetrics()
 	UnlockMetrics()
@@ -296,23 +296,32 @@ func (so *observer) OSOSnapshot(event models.DcpOSOSnapshot) {
 	})
 }
 
-func (so *observer) SeqNoAdvanced(event models.DcpSeqNoAdvanced) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
+	if !so.isCatchupDone(advanced.VbID, advanced.SeqNo) {
 		return
+	}
+
+	snapshot := &models.SnapshotMarker{
+		StartSeqNo: advanced.SeqNo,
+		EndSeqNo:   advanced.SeqNo,
 	}
 
 	so.currentSnapshotsLock.Lock()
 
-	so.currentSnapshots[event.VbID] = &models.SnapshotMarker{
-		StartSeqNo: event.SeqNo,
-		EndSeqNo:   event.SeqNo,
-	}
-
-	so.currentSnapshotsLock.Unlock()
+	so.currentSnapshots[advanced.VbID] = snapshot
 
 	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
+		Event: models.InternalDcpSeqNoAdvance{
+			DcpSeqNoAdvanced: &advanced,
+			Offset: &models.Offset{
+				SnapshotMarker: snapshot,
+				VbUUID:         so.uuIDs[advanced.VbID],
+				SeqNo:          advanced.SeqNo,
+			},
+		},
 	})
+
+	so.currentSnapshotsLock.Unlock()
 }
 
 func (so *observer) GetMetrics() map[uint16]*ObserverMetric {

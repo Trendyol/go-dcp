@@ -33,6 +33,11 @@ type InternalDcpExpiration struct {
 	*Offset
 }
 
+type InternalDcpSeqNoAdvance struct {
+	*gocbcore.DcpSeqNoAdvanced
+	*Offset
+}
+
 func (i *InternalDcpMutation) IsCreated() bool {
 	return i.RevNo == 1
 }
@@ -50,5 +55,5 @@ type (
 	DcpScopeDeletion          = gocbcore.DcpScopeDeletion
 	DcpCollectionModification = gocbcore.DcpCollectionModification
 	DcpOSOSnapshot            = gocbcore.DcpOSOSnapshot
-	DcpSeqNoAdvanced          = gocbcore.DcpSeqNoAdvanced
+	DcpSeqNoAdvanced          = InternalDcpSeqNoAdvance
 )

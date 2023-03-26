@@ -75,8 +75,9 @@ type ConfigRollbackMitigation struct {
 }
 
 type ConfigMetadata struct {
-	Type   string            `yaml:"type" default:"couchbase"`
-	Config map[string]string `yaml:"config"`
+	Type     string            `yaml:"type" default:"couchbase"`
+	ReadOnly bool              `json:"readOnly" default:"false"`
+	Config   map[string]string `yaml:"config"`
 }
 
 type Config struct {

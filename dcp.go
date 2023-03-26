@@ -94,6 +94,10 @@ func (s *dcp) Start() {
 		}
 	}
 
+	if s.config.Metadata.ReadOnly {
+		s.metadata = NewReadMetadata(s.metadata)
+	}
+
 	logger.Log.Printf("using %v metadata", reflect.TypeOf(s.metadata))
 
 	infoHandler := info.NewHandler()

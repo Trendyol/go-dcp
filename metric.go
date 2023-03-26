@@ -94,6 +94,12 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			strconv.Itoa(int(vbID)),
 		)
 
+		var lag float64
+
+		if seqNoMap[vbID] > offset.SeqNo {
+			lag = float64(seqNoMap[vbID] - offset.SeqNo)
+		}
+
 		if err != nil {
 			ch <- prometheus.NewInvalidMetric(
 				s.lag,
@@ -103,7 +109,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			ch <- prometheus.MustNewConstMetric(
 				s.lag,
 				prometheus.CounterValue,
-				float64(seqNoMap[vbID]-offset.SeqNo),
+				lag,
 				strconv.Itoa(int(vbID)),
 			)
 		}

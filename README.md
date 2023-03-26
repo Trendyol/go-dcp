@@ -97,6 +97,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `healthCheck.timeout`                 | time.Duration     | no       | 5s        |
 | `rollbackMitigation.enabled`          | bool              | no       | true      |
 | `metadata.type`                       | string            | no       | couchbase |
+| `metadata.readOnly`                   | bool              | no       | false     |
 | `metadata.config`                     | map[string]string | no       | *not set  |
 
 ### Examples

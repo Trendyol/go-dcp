@@ -38,36 +38,13 @@ func ChunkSlice[T any](slice []T, chunks int) [][]T {
 	return result
 }
 
-func CreateConfigFile() (string, func(), error) {
-	configStr := `hosts:
-  - localhost:8091
-username: Administrator
-password: password
-bucketName: sample
-scopeName: _default
-collectionNames:
-  - _default
-metadata:
-  config:
-    bucket: sample
-checkpoint:
-  type: manual
-logging:
-  level: debug
-dcp:
-  listener:
-    bufferSize: 1024
-  group:
-    name: groupName
-    membership:
-      type: static`
-
+func CreateConfigFile(content string) (string, func(), error) {
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {
 		return "", nil, err
 	}
 
-	if _, err = tmpFile.WriteString(configStr); err != nil {
+	if _, err = tmpFile.WriteString(content); err != nil {
 		return "", nil, err
 	}
 

@@ -18,6 +18,29 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+var configStr = `hosts:
+  - localhost:8091
+username: Administrator
+password: password
+bucketName: sample
+scopeName: _default
+collectionNames:
+  - _default
+metadata:
+  config:
+    bucket: sample
+checkpoint:
+  type: manual
+logging:
+  level: debug
+dcp:
+  listener:
+    bufferSize: 1024
+  group:
+    name: groupName
+    membership:
+      type: static`
+
 func setupContainer(b *testing.B, config *helpers.Config) func() {
 	ctx := context.Background()
 
@@ -111,7 +134,7 @@ func BenchmarkDcp(benchmark *testing.B) {
 	mockDataSize := 320000
 	saveTarget := mockDataSize / 2
 
-	configPath, configFileClean, err := helpers.CreateConfigFile()
+	configPath, configFileClean, err := helpers.CreateConfigFile(configStr)
 	if err != nil {
 		benchmark.Error(err)
 	}

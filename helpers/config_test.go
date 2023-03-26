@@ -1,20 +1,19 @@
-package godcpclient
+package helpers
 
 import (
 	"testing"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadConfig(t *testing.T) {
-	configPath, configFileClean, err := createConfigFile()
+	configPath, configFileClean, err := CreateConfigFile()
 	if err != nil {
 		t.Error(err)
 	}
 	defer configFileClean()
 
-	config := helpers.NewConfig(helpers.Name, configPath)
+	config := NewConfig(Name, configPath)
 
 	assert.Equal(t, 1, len(config.Hosts))
 	assert.Contains(t, config.Hosts, "localhost:8091")

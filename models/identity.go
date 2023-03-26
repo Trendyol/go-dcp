@@ -1,9 +1,9 @@
-package identity
+package models
 
 import (
 	"os"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 )

@@ -1,4 +1,4 @@
-package dcp
+package couchbase
 
 import (
 	"sync"

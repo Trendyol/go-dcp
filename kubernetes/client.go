@@ -3,9 +3,9 @@ package kubernetes
 import (
 	"context"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp-client/models"
 
-	dcpModel "github.com/Trendyol/go-dcp-client/identity"
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -21,7 +21,7 @@ type Client interface {
 }
 
 type client struct {
-	myIdentity *dcpModel.Identity
+	myIdentity *models.Identity
 	*clientSet.Clientset
 }
 
@@ -49,7 +49,7 @@ func (le *client) RemoveLabel(namespace string, key string) {
 	}
 }
 
-func NewClient(myIdentity *dcpModel.Identity) Client {
+func NewClient(myIdentity *models.Identity) Client {
 	kubernetesConfig, err := rest.InClusterConfig()
 	if err != nil {
 		logger.ErrorLog.Printf("failed to get kubernetes config: %v", err)

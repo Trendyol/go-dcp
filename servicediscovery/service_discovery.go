@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/membership"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 
 	"github.com/Trendyol/go-dcp-client/logger"
-
-	"github.com/Trendyol/go-dcp-client/membership/info"
 )
 
 type ServiceDiscovery interface {
@@ -31,12 +31,12 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
-	infoHandler     info.Handler
+	infoHandler     membership.Handler
 	leaderService   *Service
 	services        map[string]*Service
 	heartbeatTicker *time.Ticker
 	monitorTicker   *time.Ticker
-	info            *info.Model
+	info            *membership.Model
 	servicesLock    *sync.RWMutex
 	amILeader       bool
 	config          *helpers.Config
@@ -187,7 +187,7 @@ func (s *serviceDiscovery) GetAll() []string {
 }
 
 func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
-	newInfo := &info.Model{
+	newInfo := &membership.Model{
 		MemberNumber: memberNumber,
 		TotalMembers: totalMembers,
 	}
@@ -201,7 +201,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 	}
 }
 
-func NewServiceDiscovery(config *helpers.Config, infoHandler info.Handler) ServiceDiscovery {
+func NewServiceDiscovery(config *helpers.Config, infoHandler membership.Handler) ServiceDiscovery {
 	return &serviceDiscovery{
 		services:     make(map[string]*Service),
 		infoHandler:  infoHandler,

@@ -1,4 +1,4 @@
-package membership
+package kubernetes
 
 import (
 	"fmt"
@@ -6,14 +6,13 @@ import (
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"
-	"github.com/Trendyol/go-dcp-client/membership/info"
 )
 
 type statefulSetMembership struct {
-	info *info.Model
+	info *membership.Model
 }
 
-func (s *statefulSetMembership) GetInfo() *info.Model {
+func (s *statefulSetMembership) GetInfo() *membership.Model {
 	return s.info
 }
 
@@ -36,7 +35,7 @@ func NewStatefulSetMembership(config *helpers.Config) membership.Membership {
 	}
 
 	return &statefulSetMembership{
-		info: &info.Model{
+		info: &membership.Model{
 			MemberNumber: memberNumber,
 			TotalMembers: config.Dcp.Group.Membership.TotalMembers,
 		},

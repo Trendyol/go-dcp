@@ -1,9 +1,11 @@
-package godcpclient
+package api
 
 import (
 	"strconv"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/stream"
+
+	"github.com/Trendyol/go-dcp-client/couchbase"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -15,9 +17,9 @@ import (
 )
 
 type metricCollector struct {
-	stream           Stream
-	client           gDcp.Client
-	vBucketDiscovery VBucketDiscovery
+	stream           stream.Stream
+	client           couchbase.Client
+	vBucketDiscovery stream.VBucketDiscovery
 
 	mutation   *prometheus.Desc
 	deletion   *prometheus.Desc
@@ -188,7 +190,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 //nolint:funlen
-func newMetricCollector(client gDcp.Client, stream Stream, vBucketDiscovery VBucketDiscovery) *metricCollector {
+func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDiscovery stream.VBucketDiscovery) *metricCollector {
 	return &metricCollector{
 		stream:           stream,
 		client:           client,
@@ -289,9 +291,9 @@ func newMetricCollector(client gDcp.Client, stream Stream, vBucketDiscovery VBuc
 
 func NewMetricMiddleware(app *fiber.App,
 	config *helpers.Config,
-	stream Stream,
-	client gDcp.Client,
-	vBucketDiscovery VBucketDiscovery,
+	stream stream.Stream,
+	client couchbase.Client,
+	vBucketDiscovery stream.VBucketDiscovery,
 ) (func(ctx *fiber.Ctx) error, error) {
 	err := prometheus.DefaultRegisterer.Register(newMetricCollector(client, stream, vBucketDiscovery))
 	if err != nil {

@@ -1,15 +1,15 @@
-package godcpclient
+package stream
 
 import (
 	"errors"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/kubernetes"
+
+	"github.com/Trendyol/go-dcp-client/couchbase"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
-	kms "github.com/Trendyol/go-dcp-client/kubernetes/membership"
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"
-	"github.com/Trendyol/go-dcp-client/membership/info"
 )
 
 type VBucketDiscovery interface {
@@ -70,10 +70,10 @@ func (s *vBucketDiscovery) GetMetric() *VBucketDiscoveryMetric {
 	return s.vBucketDiscoveryMetric
 }
 
-func NewVBucketDiscovery(client gDcp.Client,
+func NewVBucketDiscovery(client couchbase.Client,
 	config *helpers.Config,
 	vBucketNumber int,
-	infoHandler info.Handler,
+	infoHandler membership.Handler,
 ) VBucketDiscovery {
 	var ms membership.Membership
 
@@ -81,11 +81,11 @@ func NewVBucketDiscovery(client gDcp.Client,
 	case config.Dcp.Group.Membership.Type == helpers.StaticMembershipType:
 		ms = membership.NewStaticMembership(config)
 	case config.Dcp.Group.Membership.Type == helpers.CouchbaseMembershipType:
-		ms = membership.NewCBMembership(config, client, infoHandler)
+		ms = couchbase.NewCBMembership(config, client, infoHandler)
 	case config.Dcp.Group.Membership.Type == helpers.KubernetesStatefulSetMembershipType:
-		ms = kms.NewStatefulSetMembership(config)
+		ms = kubernetes.NewStatefulSetMembership(config)
 	case config.Dcp.Group.Membership.Type == helpers.KubernetesHaMembershipType:
-		ms = kms.NewHaMembership(config, infoHandler)
+		ms = kubernetes.NewHaMembership(config, infoHandler)
 	default:
 		err := errors.New("unknown membership")
 		logger.ErrorLog.Printf("membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)

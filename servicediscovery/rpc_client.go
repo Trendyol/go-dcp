@@ -2,15 +2,14 @@ package servicediscovery
 
 import (
 	"fmt"
+	"net/rpc"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
-	"github.com/Trendyol/go-dcp-client/identity"
-
 	"github.com/avast/retry-go/v4"
-
-	pureRpc "net/rpc"
 )
 
 type Client interface {
@@ -23,9 +22,9 @@ type Client interface {
 }
 
 type client struct {
-	client         *pureRpc.Client
-	myIdentity     *identity.Identity
-	targetIdentity *identity.Identity
+	client         *rpc.Client
+	myIdentity     *models.Identity
+	targetIdentity *models.Identity
 	port           int
 	connected      bool
 }
@@ -34,7 +33,7 @@ func (c *client) connect() error {
 	return retry.Do(
 		func() error {
 			connectAddress := fmt.Sprintf("%s:%d", c.targetIdentity.IP, c.port)
-			client, err := pureRpc.Dial("tcp", connectAddress)
+			client, err := rpc.Dial("tcp", connectAddress)
 			if err != nil {
 				return err
 			}
@@ -117,7 +116,7 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 	)
 }
 
-func NewClient(port int, myIdentity *identity.Identity, targetIdentity *identity.Identity) (Client, error) {
+func NewClient(port int, myIdentity *models.Identity, targetIdentity *models.Identity) (Client, error) {
 	client := &client{
 		port:           port,
 		myIdentity:     myIdentity,

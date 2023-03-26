@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/couchbase"
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -18,45 +17,6 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
-
-func createConfigFile() (string, func(), error) {
-	configStr := `hosts:
-  - localhost:8091
-username: Administrator
-password: password
-bucketName: sample
-scopeName: _default
-collectionNames:
-  - _default
-metadata:
-  config:
-    bucket: sample
-checkpoint:
-  type: manual
-logging:
-  level: debug
-dcp:
-  listener:
-    bufferSize: 1024
-  group:
-    name: groupName
-    membership:
-      type: static`
-
-	tmpFile, err := os.CreateTemp("", "*.yml")
-	if err != nil {
-		return "", nil, err
-	}
-
-	if _, err = tmpFile.WriteString(configStr); err != nil {
-		return "", nil, err
-	}
-
-	return tmpFile.Name(), func() {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-	}, nil
-}
 
 func setupContainer(b *testing.B, config *helpers.Config) func() {
 	ctx := context.Background()
@@ -84,7 +44,7 @@ func setupContainer(b *testing.B, config *helpers.Config) func() {
 }
 
 func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Config) {
-	client := gDcp.NewClient(config)
+	client := couchbase.NewClient(config)
 
 	_ = client.Connect()
 
@@ -108,7 +68,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 				go func(i int) {
 					ch := make(chan error)
 
-					opm := helpers.NewAsyncOp(context.Background())
+					opm := couchbase.NewAsyncOp(context.Background())
 
 					op, err := client.GetAgent().Set(gocbcore.SetOptions{
 						Key:   []byte(fmt.Sprintf("%v", i)),
@@ -151,7 +111,7 @@ func BenchmarkDcp(benchmark *testing.B) {
 	mockDataSize := 320000
 	saveTarget := mockDataSize / 2
 
-	configPath, configFileClean, err := createConfigFile()
+	configPath, configFileClean, err := helpers.CreateConfigFile()
 	if err != nil {
 		benchmark.Error(err)
 	}

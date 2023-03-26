@@ -57,3 +57,33 @@ type (
 	DcpOSOSnapshot            = gocbcore.DcpOSOSnapshot
 	DcpSeqNoAdvanced          = InternalDcpSeqNoAdvance
 )
+
+type CheckpointDocumentSnapshot struct {
+	StartSeqNo uint64 `json:"startSeqno"`
+	EndSeqNo   uint64 `json:"endSeqno"`
+}
+
+type CheckpointDocumentCheckpoint struct {
+	VbUUID   uint64                      `json:"vbuuid"`
+	SeqNo    uint64                      `json:"seqno"`
+	Snapshot *CheckpointDocumentSnapshot `json:"snapshot"`
+}
+
+type CheckpointDocument struct {
+	BucketUUID string                        `json:"bucketUuid"`
+	Checkpoint *CheckpointDocumentCheckpoint `json:"checkpoint"`
+}
+
+func NewEmptyCheckpointDocument(bucketUUID string) *CheckpointDocument {
+	return &CheckpointDocument{
+		Checkpoint: &CheckpointDocumentCheckpoint{
+			VbUUID: 0,
+			SeqNo:  0,
+			Snapshot: &CheckpointDocumentSnapshot{
+				StartSeqNo: 0,
+				EndSeqNo:   0,
+			},
+		},
+		BucketUUID: bucketUUID,
+	}
+}

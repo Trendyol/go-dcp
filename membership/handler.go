@@ -1,4 +1,4 @@
-package info
+package membership
 
 type OnModelChangeType = func(new *Model)
 

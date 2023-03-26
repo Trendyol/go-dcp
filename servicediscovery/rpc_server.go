@@ -3,12 +3,11 @@ package servicediscovery
 import (
 	"fmt"
 	"net"
+	"net/rpc"
+
+	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
-
-	"github.com/Trendyol/go-dcp-client/identity"
-
-	pureRpc "net/rpc"
 )
 
 type Server interface {
@@ -24,7 +23,7 @@ type server struct {
 
 type Handler struct {
 	serviceDiscovery ServiceDiscovery
-	myIdentity       *identity.Identity
+	myIdentity       *models.Identity
 	port             int
 }
 
@@ -62,7 +61,7 @@ func (rh *Handler) Rebalance(payload Rebalance, reply *bool) error {
 }
 
 func (s *server) Listen() {
-	server := pureRpc.NewServer()
+	server := rpc.NewServer()
 
 	err := server.Register(s.handler)
 	if err != nil {
@@ -102,7 +101,7 @@ func (s *server) Shutdown() {
 	}
 }
 
-func NewServer(port int, myIdentity *identity.Identity, serviceDiscovery ServiceDiscovery) Server {
+func NewServer(port int, myIdentity *models.Identity, serviceDiscovery ServiceDiscovery) Server {
 	return &server{
 		port: port,
 		handler: &Handler{

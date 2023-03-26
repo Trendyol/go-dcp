@@ -1,24 +1,36 @@
 package servicediscovery
 
 import (
-	"github.com/Trendyol/go-dcp-client/identity"
+	"github.com/Trendyol/go-dcp-client/models"
 )
 
 type Register struct {
-	From     *identity.Identity
-	Identity *identity.Identity
+	From     *models.Identity
+	Identity *models.Identity
 }
 
 type Ping struct {
-	From *identity.Identity
+	From *models.Identity
 }
 
 type Pong struct {
-	From *identity.Identity
+	From *models.Identity
 }
 
 type Rebalance struct {
-	From         *identity.Identity
+	From         *models.Identity
 	MemberNumber int
 	TotalMembers int
+}
+
+type Service struct {
+	Client Client
+	Name   string
+}
+
+func NewService(client Client, name string) *Service {
+	return &Service{
+		Client: client,
+		Name:   name,
+	}
 }

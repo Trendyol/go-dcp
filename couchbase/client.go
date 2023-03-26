@@ -1,11 +1,14 @@
-package dcp
+package couchbase
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/google/uuid"
+
+	"github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -56,7 +59,7 @@ func (s *client) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.HealthCheck.Timeout)
 	defer cancel()
 
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	errorCh := make(chan error)
 
@@ -236,7 +239,7 @@ func (s *client) DcpConnect() error {
 
 	client, err := gocbcore.CreateDcpAgent(
 		agentConfig,
-		helpers.GetDcpStreamName(s.config.Dcp.Group.Name),
+		fmt.Sprintf("%s_%s", s.config.Dcp.Group.Name, uuid.New().String()),
 		memd.DcpOpenFlagProducer,
 	)
 	if err != nil {
@@ -298,7 +301,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 	seqNos := make(map[uint16]uint64)
 
 	for i := 1; i <= numNodes; i++ {
-		opm := helpers.NewAsyncOp(context.Background())
+		opm := NewAsyncOp(context.Background())
 
 		op, err := s.dcpAgent.GetVbucketSeqnos(
 			i,
@@ -363,7 +366,7 @@ func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, 
 	uuIDMap := make(map[uint16]gocbcore.VbUUID)
 
 	for _, vbID := range vbIds {
-		opm := helpers.NewAsyncOp(context.Background())
+		opm := NewAsyncOp(context.Background())
 
 		op, err := s.dcpAgent.GetFailoverLog(
 			vbID,
@@ -490,7 +493,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	observer.AddCatchup(vbID, uint64(failedSeqNo))
 
-	opm := helpers.NewAsyncOp(context.Background())
+	opm := NewAsyncOp(context.Background())
 
 	ch := make(chan error)
 
@@ -526,7 +529,7 @@ func (s *client) OpenStream(
 	offset *models.Offset,
 	observer Observer,
 ) error {
-	opm := helpers.NewAsyncOp(context.Background())
+	opm := NewAsyncOp(context.Background())
 
 	openStreamOptions := gocbcore.OpenStreamOptions{}
 
@@ -579,7 +582,7 @@ func (s *client) OpenStream(
 }
 
 func (s *client) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID, replica int) (*gocbcore.ObserveVbResult, error) {
-	opm := helpers.NewAsyncOp(context.Background())
+	opm := NewAsyncOp(context.Background())
 	ch := make(chan error)
 
 	var response *gocbcore.ObserveVbResult
@@ -606,7 +609,7 @@ func (s *client) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID, replica int) (
 }
 
 func (s *client) CloseStream(vbID uint16) error {
-	opm := helpers.NewAsyncOp(context.Background())
+	opm := NewAsyncOp(context.Background())
 
 	ch := make(chan error)
 
@@ -631,7 +634,7 @@ func (s *client) CloseStream(vbID uint16) error {
 
 func (s *client) getCollectionID(scopeName string, collectionName string) (uint32, error) {
 	ctx := context.Background()
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -685,7 +688,7 @@ func (s *client) UpsertXattrs(ctx context.Context,
 	xattrs interface{},
 	expiry uint32,
 ) error {
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -731,7 +734,7 @@ func (s *client) UpdateDocument(ctx context.Context,
 	value interface{},
 	expiry uint32,
 ) error {
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -775,7 +778,7 @@ func (s *client) CreatePath(ctx context.Context,
 	path []byte,
 	value interface{},
 ) error {
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -819,7 +822,7 @@ func (s *client) CreateDocument(ctx context.Context,
 	value interface{},
 	expiry uint32,
 ) error {
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -851,7 +854,7 @@ func (s *client) CreateDocument(ctx context.Context,
 }
 
 func (s *client) DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte) {
-	opm := helpers.NewAsyncOp(ctx)
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
@@ -882,7 +885,7 @@ func (s *client) DeleteDocument(ctx context.Context, scopeName string, collectio
 }
 
 func (s *client) GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error) {
-	opm := helpers.NewAsyncOp(context.Background())
+	opm := NewAsyncOp(context.Background())
 
 	errorCh := make(chan error)
 	documentCh := make(chan []byte)
@@ -923,7 +926,7 @@ func (s *client) GetXattrs(scopeName string, collectionName string, id []byte, p
 }
 
 func (s *client) Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error) {
-	opm := helpers.NewAsyncOp(context.Background())
+	opm := NewAsyncOp(context.Background())
 
 	deadline, _ := ctx.Deadline()
 

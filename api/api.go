@@ -1,9 +1,11 @@
-package godcpclient
+package api
 
 import (
 	"fmt"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/stream"
+
+	"github.com/Trendyol/go-dcp-client/couchbase"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -18,8 +20,8 @@ type API interface {
 }
 
 type api struct {
-	client           gDcp.Client
-	stream           Stream
+	client           couchbase.Client
+	stream           stream.Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
 	config           *helpers.Config
@@ -73,10 +75,10 @@ func (s *api) followers(c *fiber.Ctx) error {
 }
 
 func NewAPI(config *helpers.Config,
-	client gDcp.Client,
-	stream Stream,
+	client couchbase.Client,
+	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	vBucketDiscovery VBucketDiscovery,
+	vBucketDiscovery stream.VBucketDiscovery,
 ) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 

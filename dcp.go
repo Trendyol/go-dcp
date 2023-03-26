@@ -8,13 +8,20 @@ import (
 	"syscall"
 	"time"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/membership"
+
+	"github.com/Trendyol/go-dcp-client/api"
+
+	"github.com/Trendyol/go-dcp-client/metadata"
+
+	"github.com/Trendyol/go-dcp-client/stream"
+
+	"github.com/Trendyol/go-dcp-client/couchbase"
 
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
 
@@ -23,15 +30,15 @@ type Dcp interface {
 	Close()
 	Commit()
 	GetConfig() *helpers.Config
-	SetMetadata(metadata Metadata)
+	SetMetadata(metadata metadata.Metadata)
 }
 
 type dcp struct {
-	client            gDcp.Client
-	stream            Stream
-	api               API
-	leaderElection    LeaderElection
-	vBucketDiscovery  VBucketDiscovery
+	client            couchbase.Client
+	stream            stream.Stream
+	api               api.API
+	leaderElection    stream.LeaderElection
+	vBucketDiscovery  stream.VBucketDiscovery
 	serviceDiscovery  servicediscovery.ServiceDiscovery
 	listener          models.Listener
 	apiShutdown       chan struct{}
@@ -40,7 +47,7 @@ type dcp struct {
 	healCheckFailedCh chan struct{}
 	config            *helpers.Config
 	healthCheckTicker *time.Ticker
-	metadata          Metadata
+	metadata          metadata.Metadata
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -78,7 +85,7 @@ func (s *dcp) stopHealthCheck() {
 	s.healthCheckTicker.Stop()
 }
 
-func (s *dcp) SetMetadata(metadata Metadata) {
+func (s *dcp) SetMetadata(metadata metadata.Metadata) {
 	s.metadata = metadata
 }
 
@@ -86,40 +93,40 @@ func (s *dcp) Start() {
 	if s.metadata == nil {
 		switch {
 		case s.config.IsCouchbaseMetadata():
-			s.metadata = NewCBMetadata(s.client, s.config)
+			s.metadata = couchbase.NewCBMetadata(s.client, s.config)
 		case s.config.IsFileMetadata():
-			s.metadata = NewFSMetadata(s.config)
+			s.metadata = metadata.NewFSMetadata(s.config)
 		default:
 			panic(errors.New("invalid metadata type"))
 		}
 	}
 
 	if s.config.Metadata.ReadOnly {
-		s.metadata = NewReadMetadata(s.metadata)
+		s.metadata = metadata.NewReadMetadata(s.metadata)
 	}
 
 	logger.Log.Printf("using %v metadata", reflect.TypeOf(s.metadata))
 
-	infoHandler := info.NewHandler()
+	infoHandler := membership.NewHandler()
 
 	vBuckets := s.client.GetNumVBuckets()
 
-	s.vBucketDiscovery = NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
+	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
 
-	s.stream = NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
+	s.stream = stream.NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
 
 	if s.config.LeaderElection.Enabled {
 		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, infoHandler)
 		s.serviceDiscovery.StartHeartbeat()
 		s.serviceDiscovery.StartMonitor()
 
-		s.leaderElection = NewLeaderElection(s.config, s.serviceDiscovery, infoHandler)
+		s.leaderElection = stream.NewLeaderElection(s.config, s.serviceDiscovery, infoHandler)
 		s.leaderElection.Start()
 	}
 
 	s.stream.Open()
 
-	infoHandler.Subscribe(func(new *info.Model) {
+	infoHandler.Subscribe(func(new *membership.Model) {
 		s.stream.Rebalance()
 	})
 
@@ -130,7 +137,7 @@ func (s *dcp) Start() {
 				s.api.Shutdown()
 			}()
 
-			s.api = NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery)
+			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery)
 			s.api.Listen()
 		}()
 	}
@@ -186,7 +193,7 @@ func (s *dcp) GetConfig() *helpers.Config {
 }
 
 func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
-	client := gDcp.NewClient(config)
+	client := couchbase.NewClient(config)
 
 	err := client.Connect()
 	if err != nil {

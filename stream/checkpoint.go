@@ -1,10 +1,12 @@
-package godcpclient
+package stream
 
 import (
 	"sync"
 	"time"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/metadata"
+
+	"github.com/Trendyol/go-dcp-client/couchbase"
 
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -22,40 +24,10 @@ type Checkpoint interface {
 	StopSchedule()
 }
 
-type checkpointDocumentSnapshot struct {
-	StartSeqNo uint64 `json:"startSeqno"`
-	EndSeqNo   uint64 `json:"endSeqno"`
-}
-
-type checkpointDocumentCheckpoint struct {
-	VbUUID   uint64                      `json:"vbuuid"`
-	SeqNo    uint64                      `json:"seqno"`
-	Snapshot *checkpointDocumentSnapshot `json:"snapshot"`
-}
-
-type CheckpointDocument struct {
-	BucketUUID string                        `json:"bucketUuid"`
-	Checkpoint *checkpointDocumentCheckpoint `json:"checkpoint"`
-}
-
-func NewEmptyCheckpointDocument(bucketUUID string) *CheckpointDocument {
-	return &CheckpointDocument{
-		Checkpoint: &checkpointDocumentCheckpoint{
-			VbUUID: 0,
-			SeqNo:  0,
-			Snapshot: &checkpointDocumentSnapshot{
-				StartSeqNo: 0,
-				EndSeqNo:   0,
-			},
-		},
-		BucketUUID: bucketUUID,
-	}
-}
-
 type checkpoint struct {
 	stream     Stream
-	client     gDcp.Client
-	metadata   Metadata
+	client     couchbase.Client
+	metadata   metadata.Metadata
 	schedule   *time.Ticker
 	bucketUUID string
 	vbIds      []uint16
@@ -78,14 +50,14 @@ func (s *checkpoint) Save() {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
-	dump := map[uint16]*CheckpointDocument{}
+	dump := map[uint16]*models.CheckpointDocument{}
 
 	for vbID, offset := range offsets {
-		dump[vbID] = &CheckpointDocument{
-			Checkpoint: &checkpointDocumentCheckpoint{
+		dump[vbID] = &models.CheckpointDocument{
+			Checkpoint: &models.CheckpointDocumentCheckpoint{
 				VbUUID: uint64(offset.VbUUID),
 				SeqNo:  offset.SeqNo,
-				Snapshot: &checkpointDocumentSnapshot{
+				Snapshot: &models.CheckpointDocumentSnapshot{
 					StartSeqNo: offset.StartSeqNo,
 					EndSeqNo:   offset.EndSeqNo,
 				},
@@ -198,8 +170,8 @@ func (s *checkpoint) StopSchedule() {
 func NewCheckpoint(
 	stream Stream,
 	vbIds []uint16,
-	client gDcp.Client,
-	metadata Metadata,
+	client couchbase.Client,
+	metadata metadata.Metadata,
 	config *helpers.Config,
 ) Checkpoint {
 	return &checkpoint{

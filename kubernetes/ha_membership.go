@@ -1,17 +1,16 @@
-package membership
+package kubernetes
 
 import (
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/membership"
-	"github.com/Trendyol/go-dcp-client/membership/info"
 )
 
 type haMembership struct {
-	info     *info.Model
-	infoChan chan *info.Model
+	info     *membership.Model
+	infoChan chan *membership.Model
 }
 
-func (h *haMembership) GetInfo() *info.Model {
+func (h *haMembership) GetInfo() *membership.Model {
 	if h.info != nil {
 		return h.info
 	}
@@ -23,12 +22,12 @@ func (h *haMembership) Close() {
 	close(h.infoChan)
 }
 
-func NewHaMembership(_ *helpers.Config, handler info.Handler) membership.Membership {
+func NewHaMembership(_ *helpers.Config, handler membership.Handler) membership.Membership {
 	ham := &haMembership{
-		infoChan: make(chan *info.Model),
+		infoChan: make(chan *membership.Model),
 	}
 
-	handler.Subscribe(func(new *info.Model) {
+	handler.Subscribe(func(new *membership.Model) {
 		ham.info = new
 		go func() {
 			ham.infoChan <- new

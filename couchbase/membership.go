@@ -1,4 +1,4 @@
-package membership
+package couchbase
 
 import (
 	"context"
@@ -6,24 +6,23 @@ import (
 	"sort"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/Trendyol/go-dcp-client/membership"
 
-	"github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/json-iterator/go"
 
 	"github.com/google/uuid"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/membership/info"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
 
 type cbMembership struct {
-	client              dcp.Client
-	handler             info.Handler
-	info                *info.Model
-	infoChan            chan *info.Model
+	client              Client
+	handler             membership.Handler
+	info                *membership.Model
+	infoChan            chan *membership.Model
 	id                  []byte
 	lastActiveInstances []*Instance
 	clusterJoinTime     int64
@@ -51,7 +50,7 @@ const (
 	_timeoutSec            = 10
 )
 
-func (h *cbMembership) GetInfo() *info.Model {
+func (h *cbMembership) GetInfo() *membership.Model {
 	if h.info != nil {
 		return h.info
 	}
@@ -238,7 +237,7 @@ func (h *cbMembership) rebalance(instances []*Instance) {
 		logger.ErrorLog.Printf("error while rebalance, self = %v, err: %v", string(h.id), err)
 		panic(err)
 	} else {
-		h.handler.OnModelChange(&info.Model{
+		h.handler.OnModelChange(&membership.Model{
 			MemberNumber: selfOrder,
 			TotalMembers: len(instances),
 		})
@@ -276,7 +275,7 @@ func (h *cbMembership) Close() {
 	h.heartbeatTicker.Stop()
 }
 
-func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Handler) Membership {
+func NewCBMembership(config *helpers.Config, client Client, handler membership.Handler) membership.Membership {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize couchbase membership, err: %v", err)
@@ -286,7 +285,7 @@ func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Han
 	_, scope, collection := config.GetCouchbaseMetadata()
 
 	cbm := &cbMembership{
-		infoChan:       make(chan *info.Model),
+		infoChan:       make(chan *membership.Model),
 		client:         client,
 		id:             []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
 		instanceAll:    []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
@@ -301,7 +300,7 @@ func NewCBMembership(config *helpers.Config, client dcp.Client, handler info.Han
 	cbm.startHeartbeat()
 	cbm.startMonitor()
 
-	handler.Subscribe(func(new *info.Model) {
+	handler.Subscribe(func(new *membership.Model) {
 		cbm.info = new
 		go func() {
 			cbm.infoChan <- new

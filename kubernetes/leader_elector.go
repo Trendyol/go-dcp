@@ -1,37 +1,27 @@
-package leaderelector
+package kubernetes
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/Trendyol/go-dcp-client/membership/info"
+	"github.com/Trendyol/go-dcp-client/membership"
+	"github.com/Trendyol/go-dcp-client/models"
+
+	"github.com/Trendyol/go-dcp-client/leaderelector"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
-	dcpModel "github.com/Trendyol/go-dcp-client/identity"
-
 	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/kubernetes"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
-type LeaderElector interface {
-	Run(ctx context.Context)
-}
-
-type Handler interface {
-	OnBecomeLeader()
-	OnResignLeader()
-	OnBecomeFollower(leaderIdentity *dcpModel.Identity)
-}
-
 type leaderElector struct {
-	client             kubernetes.Client
-	myIdentity         *dcpModel.Identity
-	handler            Handler
+	client             Client
+	myIdentity         *models.Identity
+	handler            leaderelector.Handler
 	leaseLockName      string
 	leaseLockNamespace string
 }
@@ -53,7 +43,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 			le.handler.OnResignLeader()
 		},
 		OnNewLeader: func(leaderIdentityStr string) {
-			leaderIdentity := dcpModel.NewIdentityFromStr(leaderIdentityStr)
+			leaderIdentity := models.NewIdentityFromStr(leaderIdentityStr)
 
 			if le.myIdentity.Equal(leaderIdentity) {
 				return
@@ -70,7 +60,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 	go func() {
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
-				LeaseMeta: metaV1.ObjectMeta{
+				LeaseMeta: v1.ObjectMeta{
 					Name:      le.leaseLockName,
 					Namespace: le.leaseLockNamespace,
 				},
@@ -89,12 +79,12 @@ func (le *leaderElector) Run(ctx context.Context) {
 }
 
 func NewLeaderElector(
-	client kubernetes.Client,
+	client Client,
 	config *helpers.Config,
-	myIdentity *dcpModel.Identity,
-	handler Handler,
-	infoHandler info.Handler,
-) LeaderElector {
+	myIdentity *models.Identity,
+	handler leaderelector.Handler,
+	infoHandler membership.Handler,
+) leaderelector.LeaderElector {
 	var leaseLockName string
 	var leaseLockNamespace string
 
@@ -122,7 +112,7 @@ func NewLeaderElector(
 		leaseLockNamespace: leaseLockNamespace,
 	}
 
-	infoHandler.Subscribe(func(new *info.Model) {
+	infoHandler.Subscribe(func(new *membership.Model) {
 		client.AddLabel(leaseLockNamespace, "member", fmt.Sprintf("%v_%v", new.MemberNumber, new.TotalMembers))
 	})
 

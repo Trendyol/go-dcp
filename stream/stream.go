@@ -1,13 +1,15 @@
-package godcpclient
+package stream
 
 import (
 	"context"
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/metadata"
+
 	"github.com/VividCortex/ewma"
 
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/Trendyol/go-dcp-client/couchbase"
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
@@ -23,22 +25,22 @@ type Stream interface {
 	LockOffsets()
 	UnlockOffsets()
 	GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool)
-	GetObserver() gDcp.Observer
-	GetMetric() *StreamMetric
+	GetObserver() couchbase.Observer
+	GetMetric() *Metric
 	UnmarkDirtyOffsets()
 }
 
-type StreamMetric struct {
+type Metric struct {
 	AverageProcessMs ewma.MovingAverage
 	RebalanceCount   int
 }
 
 type stream struct {
-	client           gDcp.Client
-	metadata         Metadata
+	client           couchbase.Client
+	metadata         metadata.Metadata
 	checkpoint       Checkpoint
-	metric           *StreamMetric
-	observer         gDcp.Observer
+	metric           *Metric
+	observer         couchbase.Observer
 	vBucketDiscovery VBucketDiscovery
 	collectionIDs    map[uint32]string
 	listener         models.Listener
@@ -124,7 +126,7 @@ func (s *stream) Open() {
 	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
-	observer := gDcp.NewObserver(s.config, s.collectionIDs, uuIDMap)
+	observer := couchbase.NewObserver(s.config, s.collectionIDs, uuIDMap)
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
@@ -248,11 +250,11 @@ func (s *stream) GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool)
 	return s.offsets, s.dirtyOffsets, s.anyDirtyOffset
 }
 
-func (s *stream) GetObserver() gDcp.Observer {
+func (s *stream) GetObserver() couchbase.Observer {
 	return s.observer
 }
 
-func (s *stream) GetMetric() *StreamMetric {
+func (s *stream) GetMetric() *Metric {
 	return s.metric
 }
 
@@ -261,8 +263,8 @@ func (s *stream) UnmarkDirtyOffsets() {
 	s.dirtyOffsets = map[uint16]bool{}
 }
 
-func NewStream(client gDcp.Client,
-	metadata Metadata,
+func NewStream(client couchbase.Client,
+	metadata metadata.Metadata,
 	config *helpers.Config,
 	vBucketDiscovery VBucketDiscovery,
 	listener models.Listener,
@@ -280,7 +282,7 @@ func NewStream(client gDcp.Client,
 		collectionIDs:    collectionIDs,
 		activeStreams:    &sync.WaitGroup{},
 		stopCh:           stopCh,
-		metric: &StreamMetric{
+		metric: &Metric{
 			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},
 	}

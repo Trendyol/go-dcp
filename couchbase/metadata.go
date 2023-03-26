@@ -1,4 +1,4 @@
-package godcpclient
+package couchbase
 
 import (
 	"context"
@@ -6,11 +6,13 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/Trendyol/go-dcp-client/models"
+
+	"github.com/Trendyol/go-dcp-client/metadata"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 
-	jsoniter "github.com/json-iterator/go"
-
-	gDcp "github.com/Trendyol/go-dcp-client/dcp"
+	"github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
@@ -18,13 +20,13 @@ import (
 )
 
 type cbMetadata struct {
-	client         gDcp.Client
+	client         Client
 	config         *helpers.Config
 	scopeName      string
 	collectionName string
 }
 
-func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, dirtyOffsets map[uint16]bool, _ string) error {
+func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffsets map[uint16]bool, _ string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
 
@@ -66,8 +68,8 @@ func (s *cbMetadata) Save(state map[uint16]*CheckpointDocument, dirtyOffsets map
 	}
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*CheckpointDocument, bool, error) {
-	state := map[uint16]*CheckpointDocument{}
+func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*models.CheckpointDocument, bool, error) {
+	state := map[uint16]*models.CheckpointDocument{}
 	stateLock := &sync.Mutex{}
 
 	wg := &sync.WaitGroup{}
@@ -83,18 +85,18 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*Checkp
 
 			data, err := s.client.GetXattrs(s.scopeName, s.collectionName, id, helpers.Name)
 
-			var doc *CheckpointDocument
+			var doc *models.CheckpointDocument
 
 			if err == nil {
 				err = jsoniter.Unmarshal(data, &doc)
 
 				if err != nil {
-					doc = NewEmptyCheckpointDocument(bucketUUID)
+					doc = models.NewEmptyCheckpointDocument(bucketUUID)
 				} else {
 					exist = true
 				}
 			} else {
-				doc = NewEmptyCheckpointDocument(bucketUUID)
+				doc = models.NewEmptyCheckpointDocument(bucketUUID)
 			}
 
 			var kvErr *gocbcore.KeyValueError
@@ -129,7 +131,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	return nil
 }
 
-func NewCBMetadata(client gDcp.Client, config *helpers.Config) Metadata {
+func NewCBMetadata(client Client, config *helpers.Config) metadata.Metadata {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize couchbase metadata: %v", err)

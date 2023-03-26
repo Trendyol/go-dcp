@@ -1,18 +1,19 @@
-package godcpclient
+package stream
 
 import (
 	"context"
 	"sync"
 
+	"github.com/Trendyol/go-dcp-client/leaderelector"
+
+	"github.com/Trendyol/go-dcp-client/membership"
+	"github.com/Trendyol/go-dcp-client/models"
+
 	"github.com/Trendyol/go-dcp-client/kubernetes"
-	"github.com/Trendyol/go-dcp-client/membership/info"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
-	"github.com/Trendyol/go-dcp-client/identity"
-
 	"github.com/Trendyol/go-dcp-client/helpers"
-	kle "github.com/Trendyol/go-dcp-client/kubernetes/leaderelector"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
 
@@ -24,8 +25,8 @@ type LeaderElection interface {
 type leaderElection struct {
 	rpcServer        servicediscovery.Server
 	serviceDiscovery servicediscovery.ServiceDiscovery
-	infoHandler      info.Handler
-	myIdentity       *identity.Identity
+	infoHandler      membership.Handler
+	myIdentity       *models.Identity
 	config           *helpers.Config
 	newLeaderLock    *sync.Mutex
 }
@@ -40,7 +41,7 @@ func (l *leaderElection) OnResignLeader() {
 	l.serviceDiscovery.RemoveAll()
 }
 
-func (l *leaderElection) OnBecomeFollower(leaderIdentity *identity.Identity) {
+func (l *leaderElection) OnBecomeFollower(leaderIdentity *models.Identity) {
 	l.newLeaderLock.Lock()
 	defer l.newLeaderLock.Unlock()
 
@@ -69,11 +70,11 @@ func (l *leaderElection) Start() {
 	l.rpcServer = servicediscovery.NewServer(l.config.LeaderElection.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
-	var elector kle.LeaderElector
+	var elector leaderelector.LeaderElector
 
 	if l.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
 		kubernetesClient := kubernetes.NewClient(l.myIdentity)
-		elector = kle.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
+		elector = kubernetes.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
 	}
 
 	elector.Run(context.Background())
@@ -86,13 +87,13 @@ func (l *leaderElection) Stop() {
 func NewLeaderElection(
 	config *helpers.Config,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	infoHandler info.Handler,
+	infoHandler membership.Handler,
 ) LeaderElection {
 	return &leaderElection{
 		config:           config,
 		serviceDiscovery: serviceDiscovery,
 		newLeaderLock:    &sync.Mutex{},
-		myIdentity:       identity.NewIdentityFromEnv(),
+		myIdentity:       models.NewIdentityFromEnv(),
 		infoHandler:      infoHandler,
 	}
 }

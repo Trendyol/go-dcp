@@ -29,6 +29,7 @@ type ConfigDCP struct {
 	Group                  ConfigDCPGroup    `yaml:"group"`
 	BufferSizeKb           int               `yaml:"bufferSizeKb" default:"16384"`
 	ConnectionBufferSizeKb uint              `yaml:"connectionBufferSizeKb" default:"20480"`
+	ConnectionTimeout      time.Duration     `yaml:"connectionTimeout"`
 	Listener               ConfigDCPListener `yaml:"listener"`
 }
 
@@ -182,6 +183,10 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.Dcp.Group.Membership.RebalanceDelay == 0 {
 		_config.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
+	}
+
+	if _config.Dcp.ConnectionTimeout == 0 {
+		_config.Dcp.ConnectionTimeout = 5 * time.Second
 	}
 
 	if _config.CollectionNames == nil {

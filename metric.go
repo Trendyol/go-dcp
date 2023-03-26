@@ -15,8 +15,9 @@ import (
 )
 
 type metricCollector struct {
-	stream Stream
-	client gDcp.Client
+	stream           Stream
+	client           gDcp.Client
+	vBucketDiscovery VBucketDiscovery
 
 	mutation   *prometheus.Desc
 	deletion   *prometheus.Desc
@@ -27,8 +28,16 @@ type metricCollector struct {
 	endSeqNo     *prometheus.Desc
 
 	averageProcessMs *prometheus.Desc
+	rebalanceCount   *prometheus.Desc
 
 	lag *prometheus.Desc
+
+	totalMembers      *prometheus.Desc
+	memberNumber      *prometheus.Desc
+	membershipType    *prometheus.Desc
+	vBucketCount      *prometheus.Desc
+	vBucketRangeStart *prometheus.Desc
+	vBucketRangeEnd   *prometheus.Desc
 }
 
 func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -75,21 +84,21 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	for vbID, offset := range offsets {
 		ch <- prometheus.MustNewConstMetric(
 			s.currentSeqNo,
-			prometheus.CounterValue,
+			prometheus.GaugeValue,
 			float64(offset.SeqNo),
 			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.startSeqNo,
-			prometheus.CounterValue,
+			prometheus.GaugeValue,
 			float64(offset.StartSeqNo),
 			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.endSeqNo,
-			prometheus.CounterValue,
+			prometheus.GaugeValue,
 			float64(offset.EndSeqNo),
 			strconv.Itoa(int(vbID)),
 		)
@@ -108,7 +117,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		} else {
 			ch <- prometheus.MustNewConstMetric(
 				s.lag,
-				prometheus.CounterValue,
+				prometheus.GaugeValue,
 				lag,
 				strconv.Itoa(int(vbID)),
 			)
@@ -125,12 +134,65 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		streamMetric.AverageProcessMs.Value(),
 		[]string{}...,
 	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.rebalanceCount,
+		prometheus.CounterValue,
+		float64(streamMetric.RebalanceCount),
+		[]string{}...,
+	)
+
+	vBucketDiscoveryMetric := s.vBucketDiscovery.GetMetric()
+
+	ch <- prometheus.MustNewConstMetric(
+		s.totalMembers,
+		prometheus.GaugeValue,
+		float64(vBucketDiscoveryMetric.TotalMembers),
+		[]string{}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.memberNumber,
+		prometheus.GaugeValue,
+		float64(vBucketDiscoveryMetric.MemberNumber),
+		[]string{}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.membershipType,
+		prometheus.GaugeValue,
+		0,
+		[]string{vBucketDiscoveryMetric.Type}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.vBucketCount,
+		prometheus.GaugeValue,
+		float64(vBucketDiscoveryMetric.VBucketCount),
+		[]string{}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.vBucketRangeStart,
+		prometheus.GaugeValue,
+		float64(vBucketDiscoveryMetric.VBucketRangeStart),
+		[]string{}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.vBucketRangeEnd,
+		prometheus.GaugeValue,
+		float64(vBucketDiscoveryMetric.VBucketRangeEnd),
+		[]string{}...,
+	)
 }
 
-func newMetricCollector(client gDcp.Client, stream Stream) *metricCollector {
+//nolint:funlen
+func newMetricCollector(client gDcp.Client, stream Stream, vBucketDiscovery VBucketDiscovery) *metricCollector {
 	return &metricCollector{
-		stream: stream,
-		client: client,
+		stream:           stream,
+		client:           client,
+		vBucketDiscovery: vBucketDiscovery,
 
 		mutation: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "mutation", "total"),
@@ -180,11 +242,58 @@ func newMetricCollector(client gDcp.Client, stream Stream) *metricCollector {
 			[]string{},
 			nil,
 		),
+		rebalanceCount: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "rebalance_count", "current"),
+			"Rebalance count",
+			[]string{},
+			nil,
+		),
+		totalMembers: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "total_members", "current"),
+			"Total members",
+			[]string{},
+			nil,
+		),
+		memberNumber: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "member_number", "current"),
+			"Member number",
+			[]string{},
+			nil,
+		),
+		membershipType: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "membership_type", "current"),
+			"Membership type",
+			[]string{"type"},
+			nil,
+		),
+		vBucketCount: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "vbucket_count", "current"),
+			"VBucket count",
+			[]string{},
+			nil,
+		),
+		vBucketRangeStart: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "vbucket_range_start", "current"),
+			"VBucket range start",
+			[]string{},
+			nil,
+		),
+		vBucketRangeEnd: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "vbucket_range_end", "current"),
+			"VBucket range end",
+			[]string{},
+			nil,
+		),
 	}
 }
 
-func NewMetricMiddleware(app *fiber.App, config *helpers.Config, stream Stream, client gDcp.Client) (func(ctx *fiber.Ctx) error, error) {
-	err := prometheus.DefaultRegisterer.Register(newMetricCollector(client, stream))
+func NewMetricMiddleware(app *fiber.App,
+	config *helpers.Config,
+	stream Stream,
+	client gDcp.Client,
+	vBucketDiscovery VBucketDiscovery,
+) (func(ctx *fiber.Ctx) error, error) {
+	err := prometheus.DefaultRegisterer.Register(newMetricCollector(client, stream, vBucketDiscovery))
 	if err != nil {
 		return nil, err
 	}

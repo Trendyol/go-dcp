@@ -130,7 +130,7 @@ func (s *dcp) Start() {
 				s.api.Shutdown()
 			}()
 
-			s.api = NewAPI(s.config, s.client, s.stream, s.serviceDiscovery)
+			s.api = NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery)
 			s.api.Listen()
 		}()
 	}

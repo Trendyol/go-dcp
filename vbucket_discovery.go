@@ -15,11 +15,22 @@ import (
 type VBucketDiscovery interface {
 	Get() []uint16
 	Close()
+	GetMetric() *VBucketDiscoveryMetric
 }
 
 type vBucketDiscovery struct {
-	membership    membership.Membership
-	vBucketNumber int
+	membership             membership.Membership
+	vBucketNumber          int
+	vBucketDiscoveryMetric *VBucketDiscoveryMetric
+}
+
+type VBucketDiscoveryMetric struct {
+	TotalMembers      int
+	MemberNumber      int
+	Type              string
+	VBucketCount      int
+	VBucketRangeStart uint16
+	VBucketRangeEnd   uint16
 }
 
 func (s *vBucketDiscovery) Get() []uint16 {
@@ -32,13 +43,20 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	receivedInfo := s.membership.GetInfo()
 
 	readyToStreamVBuckets := helpers.ChunkSlice[uint16](vBuckets, receivedInfo.TotalMembers)[receivedInfo.MemberNumber-1]
+
+	start := readyToStreamVBuckets[0]
+	end := readyToStreamVBuckets[len(readyToStreamVBuckets)-1]
+
 	logger.Log.Printf(
 		"member: %v/%v, vbucket range: %v-%v",
-		receivedInfo.MemberNumber,
-		receivedInfo.TotalMembers,
-		readyToStreamVBuckets[0],
-		readyToStreamVBuckets[len(readyToStreamVBuckets)-1],
+		receivedInfo.MemberNumber, receivedInfo.TotalMembers,
+		start, end,
 	)
+
+	s.vBucketDiscoveryMetric.TotalMembers = receivedInfo.TotalMembers
+	s.vBucketDiscoveryMetric.MemberNumber = receivedInfo.MemberNumber
+	s.vBucketDiscoveryMetric.VBucketRangeStart = start
+	s.vBucketDiscoveryMetric.VBucketRangeEnd = end
 
 	return readyToStreamVBuckets
 }
@@ -46,6 +64,10 @@ func (s *vBucketDiscovery) Get() []uint16 {
 func (s *vBucketDiscovery) Close() {
 	s.membership.Close()
 	logger.Log.Printf("vbucket discovery closed")
+}
+
+func (s *vBucketDiscovery) GetMetric() *VBucketDiscoveryMetric {
+	return s.vBucketDiscoveryMetric
 }
 
 func NewVBucketDiscovery(client gDcp.Client,
@@ -75,5 +97,9 @@ func NewVBucketDiscovery(client gDcp.Client,
 	return &vBucketDiscovery{
 		vBucketNumber: vBucketNumber,
 		membership:    ms,
+		vBucketDiscoveryMetric: &VBucketDiscoveryMetric{
+			VBucketCount: vBucketNumber,
+			Type:         config.Dcp.Group.Membership.Type,
+		},
 	}
 }

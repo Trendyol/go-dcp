@@ -24,19 +24,20 @@ type Stream interface {
 	UnlockOffsets()
 	GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool)
 	GetObserver() gDcp.Observer
-	GetMetric() StreamMetric
+	GetMetric() *StreamMetric
 	UnmarkDirtyOffsets()
 }
 
 type StreamMetric struct {
 	AverageProcessMs ewma.MovingAverage
+	RebalanceCount   int
 }
 
 type stream struct {
 	client           gDcp.Client
 	metadata         Metadata
 	checkpoint       Checkpoint
-	metric           StreamMetric
+	metric           *StreamMetric
 	observer         gDcp.Observer
 	vBucketDiscovery VBucketDiscovery
 	collectionIDs    map[uint32]string
@@ -162,6 +163,8 @@ func (s *stream) rebalance() {
 	s.balancing = false
 
 	logger.Log.Printf("rebalance is finished")
+
+	s.metric.RebalanceCount++
 }
 
 func (s *stream) Rebalance() {
@@ -249,7 +252,7 @@ func (s *stream) GetObserver() gDcp.Observer {
 	return s.observer
 }
 
-func (s *stream) GetMetric() StreamMetric {
+func (s *stream) GetMetric() *StreamMetric {
 	return s.metric
 }
 
@@ -277,7 +280,7 @@ func NewStream(client gDcp.Client,
 		collectionIDs:    collectionIDs,
 		activeStreams:    &sync.WaitGroup{},
 		stopCh:           stopCh,
-		metric: StreamMetric{
+		metric: &StreamMetric{
 			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},
 	}

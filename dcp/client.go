@@ -141,7 +141,7 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(time.Second*5),
+		time.Now().Add(s.config.Dcp.ConnectionTimeout),
 		gocbcore.WaitUntilReadyOptions{
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},

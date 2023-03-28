@@ -2,8 +2,10 @@ package couchbase
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -113,6 +115,35 @@ func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
 }
 
+func (s *client) tlsRootCaProvider() *x509.CertPool {
+	cert, err := os.ReadFile(os.ExpandEnv(s.config.RootCAPath))
+	if err != nil {
+		logger.ErrorLog.Printf("error while reading cert file: %v", err)
+		panic(err)
+	}
+
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(cert)
+
+	return nil
+}
+
+func (s *client) getSecurityConfig() gocbcore.SecurityConfig {
+	config := gocbcore.SecurityConfig{
+		Auth: gocbcore.PasswordAuthProvider{
+			Username: s.config.Username,
+			Password: s.config.Password,
+		},
+	}
+
+	if s.config.SecureConnection {
+		config.UseTLS = true
+		config.TLSRootCAProvider = s.tlsRootCaProvider
+	}
+
+	return config
+}
+
 func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
@@ -120,12 +151,7 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 			SeedConfig: gocbcore.SeedConfig{
 				HTTPAddrs: s.config.Hosts,
 			},
-			SecurityConfig: gocbcore.SecurityConfig{
-				Auth: gocbcore.PasswordAuthProvider{
-					Username: s.config.Username,
-					Password: s.config.Password,
-				},
-			},
+			SecurityConfig: s.getSecurityConfig(),
 			CompressionConfig: gocbcore.CompressionConfig{
 				Enabled: true,
 			},
@@ -213,12 +239,7 @@ func (s *client) DcpConnect() error {
 		SeedConfig: gocbcore.SeedConfig{
 			HTTPAddrs: s.config.Hosts,
 		},
-		SecurityConfig: gocbcore.SecurityConfig{
-			Auth: gocbcore.PasswordAuthProvider{
-				Username: s.config.Username,
-				Password: s.config.Password,
-			},
-		},
+		SecurityConfig: s.getSecurityConfig(),
 		CompressionConfig: gocbcore.CompressionConfig{
 			Enabled: true,
 		},

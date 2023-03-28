@@ -31,8 +31,6 @@ metadata:
     bucket: sample
 checkpoint:
   type: manual
-logging:
-  level: debug
 dcp:
   listener:
     bufferSize: 1024

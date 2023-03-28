@@ -22,34 +22,34 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 package main
 
 import (
-  "github.com/Trendyol/go-dcp-client"
-  "github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp-client"
+	"github.com/Trendyol/go-dcp-client/logger"
 
-  "github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp-client/models"
 )
 
 func listener(ctx *models.ListenerContext) {
-  switch event := ctx.Event.(type) {
-  case models.DcpMutation:
-    logger.Log.Printf("mutated(vb=%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
-  case models.DcpDeletion:
-    logger.Log.Printf("deleted(vb=%v) | id: %v", event.VbID, string(event.Key))
-  case models.DcpExpiration:
-    logger.Log.Printf("expired(vb=%v) | id: %v", event.VbID, string(event.Key))
-  }
+	switch event := ctx.Event.(type) {
+	case models.DcpMutation:
+		logger.Log.Printf("mutated(vb=%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
+	case models.DcpDeletion:
+		logger.Log.Printf("deleted(vb=%v) | id: %v", event.VbID, string(event.Key))
+	case models.DcpExpiration:
+		logger.Log.Printf("expired(vb=%v) | id: %v", event.VbID, string(event.Key))
+	}
 
-  ctx.Ack()
+	ctx.Ack()
 }
 
 func main() {
-  dcp, err := godcpclient.NewDcp("config.yml", listener)
-  if err != nil {
-    panic(err)
-  }
+	dcp, err := godcpclient.NewDcp("config.yml", listener)
+	if err != nil {
+		panic(err)
+	}
 
-  defer dcp.Close()
+	defer dcp.Close()
 
-  dcp.Start()
+	dcp.Start()
 }
 ```
 
@@ -69,6 +69,8 @@ $ go get github.com/Trendyol/go-dcp-client
 | `password`                            | string            | yes      |           |
 | `bucketName`                          | string            | yes      |           |
 | `dcp.group.name`                      | string            | yes      |           |
+| `secureConnection`                    | bool              | no       | false     |
+| `rootCAPath`                          | string            | no       | *not set  |
 | `dcp.group.membership.type`           | string            | no       | couchbase |
 | `scopeName`                           | string            | no       | _default  |
 | `collectionNames`                     | []string          | no       | _default  |
@@ -87,7 +89,6 @@ $ go get github.com/Trendyol/go-dcp-client
 | `leaderElection.type`                 | string            | no       | *not set  |
 | `leaderElection.config`               | map[string]string | no       | *not set  |
 | `leaderElection.rpc.port`             | int               | no       | 8081      |
-| `logger.level`                        | string            | no       | info      |
 | `checkpoint.type`                     | string            | no       | auto      |
 | `checkpoint.autoReset`                | string            | no       | earliest  |
 | `checkpoint.interval`                 | time.Duration     | no       | 20s       |

@@ -54,10 +54,6 @@ type ConfigRPC struct {
 	Port int `yaml:"port" default:"8081"`
 }
 
-type ConfigLogging struct {
-	Level string `yaml:"level" default:"info"`
-}
-
 type ConfigCheckpoint struct {
 	Type      string        `yaml:"type" default:"auto"`
 	AutoReset string        `yaml:"autoReset" default:"earliest"`
@@ -89,7 +85,8 @@ type Config struct {
 	CollectionNames    []string                 `yaml:"collectionNames"`
 	Password           string                   `yaml:"password"`
 	Username           string                   `yaml:"username"`
-	Logging            ConfigLogging            `yaml:"logging"`
+	SecureConnection   bool                     `yaml:"secureConnection"`
+	RootCAPath         string                   `yaml:"rootCAPath"`
 	Hosts              []string                 `yaml:"hosts"`
 	Checkpoint         ConfigCheckpoint         `yaml:"checkpoint"`
 	Dcp                ConfigDCP                `yaml:"dcp"`

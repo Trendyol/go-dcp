@@ -2,6 +2,9 @@ package kubernetes
 
 import (
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
@@ -19,14 +22,34 @@ func (s *statefulSetMembership) GetInfo() *membership.Model {
 func (s *statefulSetMembership) Close() {
 }
 
-func NewStatefulSetMembership(config *helpers.Config) membership.Membership {
-	statefulSetInfo, err := NewStatefulSetInfoFromHostname()
+func getPodOrdinalFromHostname() (int, error) {
+	hostname, err := os.Hostname()
 	if err != nil {
-		logger.ErrorLog.Printf("error while creating statefulSet membership: %v", err)
+		return -1, err
+	}
+
+	separatorIndex := strings.LastIndex(hostname, "-")
+
+	if separatorIndex == -1 {
+		return -1, fmt.Errorf("hostname is not in statefulSet format")
+	}
+
+	podOrdinal, err := strconv.Atoi(hostname[separatorIndex+1:])
+	if err != nil {
+		return -1, err
+	}
+
+	return podOrdinal, nil
+}
+
+func NewStatefulSetMembership(config *helpers.Config) membership.Membership {
+	podOrdinal, err := getPodOrdinalFromHostname()
+	if err != nil {
+		logger.ErrorLog.Printf("error while get pod ordinal from hostname: %v", err)
 		panic(err)
 	}
 
-	memberNumber := statefulSetInfo.PodOrdinal + 1
+	memberNumber := podOrdinal + 1
 
 	if memberNumber > config.Dcp.Group.Membership.TotalMembers {
 		err := fmt.Errorf("memberNumber is greater than totalMembers")

@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/couchbase/gocbcore/v10"
 )
 
@@ -17,18 +19,21 @@ type SnapshotMarker struct {
 
 type InternalDcpMutation struct {
 	CollectionName string
+	EventTime      time.Time
 	*gocbcore.DcpMutation
 	*Offset
 }
 
 type InternalDcpDeletion struct {
 	CollectionName string
+	EventTime      time.Time
 	*gocbcore.DcpDeletion
 	*Offset
 }
 
 type InternalDcpExpiration struct {
 	CollectionName string
+	EventTime      time.Time
 	*gocbcore.DcpExpiration
 	*Offset
 }

@@ -2,6 +2,7 @@ package couchbase
 
 import (
 	"sync"
+	"time"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/models"
@@ -134,6 +135,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 					SeqNo:          mutation.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(mutation.CollectionID),
+				EventTime:      time.Unix(int64(mutation.Cas/1000000000), 0),
 			},
 		})
 	}
@@ -169,6 +171,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 					SeqNo:          deletion.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(deletion.CollectionID),
+				EventTime:      time.Unix(int64(deletion.Cas/1000000000), 0),
 			},
 		})
 	}
@@ -204,6 +207,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 					SeqNo:          expiration.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(expiration.CollectionID),
+				EventTime:      time.Unix(int64(expiration.Cas/1000000000), 0),
 			},
 		})
 	}

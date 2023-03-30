@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/logger"
@@ -26,11 +27,11 @@ type ConfigDCPListener struct {
 }
 
 type ConfigDCP struct {
-	Group                  ConfigDCPGroup    `yaml:"group"`
-	BufferSizeKb           int               `yaml:"bufferSizeKb" default:"16384"`
-	ConnectionBufferSizeKb uint              `yaml:"connectionBufferSizeKb" default:"20480"`
-	ConnectionTimeout      time.Duration     `yaml:"connectionTimeout"`
-	Listener               ConfigDCPListener `yaml:"listener"`
+	Group                ConfigDCPGroup    `yaml:"group"`
+	BufferSize           int               `yaml:"bufferSize" default:"16777216"`
+	ConnectionBufferSize uint              `yaml:"connectionBufferSize" default:"1048576"`
+	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
+	Listener             ConfigDCPListener `yaml:"listener"`
 }
 
 type ConfigAPI struct {
@@ -94,6 +95,7 @@ type Config struct {
 	HealthCheck        ConfigHealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation ConfigRollbackMitigation `yaml:"rollbackMitigation"`
 	Metadata           ConfigMetadata           `yaml:"metadata"`
+	Debug              bool                     `yaml:"debug"`
 }
 
 func (c *Config) IsCollectionModeEnabled() bool {
@@ -128,15 +130,14 @@ func (c *Config) GetFileMetadata() string {
 	return fileName
 }
 
-func (c *Config) GetCouchbaseMetadata() (string, string, string) {
+func (c *Config) GetCouchbaseMetadata() (string, string, string, uint) {
 	var bucket, scope, collection string
+	var connectionBufferSize uint
 
 	if _, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
 		bucket = c.Metadata.Config[CouchbaseMetadataBucketConfig]
 	} else {
-		err := errors.New("couchbase metadata bucket name is not set")
-		logger.ErrorLog.Printf("failed to get metadata bucket name: %v", err)
-		panic(err)
+		bucket = c.BucketName
 	}
 
 	if _, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
@@ -151,7 +152,19 @@ func (c *Config) GetCouchbaseMetadata() (string, string, string) {
 		collection = DefaultCollectionName
 	}
 
-	return bucket, scope, collection
+	if _, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
+		parsedConnectionBufferSize, err := strconv.ParseUint(c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig], 10, 32)
+		if err != nil {
+			logger.ErrorLog.Printf("failed to parse metadata connection buffer size: %v", err)
+			panic(err)
+		}
+
+		connectionBufferSize = uint(parsedConnectionBufferSize)
+	} else {
+		connectionBufferSize = 10485760
+	}
+
+	return bucket, scope, collection, connectionBufferSize
 }
 
 func Options(opts *config.Options) {

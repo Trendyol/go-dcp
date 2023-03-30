@@ -3,13 +3,11 @@ package api
 import (
 	"strconv"
 
+	"github.com/Trendyol/go-dcp-client/couchbase"
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/stream"
 
-	"github.com/Trendyol/go-dcp-client/couchbase"
-
-	"github.com/Trendyol/go-dcp-client/logger"
-
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 

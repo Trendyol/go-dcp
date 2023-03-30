@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"os"
 	"reflect"
+	"runtime"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 )
 
 func IsMetadata(data interface{}) bool {
@@ -52,4 +55,20 @@ func CreateConfigFile(content string) (string, func(), error) {
 		tmpFile.Close()
 		os.Remove(tmpFile.Name())
 	}, nil
+}
+
+func byteToMb(b uint64) uint64 {
+	return b / 1024 / 1024
+}
+
+func LogMemUsage() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+
+	logger.Log.Printf(
+		"memory usage: alloc = %vmb, totalAlloc = %vmb, sys = %vmb",
+		byteToMb(m.Alloc),
+		byteToMb(m.TotalAlloc),
+		byteToMb(m.Sys),
+	)
 }

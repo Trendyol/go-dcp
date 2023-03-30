@@ -6,15 +6,13 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Trendyol/go-dcp-client/models"
-
-	"github.com/Trendyol/go-dcp-client/metadata"
-
+	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp-client/metadata"
+	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/json-iterator/go"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -138,7 +136,7 @@ func NewCBMetadata(client Client, config *helpers.Config) metadata.Metadata {
 		panic(err)
 	}
 
-	_, scope, collection := config.GetCouchbaseMetadata()
+	_, scope, collection, _ := config.GetCouchbaseMetadata()
 
 	return &cbMetadata{
 		client:         client,

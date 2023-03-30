@@ -11,6 +11,7 @@ type ListenerArgs struct {
 }
 
 type (
-	Listener   func(*ListenerContext)
-	ListenerCh chan ListenerArgs
+	Listener      func(*ListenerContext)
+	ListenerCh    chan ListenerArgs
+	ListenerEndCh chan DcpStreamEnd
 )

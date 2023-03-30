@@ -23,21 +23,14 @@ var configStr = `hosts:
 username: Administrator
 password: password
 bucketName: sample
-scopeName: _default
-collectionNames:
-  - _default
-metadata:
-  config:
-    bucket: sample
 checkpoint:
   type: manual
 dcp:
-  listener:
-    bufferSize: 1024
   group:
     name: groupName
     membership:
-      type: static`
+      type: static
+debug: true`
 
 func setupContainer(b *testing.B, config *helpers.Config) func() {
 	ctx := context.Background()
@@ -129,7 +122,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 }
 
 func BenchmarkDcp(benchmark *testing.B) {
-	mockDataSize := 320000
+	mockDataSize := 640000
 	saveTarget := mockDataSize / 2
 
 	configPath, configFileClean, err := helpers.CreateConfigFile(configStr)
@@ -149,6 +142,8 @@ func BenchmarkDcp(benchmark *testing.B) {
 
 	counter := 0
 	finish := make(chan struct{}, 1)
+
+	benchmark.ResetTimer()
 
 	dcp, err = NewDcp(configPath, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {

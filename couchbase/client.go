@@ -12,11 +12,10 @@ import (
 
 	"github.com/json-iterator/go"
 
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/models"
 
-	"github.com/Trendyol/go-dcp-client/logger"
-
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -144,7 +143,7 @@ func (s *client) getSecurityConfig() gocbcore.SecurityConfig {
 	return config
 }
 
-func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
+func (s *client) connect(bucketName string, connectionBufferSize uint) (*gocbcore.Agent, error) {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
 			BucketName: bucketName,
@@ -159,7 +158,7 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 				UseCollections: true,
 			},
 			KVConfig: gocbcore.KVConfig{
-				ConnectionBufferSize: s.config.Dcp.ConnectionBufferSizeKb * 1024,
+				ConnectionBufferSize: connectionBufferSize,
 			},
 		},
 	)
@@ -191,7 +190,16 @@ func (s *client) connect(bucketName string) (*gocbcore.Agent, error) {
 }
 
 func (s *client) Connect() error {
-	agent, err := s.connect(s.config.BucketName)
+	connectionBufferSize := s.config.Dcp.ConnectionBufferSize
+
+	if s.config.IsCouchbaseMetadata() {
+		metadataBucketName, _, _, metadataConnectionBufferSize := s.config.GetCouchbaseMetadata()
+		if metadataBucketName == s.config.BucketName {
+			connectionBufferSize = metadataConnectionBufferSize
+		}
+	}
+
+	agent, err := s.connect(s.config.BucketName, connectionBufferSize)
 	if err != nil {
 		return err
 	}
@@ -199,12 +207,12 @@ func (s *client) Connect() error {
 	s.agent = agent
 
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _ := s.config.GetCouchbaseMetadata()
+		metadataBucketName, _, _, connectionBufferSize := s.config.GetCouchbaseMetadata()
 
 		if metadataBucketName == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
-			metaAgent, err := s.connect(metadataBucketName)
+			metaAgent, err := s.connect(metadataBucketName, connectionBufferSize)
 			if err != nil {
 				return err
 			}
@@ -244,11 +252,11 @@ func (s *client) DcpConnect() error {
 			Enabled: true,
 		},
 		DCPConfig: gocbcore.DCPConfig{
-			BufferSize:      s.config.Dcp.BufferSizeKb * 1024,
+			BufferSize:      s.config.Dcp.BufferSize,
 			UseExpiryOpcode: true,
 		},
 		KVConfig: gocbcore.KVConfig{
-			ConnectionBufferSize: s.config.Dcp.ConnectionBufferSizeKb * 1024,
+			ConnectionBufferSize: s.config.Dcp.ConnectionBufferSize,
 		},
 	}
 
@@ -497,7 +505,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	if persistSeqNo >= failedSeqNo {
 		err := errors.New("failed seq no is less than persist seq no")
-		logger.ErrorLog.Printf("open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, err: %v",
+		logger.ErrorLog.Printf("rollback failed, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, err: %v",
 			vbID, vbUUID,
 			failedSeqNo, persistSeqNo,
 			err,
@@ -506,13 +514,20 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		return err
 	}
 
+	if persistSeqNo != 0 {
+		observer.AddCatchup(vbID, uint64(failedSeqNo))
+	} else {
+		logger.Log.Printf("full rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d",
+			vbID, vbUUID,
+			failedSeqNo, persistSeqNo,
+		)
+	}
+
 	logger.Log.Printf(
 		"open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d",
 		vbID, vbUUID,
 		failedSeqNo, persistSeqNo,
 	)
-
-	observer.AddCatchup(vbID, uint64(failedSeqNo))
 
 	opm := NewAsyncOp(context.Background())
 

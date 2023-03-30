@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
-
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -30,7 +29,7 @@ type Observer interface {
 	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
-	ListenEnd() chan models.DcpStreamEnd
+	ListenEnd() models.ListenerEndCh
 	AddCatchup(vbID uint16, seqNo uint64)
 }
 
@@ -47,11 +46,10 @@ type observer struct {
 	collectionIDs          map[uint32]string
 	catchup                map[uint16]uint64
 	listenerCh             models.ListenerCh
-	endCh                  chan models.DcpStreamEnd
+	listenerEndCh          models.ListenerEndCh
 	currentSnapshotsLock   *sync.Mutex
 	metricsLock            *sync.Mutex
 	catchupLock            *sync.Mutex
-	checkCatchup           map[uint16]bool
 	catchupNeededVbIDCount int
 }
 
@@ -59,7 +57,6 @@ func (so *observer) AddCatchup(vbID uint16, seqNo uint64) {
 	so.catchupLock.Lock()
 	defer so.catchupLock.Unlock()
 
-	so.checkCatchup[vbID] = true
 	so.catchup[vbID] = seqNo
 	so.catchupNeededVbIDCount++
 }
@@ -75,7 +72,6 @@ func (so *observer) isCatchupDone(vbID uint16, seqNo uint64) bool {
 	if catchupSeqNo, ok := so.catchup[vbID]; ok {
 		if seqNo >= catchupSeqNo {
 			delete(so.catchup, vbID)
-			delete(so.checkCatchup, vbID)
 			so.catchupNeededVbIDCount--
 
 			return seqNo != catchupSeqNo
@@ -227,7 +223,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 }
 
 func (so *observer) End(event models.DcpStreamEnd, _ error) {
-	so.endCh <- event
+	so.listenerEndCh <- event
 }
 
 func (so *observer) CreateCollection(event models.DcpCollectionCreation) {
@@ -340,8 +336,8 @@ func (so *observer) Listen() models.ListenerCh {
 	return so.listenerCh
 }
 
-func (so *observer) ListenEnd() chan models.DcpStreamEnd {
-	return so.endCh
+func (so *observer) ListenEnd() models.ListenerEndCh {
+	return so.listenerEndCh
 }
 
 // nolint:staticcheck
@@ -363,7 +359,7 @@ func (so *observer) CloseEnd() {
 		}
 	}()
 
-	close(so.endCh)
+	close(so.listenerEndCh)
 }
 
 func NewObserver(
@@ -380,13 +376,12 @@ func NewObserver(
 		metrics:     map[uint16]*ObserverMetric{},
 		metricsLock: &sync.Mutex{},
 
-		catchup:      map[uint16]uint64{},
-		checkCatchup: map[uint16]bool{},
-		catchupLock:  &sync.Mutex{},
+		catchup:     map[uint16]uint64{},
+		catchupLock: &sync.Mutex{},
 
 		collectionIDs: collectionIDs,
 
-		listenerCh: make(models.ListenerCh, config.Dcp.Listener.BufferSize),
-		endCh:      make(chan models.DcpStreamEnd, 1),
+		listenerCh:    make(models.ListenerCh, config.Dcp.Listener.BufferSize),
+		listenerEndCh: make(models.ListenerEndCh, 1),
 	}
 }

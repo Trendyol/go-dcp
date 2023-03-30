@@ -149,6 +149,11 @@ func (s *dcp) Start() {
 	}
 
 	logger.Log.Printf("dcp stream started")
+
+	if s.config.Debug {
+		helpers.LogMemUsage()
+	}
+
 	select {
 	case <-s.stopCh:
 	case <-s.cancelCh:

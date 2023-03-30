@@ -6,14 +6,14 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"
 
 	"github.com/json-iterator/go"
 
 	"github.com/google/uuid"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -282,7 +282,7 @@ func NewCBMembership(config *helpers.Config, client Client, handler membership.H
 		panic(err)
 	}
 
-	_, scope, collection := config.GetCouchbaseMetadata()
+	_, scope, collection, _ := config.GetCouchbaseMetadata()
 
 	cbm := &cbMembership{
 		infoChan:       make(chan *membership.Model),

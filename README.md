@@ -74,8 +74,8 @@ $ go get github.com/Trendyol/go-dcp-client
 | `dcp.group.membership.type`           | string            | no       | couchbase |
 | `scopeName`                           | string            | no       | _default  |
 | `collectionNames`                     | []string          | no       | _default  |
-| `dcp.bufferSizeKb`                    | int               | no       | 16384     |
-| `dcp.connectionBufferSizeKb`          | uint              | no       | 20480     |
+| `dcp.bufferSize`                      | int               | no       | 16777216  |
+| `dcp.connectionBufferSize`            | uint              | no       | 1048576   |
 | `dcp.connectionTimeout`               | time.Duration     | no       | 5s        |
 | `dcp.listener.bufferSize`             | int               | no       | 1         |
 | `dcp.group.membership.memberNumber`   | int               | no       | 1         |
@@ -100,6 +100,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `metadata.type`                       | string            | no       | couchbase |
 | `metadata.readOnly`                   | bool              | no       | false     |
 | `metadata.config`                     | map[string]string | no       | *not set  |
+| `debug`                               | bool              | no       | false     |
 
 ### Examples
 

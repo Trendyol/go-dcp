@@ -3,14 +3,14 @@ package api
 import (
 	"fmt"
 
-	"github.com/Trendyol/go-dcp-client/stream"
+	"github.com/gofiber/fiber/v2/middleware/pprof"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
-
-	"github.com/Trendyol/go-dcp-client/logger"
-
 	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
+	"github.com/Trendyol/go-dcp-client/stream"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -82,14 +82,6 @@ func NewAPI(config *helpers.Config,
 ) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
-	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client, vBucketDiscovery)
-
-	if err == nil {
-		app.Use(metricMiddleware)
-	} else {
-		logger.ErrorLog.Printf("metric middleware cannot be initialized: %v", err)
-	}
-
 	api := &api{
 		app:              app,
 		config:           config,
@@ -98,11 +90,24 @@ func NewAPI(config *helpers.Config,
 		serviceDiscovery: serviceDiscovery,
 	}
 
+	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client, vBucketDiscovery)
+
+	if err == nil {
+		app.Use(metricMiddleware)
+	} else {
+		logger.ErrorLog.Printf("metric middleware cannot be initialized: %v", err)
+	}
+
+	if config.Debug {
+		app.Use(pprof.New())
+		app.Get("/states/offset", api.offset)
+		app.Get("/states/followers", api.followers)
+	}
+
 	if config.HealthCheck.Enabled {
 		app.Get("/status", api.status)
 	}
-	app.Get("/states/offset", api.offset)
-	app.Get("/states/followers", api.followers)
+
 	app.Get("/rebalance", api.rebalance)
 
 	return api

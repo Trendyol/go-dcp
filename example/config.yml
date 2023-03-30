@@ -6,5 +6,3 @@ bucketName: dcp-test
 dcp:
   group:
     name: groupName
-    membership:
-      type: static

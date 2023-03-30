@@ -503,24 +503,8 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		return err
 	}
 
-	if persistSeqNo >= failedSeqNo {
-		err := errors.New("failed seq no is less than persist seq no")
-		logger.ErrorLog.Printf("rollback failed, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, err: %v",
-			vbID, vbUUID,
-			failedSeqNo, persistSeqNo,
-			err,
-		)
-
-		return err
-	}
-
-	if persistSeqNo != 0 {
+	if persistSeqNo != 0 && failedSeqNo > persistSeqNo {
 		observer.AddCatchup(vbID, uint64(failedSeqNo))
-	} else {
-		logger.Log.Printf("full rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d",
-			vbID, vbUUID,
-			failedSeqNo, persistSeqNo,
-		)
 	}
 
 	logger.Log.Printf(

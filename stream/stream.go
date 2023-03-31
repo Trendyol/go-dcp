@@ -32,6 +32,7 @@ type Stream interface {
 
 type Metric struct {
 	AverageProcessMs ewma.MovingAverage
+	DcpLatency       ewma.MovingAverage
 	RebalanceCount   int
 }
 
@@ -63,7 +64,14 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 	s.dirtyOffsets[vbID] = dirty
 }
 
-func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID uint16) {
+func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID uint16, eventTime time.Time) {
+	if helpers.IsMetadata(payload) {
+		s.setOffset(vbID, offset, false)
+		return
+	}
+
+	s.metric.DcpLatency.Add(float64(time.Since(eventTime).Milliseconds()))
+
 	ctx := &models.ListenerContext{
 		Commit: s.checkpoint.Save,
 		Event:  payload,
@@ -73,15 +81,11 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 		},
 	}
 
-	if helpers.IsMetadata(payload) {
-		s.setOffset(vbID, offset, false)
-	} else {
-		start := time.Now()
+	start := time.Now()
 
-		s.listener(ctx)
+	s.listener(ctx)
 
-		s.metric.AverageProcessMs.Add(float64(time.Since(start).Milliseconds()))
-	}
+	s.metric.AverageProcessMs.Add(float64(time.Since(start).Milliseconds()))
 }
 
 func (s *stream) listen() {
@@ -90,11 +94,11 @@ func (s *stream) listen() {
 
 		switch v := event.(type) {
 		case models.DcpMutation:
-			s.waitAndForward(v, v.Offset, v.VbID)
+			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
 		case models.DcpDeletion:
-			s.waitAndForward(v, v.Offset, v.VbID)
+			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
 		case models.DcpExpiration:
-			s.waitAndForward(v, v.Offset, v.VbID)
+			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
 		case models.DcpSeqNoAdvanced:
 			s.setOffset(v.VbID, v.Offset, true)
 		default:

@@ -28,6 +28,7 @@ type metricCollector struct {
 	endSeqNo     *prometheus.Desc
 
 	averageProcessMs *prometheus.Desc
+	dcpLatency       *prometheus.Desc
 	rebalanceCount   *prometheus.Desc
 
 	lag *prometheus.Desc
@@ -136,6 +137,13 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 
 	ch <- prometheus.MustNewConstMetric(
+		s.dcpLatency,
+		prometheus.CounterValue,
+		streamMetric.DcpLatency.Value(),
+		[]string{}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
 		s.rebalanceCount,
 		prometheus.CounterValue,
 		float64(streamMetric.RebalanceCount),
@@ -239,6 +247,12 @@ func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 		averageProcessMs: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "average_process_ms", "current"),
 			"Average process ms at 10sec windows",
+			[]string{},
+			nil,
+		),
+		dcpLatency: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "dcp_latency_ms", "current"),
+			"Dcp latency ms at 10sec windows",
 			[]string{},
 			nil,
 		),

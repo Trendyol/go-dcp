@@ -195,7 +195,9 @@ func (s *client) Connect() error {
 	if s.config.IsCouchbaseMetadata() {
 		metadataBucketName, _, _, metadataConnectionBufferSize := s.config.GetCouchbaseMetadata()
 		if metadataBucketName == s.config.BucketName {
-			connectionBufferSize = metadataConnectionBufferSize
+			if metadataConnectionBufferSize > connectionBufferSize {
+				connectionBufferSize = metadataConnectionBufferSize
+			}
 		}
 	}
 

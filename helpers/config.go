@@ -29,7 +29,7 @@ type ConfigDCPListener struct {
 type ConfigDCP struct {
 	Group                ConfigDCPGroup    `yaml:"group"`
 	BufferSize           int               `yaml:"bufferSize" default:"16777216"`
-	ConnectionBufferSize uint              `yaml:"connectionBufferSize" default:"1048576"`
+	ConnectionBufferSize uint              `yaml:"connectionBufferSize" default:"20971520"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
 	Listener             ConfigDCPListener `yaml:"listener"`
 }
@@ -161,7 +161,7 @@ func (c *Config) GetCouchbaseMetadata() (string, string, string, uint) {
 
 		connectionBufferSize = uint(parsedConnectionBufferSize)
 	} else {
-		connectionBufferSize = 10485760
+		connectionBufferSize = 20971520
 	}
 
 	return bucket, scope, collection, connectionBufferSize

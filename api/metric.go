@@ -131,14 +131,14 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(
 		s.averageProcessMs,
-		prometheus.CounterValue,
+		prometheus.GaugeValue,
 		streamMetric.AverageProcessMs.Value(),
 		[]string{}...,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.dcpLatency,
-		prometheus.CounterValue,
+		prometheus.GaugeValue,
 		streamMetric.DcpLatency.Value(),
 		[]string{}...,
 	)

@@ -306,11 +306,10 @@ func NewMetricMiddleware(app *fiber.App,
 	stream stream.Stream,
 	client couchbase.Client,
 	vBucketDiscovery stream.VBucketDiscovery,
+	metricCollectors ...prometheus.Collector,
 ) (func(ctx *fiber.Ctx) error, error) {
-	err := prometheus.DefaultRegisterer.Register(newMetricCollector(client, stream, vBucketDiscovery))
-	if err != nil {
-		return nil, err
-	}
+	prometheus.DefaultRegisterer.MustRegister(newMetricCollector(client, stream, vBucketDiscovery))
+	prometheus.DefaultRegisterer.MustRegister(metricCollectors...)
 
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)

@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
@@ -79,6 +81,7 @@ func NewAPI(config *helpers.Config,
 	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
 	vBucketDiscovery stream.VBucketDiscovery,
+	metricCollectors ...prometheus.Collector,
 ) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
@@ -90,7 +93,7 @@ func NewAPI(config *helpers.Config,
 		serviceDiscovery: serviceDiscovery,
 	}
 
-	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client, vBucketDiscovery)
+	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client, vBucketDiscovery, metricCollectors...)
 
 	if err == nil {
 		app.Use(metricMiddleware)

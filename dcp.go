@@ -8,6 +8,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/Trendyol/go-dcp-client/membership"
 
 	"github.com/Trendyol/go-dcp-client/api"
@@ -31,6 +33,7 @@ type Dcp interface {
 	Commit()
 	GetConfig() *helpers.Config
 	SetMetadata(metadata metadata.Metadata)
+	SetMetricCollectors(collectors ...prometheus.Collector)
 }
 
 type dcp struct {
@@ -48,6 +51,7 @@ type dcp struct {
 	config            *helpers.Config
 	healthCheckTicker *time.Ticker
 	metadata          metadata.Metadata
+	metricCollectors  []prometheus.Collector
 }
 
 func (s *dcp) getCollectionIDs() map[uint32]string {
@@ -87,6 +91,10 @@ func (s *dcp) stopHealthCheck() {
 
 func (s *dcp) SetMetadata(metadata metadata.Metadata) {
 	s.metadata = metadata
+}
+
+func (s *dcp) SetMetricCollectors(metricCollectors ...prometheus.Collector) {
+	s.metricCollectors = metricCollectors
 }
 
 func (s *dcp) Start() {
@@ -137,7 +145,7 @@ func (s *dcp) Start() {
 				s.api.Shutdown()
 			}()
 
-			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery)
+			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery, s.metricCollectors...)
 			s.api.Listen()
 		}()
 	}
@@ -219,6 +227,7 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 		cancelCh:          make(chan os.Signal, 1),
 		stopCh:            make(chan struct{}, 1),
 		healCheckFailedCh: make(chan struct{}, 1),
+		metricCollectors:  []prometheus.Collector{},
 	}, nil
 }
 

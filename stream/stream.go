@@ -288,6 +288,7 @@ func NewStream(client couchbase.Client,
 		stopCh:           stopCh,
 		metric: &Metric{
 			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
+			DcpLatency:       ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},
 	}
 }

@@ -505,14 +505,21 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		return err
 	}
 
-	if persistSeqNo != 0 && failedSeqNo > persistSeqNo {
+	rollbackSeqNo := persistSeqNo
+
+	if persistSeqNo > failedSeqNo {
+		rollbackSeqNo = 0
+	}
+
+	if (persistSeqNo != 0 && failedSeqNo > persistSeqNo) ||
+		persistSeqNo > failedSeqNo {
 		observer.AddCatchup(vbID, uint64(failedSeqNo))
 	}
 
 	logger.Log.Printf(
-		"open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d",
+		"open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, rollbackSeqNo: %d, catchup lag: %d",
 		vbID, vbUUID,
-		failedSeqNo, persistSeqNo,
+		failedSeqNo, persistSeqNo, rollbackSeqNo, failedSeqNo-rollbackSeqNo,
 	)
 
 	opm := NewAsyncOp(context.Background())
@@ -523,10 +530,10 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		vbID,
 		0,
 		vbUUID,
-		persistSeqNo,
+		rollbackSeqNo,
 		0xffffffffffffffff,
-		persistSeqNo,
-		persistSeqNo,
+		rollbackSeqNo,
+		rollbackSeqNo,
 		observer,
 		openStreamOptions,
 		func(_ []gocbcore.FailoverEntry, err error) {

@@ -31,7 +31,7 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
-	infoHandler     membership.Handler
+	bus             helpers.Bus
 	leaderService   *Service
 	services        map[string]*Service
 	heartbeatTicker *time.Ticker
@@ -197,14 +197,14 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 
 		logger.Log.Printf("new info arrived for member: %v/%v", memberNumber, totalMembers)
 
-		s.infoHandler.OnModelChange(newInfo)
+		s.bus.Emit(helpers.MembershipChangedBusEventName, newInfo)
 	}
 }
 
-func NewServiceDiscovery(config *helpers.Config, infoHandler membership.Handler) ServiceDiscovery {
+func NewServiceDiscovery(config *helpers.Config, bus helpers.Bus) ServiceDiscovery {
 	return &serviceDiscovery{
 		services:     make(map[string]*Service),
-		infoHandler:  infoHandler,
+		bus:          bus,
 		servicesLock: &sync.RWMutex{},
 		config:       config,
 	}

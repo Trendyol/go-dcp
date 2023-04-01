@@ -10,8 +10,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/Trendyol/go-dcp-client/membership"
-
 	"github.com/Trendyol/go-dcp-client/api"
 
 	"github.com/Trendyol/go-dcp-client/metadata"
@@ -97,6 +95,10 @@ func (s *dcp) SetMetricCollectors(metricCollectors ...prometheus.Collector) {
 	s.metricCollectors = metricCollectors
 }
 
+func (s *dcp) membershipChangedListener(_ interface{}) {
+	s.stream.Rebalance()
+}
+
 func (s *dcp) Start() {
 	if s.metadata == nil {
 		switch {
@@ -115,28 +117,26 @@ func (s *dcp) Start() {
 
 	logger.Log.Printf("using %v metadata", reflect.TypeOf(s.metadata))
 
-	infoHandler := membership.NewHandler()
+	bus := helpers.NewBus()
 
 	vBuckets := s.client.GetNumVBuckets()
 
-	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, infoHandler)
+	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, bus)
 
 	s.stream = stream.NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
 
 	if s.config.LeaderElection.Enabled {
-		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, infoHandler)
+		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, bus)
 		s.serviceDiscovery.StartHeartbeat()
 		s.serviceDiscovery.StartMonitor()
 
-		s.leaderElection = stream.NewLeaderElection(s.config, s.serviceDiscovery, infoHandler)
+		s.leaderElection = stream.NewLeaderElection(s.config, s.serviceDiscovery, bus)
 		s.leaderElection.Start()
 	}
 
 	s.stream.Open()
 
-	infoHandler.Subscribe(func(new *membership.Model) {
-		s.stream.Rebalance()
-	})
+	bus.Subscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
 
 	if s.config.API.Enabled {
 		go func() {

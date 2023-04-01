@@ -78,12 +78,22 @@ func (le *leaderElector) Run(ctx context.Context) {
 	}()
 }
 
+func (le *leaderElector) membershipChangedListener(event interface{}) {
+	model := event.(*membership.Model)
+
+	le.client.AddLabel(
+		le.leaseLockNamespace,
+		"member",
+		fmt.Sprintf("%v_%v", model.MemberNumber, model.TotalMembers),
+	)
+}
+
 func NewLeaderElector(
 	client Client,
 	config *helpers.Config,
 	myIdentity *models.Identity,
 	handler leaderelector.Handler,
-	infoHandler membership.Handler,
+	bus helpers.Bus,
 ) leaderelector.LeaderElector {
 	var leaseLockName string
 	var leaseLockNamespace string
@@ -112,9 +122,7 @@ func NewLeaderElector(
 		leaseLockNamespace: leaseLockNamespace,
 	}
 
-	infoHandler.Subscribe(func(new *membership.Model) {
-		client.AddLabel(leaseLockNamespace, "member", fmt.Sprintf("%v_%v", new.MemberNumber, new.TotalMembers))
-	})
+	bus.Subscribe(helpers.MembershipChangedBusEventName, le.membershipChangedListener)
 
 	return le
 }

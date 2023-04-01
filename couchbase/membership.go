@@ -20,7 +20,7 @@ import (
 
 type cbMembership struct {
 	client              Client
-	handler             membership.Handler
+	bus                 helpers.Bus
 	info                *membership.Model
 	infoChan            chan *membership.Model
 	id                  []byte
@@ -237,7 +237,7 @@ func (h *cbMembership) rebalance(instances []*Instance) {
 		logger.ErrorLog.Printf("error while rebalance, self = %v, err: %v", string(h.id), err)
 		panic(err)
 	} else {
-		h.handler.OnModelChange(&membership.Model{
+		h.bus.Emit(helpers.MembershipChangedBusEventName, &membership.Model{
 			MemberNumber: selfOrder,
 			TotalMembers: len(instances),
 		})
@@ -275,7 +275,16 @@ func (h *cbMembership) Close() {
 	h.heartbeatTicker.Stop()
 }
 
-func NewCBMembership(config *helpers.Config, client Client, handler membership.Handler) membership.Membership {
+func (h *cbMembership) membershipChangedListener(event interface{}) {
+	model := event.(*membership.Model)
+
+	h.info = model
+	go func() {
+		h.infoChan <- model
+	}()
+}
+
+func NewCBMembership(config *helpers.Config, client Client, bus helpers.Bus) membership.Membership {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize couchbase membership, err: %v", err)
@@ -289,7 +298,7 @@ func NewCBMembership(config *helpers.Config, client Client, handler membership.H
 		client:         client,
 		id:             []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
 		instanceAll:    []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
-		handler:        handler,
+		bus:            bus,
 		scopeName:      scope,
 		collectionName: collection,
 		config:         config,
@@ -300,12 +309,7 @@ func NewCBMembership(config *helpers.Config, client Client, handler membership.H
 	cbm.startHeartbeat()
 	cbm.startMonitor()
 
-	handler.Subscribe(func(new *membership.Model) {
-		cbm.info = new
-		go func() {
-			cbm.infoChan <- new
-		}()
-	})
+	bus.Subscribe(helpers.MembershipChangedBusEventName, cbm.membershipChangedListener)
 
 	return cbm
 }

@@ -20,4 +20,5 @@ const (
 	CouchbaseMetadataCollectionConfig           = "collection"
 	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
 	FileMetadataFileNameConfig                  = "fileName"
+	MembershipChangedBusEventName               = "membershipChanged"
 )

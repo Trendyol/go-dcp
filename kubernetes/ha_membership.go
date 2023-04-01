@@ -22,17 +22,21 @@ func (h *haMembership) Close() {
 	close(h.infoChan)
 }
 
-func NewHaMembership(_ *helpers.Config, handler membership.Handler) membership.Membership {
+func (h *haMembership) membershipChangedListener(event interface{}) {
+	model := event.(*membership.Model)
+
+	h.info = model
+	go func() {
+		h.infoChan <- model
+	}()
+}
+
+func NewHaMembership(_ *helpers.Config, bus helpers.Bus) membership.Membership {
 	ham := &haMembership{
 		infoChan: make(chan *membership.Model),
 	}
 
-	handler.Subscribe(func(new *membership.Model) {
-		ham.info = new
-		go func() {
-			ham.infoChan <- new
-		}()
-	})
+	bus.Subscribe(helpers.MembershipChangedBusEventName, ham.membershipChangedListener)
 
 	return ham
 }

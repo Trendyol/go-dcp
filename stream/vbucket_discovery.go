@@ -73,7 +73,7 @@ func (s *vBucketDiscovery) GetMetric() *VBucketDiscoveryMetric {
 func NewVBucketDiscovery(client couchbase.Client,
 	config *helpers.Config,
 	vBucketNumber int,
-	infoHandler membership.Handler,
+	bus helpers.Bus,
 ) VBucketDiscovery {
 	var ms membership.Membership
 
@@ -81,11 +81,11 @@ func NewVBucketDiscovery(client couchbase.Client,
 	case config.Dcp.Group.Membership.Type == helpers.StaticMembershipType:
 		ms = membership.NewStaticMembership(config)
 	case config.Dcp.Group.Membership.Type == helpers.CouchbaseMembershipType:
-		ms = couchbase.NewCBMembership(config, client, infoHandler)
+		ms = couchbase.NewCBMembership(config, client, bus)
 	case config.Dcp.Group.Membership.Type == helpers.KubernetesStatefulSetMembershipType:
 		ms = kubernetes.NewStatefulSetMembership(config)
 	case config.Dcp.Group.Membership.Type == helpers.KubernetesHaMembershipType:
-		ms = kubernetes.NewHaMembership(config, infoHandler)
+		ms = kubernetes.NewHaMembership(config, bus)
 	default:
 		err := errors.New("unknown membership")
 		logger.ErrorLog.Printf("membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)

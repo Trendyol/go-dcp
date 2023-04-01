@@ -6,7 +6,6 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/leaderelector"
 
-	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/kubernetes"
@@ -25,7 +24,7 @@ type LeaderElection interface {
 type leaderElection struct {
 	rpcServer        servicediscovery.Server
 	serviceDiscovery servicediscovery.ServiceDiscovery
-	infoHandler      membership.Handler
+	bus              helpers.Bus
 	myIdentity       *models.Identity
 	config           *helpers.Config
 	newLeaderLock    *sync.Mutex
@@ -74,7 +73,7 @@ func (l *leaderElection) Start() {
 
 	if l.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
 		kubernetesClient := kubernetes.NewClient(l.myIdentity)
-		elector = kubernetes.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.infoHandler)
+		elector = kubernetes.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.bus)
 	}
 
 	elector.Run(context.Background())
@@ -87,13 +86,13 @@ func (l *leaderElection) Stop() {
 func NewLeaderElection(
 	config *helpers.Config,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	infoHandler membership.Handler,
+	bus helpers.Bus,
 ) LeaderElection {
 	return &leaderElection{
 		config:           config,
 		serviceDiscovery: serviceDiscovery,
 		newLeaderLock:    &sync.Mutex{},
 		myIdentity:       models.NewIdentityFromEnv(),
-		infoHandler:      infoHandler,
+		bus:              bus,
 	}
 }

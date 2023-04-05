@@ -368,7 +368,7 @@ func (s *client) GetNumVBuckets() int {
 	panic(err)
 }
 
-func (s *client) getNumReplicas() int {
+func (s *client) getNumReplicas() int { //nolint:unused
 	var err error
 
 	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
@@ -381,7 +381,7 @@ func (s *client) getNumReplicas() int {
 	panic(err)
 }
 
-func (s *client) getConfigSnapshot() *gocbcore.ConfigSnapshot {
+func (s *client) getConfigSnapshot() *gocbcore.ConfigSnapshot { //nolint:unused
 	var err error
 
 	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
@@ -415,7 +415,7 @@ func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16][]gocbcore.Failov
 	return uuIDMap, nil
 }
 
-func (s *client) getAbsentInstances(vbID uint16, replicas int) (map[int]bool, error) {
+func (s *client) getAbsentInstances(vbID uint16, replicas int) (map[int]bool, error) { //nolint:unused
 	snapshot := s.getConfigSnapshot()
 	absentInstances := map[int]bool{}
 
@@ -433,7 +433,7 @@ func (s *client) getAbsentInstances(vbID uint16, replicas int) (map[int]bool, er
 	return absentInstances, nil
 }
 
-func (s *client) getObserveInstances(vbID uint16, vbUUID gocbcore.VbUUID, replicas int) (map[int]*gocbcore.ObserveVbResult, error) {
+func (s *client) getObserveInstances(vbID uint16, vbUUID gocbcore.VbUUID, replicas int) (map[int]*gocbcore.ObserveVbResult, error) { //nolint:unused
 	observeInstances := map[int]*gocbcore.ObserveVbResult{}
 
 	for idx := 0; idx <= replicas; idx++ {
@@ -448,7 +448,7 @@ func (s *client) getObserveInstances(vbID uint16, vbUUID gocbcore.VbUUID, replic
 	return observeInstances, nil
 }
 
-func (s *client) getMinSeqNo(vbID uint16, vbUUID gocbcore.VbUUID) (gocbcore.SeqNo, error) {
+func (s *client) getMinSeqNo(vbID uint16, vbUUID gocbcore.VbUUID) (gocbcore.SeqNo, error) { //nolint:unused
 	replicas := s.getNumReplicas()
 	absentInstances, err := s.getAbsentInstances(vbID, replicas)
 	if err != nil {
@@ -595,7 +595,7 @@ func (s *client) OpenStream(
 	return err
 }
 
-func (s *client) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID, replica int) (*gocbcore.ObserveVbResult, error) {
+func (s *client) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID, replica int) (*gocbcore.ObserveVbResult, error) { //nolint:unused
 	opm := NewAsyncOp(context.Background())
 	ch := make(chan error)
 

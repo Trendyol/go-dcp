@@ -358,7 +358,7 @@ func (so *observer) Close() {
 }
 
 func (so *observer) SetFailoverLogs(vbID uint16, logs []gocbcore.FailoverEntry) {
-	if logs == nil || len(logs) == 0 {
+	if len(logs) == 0 {
 		return
 	}
 

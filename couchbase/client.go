@@ -30,10 +30,9 @@ type Client interface {
 	GetBucketUUID() string
 	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
-	GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error)
+	GetVBucketUUIDMap(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error)
 	OpenStream(
 		vbID uint16,
-		vbUUID gocbcore.VbUUID,
 		collectionIDs map[uint32]string,
 		offset *models.Offset,
 		observer Observer,
@@ -393,8 +392,8 @@ func (s *client) getConfigSnapshot() *gocbcore.ConfigSnapshot {
 	panic(err)
 }
 
-func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, error) {
-	uuIDMap := make(map[uint16]gocbcore.VbUUID)
+func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error) {
+	uuIDMap := make(map[uint16][]gocbcore.FailoverEntry)
 
 	for _, vbID := range vbIds {
 		opm := NewAsyncOp(context.Background())
@@ -402,7 +401,7 @@ func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16]gocbcore.VbUUID, 
 		op, err := s.dcpAgent.GetFailoverLog(
 			vbID,
 			func(entries []gocbcore.FailoverEntry, err error) {
-				uuIDMap[vbID] = entries[0].VbUUID
+				uuIDMap[vbID] = entries
 
 				opm.Resolve()
 			})
@@ -495,31 +494,14 @@ func (s *client) getMinSeqNo(vbID uint16, vbUUID gocbcore.VbUUID) (gocbcore.SeqN
 }
 
 func (s *client) openStreamWithRollback(vbID uint16,
-	vbUUID gocbcore.VbUUID,
 	failedSeqNo gocbcore.SeqNo,
+	rollbackSeqNo gocbcore.SeqNo,
 	observer Observer,
 	openStreamOptions gocbcore.OpenStreamOptions,
 ) error {
-	persistSeqNo, err := s.getMinSeqNo(vbID, vbUUID)
-	if err != nil {
-		return err
-	}
-
-	rollbackSeqNo := persistSeqNo
-
-	if persistSeqNo > failedSeqNo {
-		rollbackSeqNo = 0
-	}
-
-	if (persistSeqNo != 0 && failedSeqNo > persistSeqNo) ||
-		persistSeqNo > failedSeqNo {
-		observer.AddCatchup(vbID, uint64(failedSeqNo))
-	}
-
 	logger.Log.Printf(
-		"open stream with rollback, vbID: %d, vbUUID: %d, failedSeqNo: %d, persistReqNo: %d, rollbackSeqNo: %d, catchup lag: %d",
-		vbID, vbUUID,
-		failedSeqNo, persistSeqNo, rollbackSeqNo, failedSeqNo-rollbackSeqNo,
+		"open stream with rollback, vbID: %d, failedSeqNo: %d, rollbackSeqNo: %d",
+		vbID, failedSeqNo, rollbackSeqNo,
 	)
 
 	opm := NewAsyncOp(context.Background())
@@ -529,14 +511,16 @@ func (s *client) openStreamWithRollback(vbID uint16,
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
 		0,
-		vbUUID,
+		0,
 		rollbackSeqNo,
 		0xffffffffffffffff,
 		rollbackSeqNo,
 		rollbackSeqNo,
 		observer,
 		openStreamOptions,
-		func(_ []gocbcore.FailoverEntry, err error) {
+		func(failoverLogs []gocbcore.FailoverEntry, err error) {
+			observer.SetFailoverLogs(vbID, failoverLogs)
+
 			opm.Resolve()
 
 			ch <- err
@@ -553,7 +537,6 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 func (s *client) OpenStream(
 	vbID uint16,
-	vbUUID gocbcore.VbUUID,
 	collectionIDs map[uint32]string,
 	offset *models.Offset,
 	observer Observer,
@@ -579,14 +562,16 @@ func (s *client) OpenStream(
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
 		0,
-		vbUUID,
+		offset.VbUUID,
 		gocbcore.SeqNo(offset.SeqNo),
 		0xffffffffffffffff,
 		gocbcore.SeqNo(offset.StartSeqNo),
 		gocbcore.SeqNo(offset.EndSeqNo),
 		observer,
 		openStreamOptions,
-		func(_ []gocbcore.FailoverEntry, err error) {
+		func(failoverLogs []gocbcore.FailoverEntry, err error) {
+			observer.SetFailoverLogs(vbID, failoverLogs)
+
 			opm.Resolve()
 
 			ch <- err
@@ -601,9 +586,9 @@ func (s *client) OpenStream(
 	err = <-ch
 
 	if err != nil {
-		if errors.Is(err, gocbcore.ErrMemdRollback) && s.config.RollbackMitigation.Enabled {
-			logger.Log.Printf("need to rollback for vbID: %d", vbID)
-			return s.openStreamWithRollback(vbID, vbUUID, gocbcore.SeqNo(offset.SeqNo), observer, openStreamOptions)
+		if rollbackErr, ok := err.(gocbcore.DCPRollbackError); ok {
+			logger.Log.Printf("need to rollback for vbID: %d, vbUUID: %d", vbID, offset.VbUUID)
+			return s.openStreamWithRollback(vbID, gocbcore.SeqNo(offset.SeqNo), rollbackErr.SeqNo, observer, openStreamOptions)
 		}
 	}
 

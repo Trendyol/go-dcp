@@ -32,6 +32,7 @@ type Observer interface {
 	CloseEnd()
 	ListenEnd() models.ListenerEndCh
 	AddCatchup(vbID uint16, seqNo uint64)
+	SetFailoverLogs(vbID uint16, logs []gocbcore.FailoverEntry)
 }
 
 type ObserverMetric struct {
@@ -42,7 +43,7 @@ type ObserverMetric struct {
 
 type observer struct {
 	currentSnapshots       map[uint16]*models.SnapshotMarker
-	uuIDs                  map[uint16]gocbcore.VbUUID
+	failoverLogs           map[uint16][]gocbcore.FailoverEntry
 	metrics                map[uint16]*ObserverMetric
 	collectionIDs          map[uint32]string
 	catchup                map[uint16]uint64
@@ -51,6 +52,7 @@ type observer struct {
 	currentSnapshotsLock   *sync.Mutex
 	metricsLock            *sync.Mutex
 	catchupLock            *sync.Mutex
+	failoverLogsLock       *sync.Mutex
 	catchupNeededVbIDCount int
 }
 
@@ -131,7 +133,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 				DcpMutation: &mutation,
 				Offset: &models.Offset{
 					SnapshotMarker: currentSnapshot,
-					VbUUID:         so.uuIDs[mutation.VbID],
+					VbUUID:         so.failoverLogs[mutation.VbID][0].VbUUID,
 					SeqNo:          mutation.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(mutation.CollectionID),
@@ -167,7 +169,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 				DcpDeletion: &deletion,
 				Offset: &models.Offset{
 					SnapshotMarker: currentSnapshot,
-					VbUUID:         so.uuIDs[deletion.VbID],
+					VbUUID:         so.failoverLogs[deletion.VbID][0].VbUUID,
 					SeqNo:          deletion.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(deletion.CollectionID),
@@ -203,7 +205,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 				DcpExpiration: &expiration,
 				Offset: &models.Offset{
 					SnapshotMarker: currentSnapshot,
-					VbUUID:         so.uuIDs[expiration.VbID],
+					VbUUID:         so.failoverLogs[expiration.VbID][0].VbUUID,
 					SeqNo:          expiration.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(expiration.CollectionID),
@@ -315,7 +317,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 			DcpSeqNoAdvanced: &advanced,
 			Offset: &models.Offset{
 				SnapshotMarker: snapshot,
-				VbUUID:         so.uuIDs[advanced.VbID],
+				VbUUID:         so.failoverLogs[advanced.VbID][0].VbUUID,
 				SeqNo:          advanced.SeqNo,
 			},
 		},
@@ -355,6 +357,17 @@ func (so *observer) Close() {
 	close(so.listenerCh)
 }
 
+func (so *observer) SetFailoverLogs(vbID uint16, logs []gocbcore.FailoverEntry) {
+	if logs == nil || len(logs) == 0 {
+		return
+	}
+
+	so.failoverLogsLock.Lock()
+	defer so.failoverLogsLock.Unlock()
+
+	so.failoverLogs[vbID] = logs
+}
+
 // nolint:staticcheck
 func (so *observer) CloseEnd() {
 	defer func() {
@@ -369,13 +382,13 @@ func (so *observer) CloseEnd() {
 func NewObserver(
 	config *helpers.Config,
 	collectionIDs map[uint32]string,
-	uuIDMap map[uint16]gocbcore.VbUUID,
 ) Observer {
 	return &observer{
 		currentSnapshots:     map[uint16]*models.SnapshotMarker{},
 		currentSnapshotsLock: &sync.Mutex{},
 
-		uuIDs: uuIDMap,
+		failoverLogs:     map[uint16][]gocbcore.FailoverEntry{},
+		failoverLogsLock: &sync.Mutex{},
 
 		metrics:     map[uint16]*ObserverMetric{},
 		metricsLock: &sync.Mutex{},

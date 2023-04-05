@@ -116,12 +116,6 @@ func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
 
-	uuIDMap, err := s.client.GetVBucketUUIDMap(vbIds)
-	if err != nil {
-		logger.ErrorLog.Printf("cannot get vbucket uuid map: %v", err)
-		panic(err)
-	}
-
 	s.activeStreams.Add(vBucketNumber)
 
 	openWg := &sync.WaitGroup{}
@@ -130,11 +124,11 @@ func (s *stream) Open() {
 	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
-	observer := couchbase.NewObserver(s.config, s.collectionIDs, uuIDMap)
+	observer := couchbase.NewObserver(s.config, s.collectionIDs)
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
-			err := s.client.OpenStream(innerVbId, uuIDMap[innerVbId], s.collectionIDs, s.offsets[innerVbId], observer)
+			err := s.client.OpenStream(innerVbId, s.collectionIDs, s.offsets[innerVbId], observer)
 			if err != nil {
 				logger.ErrorLog.Printf("cannot open stream, vbID: %d, err: %v", innerVbId, err)
 				panic(err)

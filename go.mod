@@ -6,7 +6,7 @@ require (
 	github.com/VividCortex/ewma v1.2.0
 	github.com/ansrivas/fiberprometheus/v2 v2.4.1
 	github.com/avast/retry-go/v4 v4.3.1
-	github.com/couchbase/gocbcore/v10 v10.2.2
+	github.com/couchbase/gocbcore/v10 v10.2.3-0.20230404070112-cab6da1895ae
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/google/uuid v1.3.0
 	github.com/gookit/config/v2 v2.1.8

@@ -47,9 +47,12 @@ func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 
 //nolint:funlen
 func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
-	seqNoMap, err := s.client.GetVBucketSeqNos()
-
 	observer := s.stream.GetObserver()
+	if observer == nil {
+		return
+	}
+
+	seqNoMap, err := s.client.GetVBucketSeqNos()
 
 	observer.LockMetrics()
 

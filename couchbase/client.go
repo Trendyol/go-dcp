@@ -433,7 +433,11 @@ func (s *client) getAbsentInstances(vbID uint16, replicas int) (map[int]bool, er
 	return absentInstances, nil
 }
 
-func (s *client) getObserveInstances(vbID uint16, vbUUID gocbcore.VbUUID, replicas int) (map[int]*gocbcore.ObserveVbResult, error) { //nolint:unused
+//nolint:unused
+func (s *client) getObserveInstances(vbID uint16,
+	vbUUID gocbcore.VbUUID,
+	replicas int,
+) (map[int]*gocbcore.ObserveVbResult, error) {
 	observeInstances := map[int]*gocbcore.ObserveVbResult{}
 
 	for idx := 0; idx <= replicas; idx++ {

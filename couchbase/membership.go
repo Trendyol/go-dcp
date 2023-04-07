@@ -23,15 +23,15 @@ type cbMembership struct {
 	bus                 helpers.Bus
 	info                *membership.Model
 	infoChan            chan *membership.Model
-	id                  []byte
-	lastActiveInstances []*Instance
-	clusterJoinTime     int64
+	heartbeatTicker     *time.Ticker
+	config              *helpers.Config
+	monitorTicker       *time.Ticker
 	scopeName           string
 	collectionName      string
-	config              *helpers.Config
+	lastActiveInstances []*Instance
 	instanceAll         []byte
-	heartbeatTicker     *time.Ticker
-	monitorTicker       *time.Ticker
+	id                  []byte
+	clusterJoinTime     int64
 }
 
 type Instance struct {

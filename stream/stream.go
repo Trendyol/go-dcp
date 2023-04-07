@@ -37,24 +37,24 @@ type Metric struct {
 }
 
 type stream struct {
-	client           couchbase.Client
+	vBucketDiscovery VBucketDiscovery
 	metadata         metadata.Metadata
 	checkpoint       Checkpoint
-	metric           *Metric
+	client           couchbase.Client
 	observer         couchbase.Observer
-	vBucketDiscovery VBucketDiscovery
+	dirtyOffsets     map[uint16]bool
 	collectionIDs    map[uint32]string
 	listener         models.Listener
 	offsets          map[uint16]*models.Offset
-	dirtyOffsets     map[uint16]bool
+	metric           *Metric
 	stopCh           chan struct{}
 	config           *helpers.Config
 	activeStreams    *sync.WaitGroup
 	streamsLock      *sync.Mutex
 	offsetsLock      *sync.Mutex
+	rebalanceTimer   *time.Timer
 	anyDirtyOffset   bool
 	balancing        bool
-	rebalanceTimer   *time.Timer
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {

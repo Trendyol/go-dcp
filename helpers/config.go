@@ -23,7 +23,7 @@ type ConfigDCPGroup struct {
 }
 
 type ConfigDCPListener struct {
-	BufferSize int `yaml:"bufferSize" default:"1"`
+	BufferSize uint `yaml:"bufferSize" default:"1"`
 }
 
 type ConfigDCP struct {
@@ -46,7 +46,7 @@ type ConfigMetric struct {
 
 type ConfigLeaderElection struct {
 	Config  map[string]string `yaml:"config"`
-	Type    string            `yaml:"type"`
+	Type    string            `yaml:"type" default:"kubernetes"`
 	RPC     ConfigRPC         `yaml:"rpc"`
 	Enabled bool              `yaml:"enabled" default:"false"`
 }
@@ -73,28 +73,28 @@ type ConfigRollbackMitigation struct {
 }
 
 type ConfigMetadata struct {
+	Config   map[string]string `yaml:"config"`
 	Type     string            `yaml:"type" default:"couchbase"`
 	ReadOnly bool              `json:"readOnly" default:"false"`
-	Config   map[string]string `yaml:"config"`
 }
 
 type Config struct {
-	LeaderElection     ConfigLeaderElection     `yaml:"leaderElector"`
-	Metric             ConfigMetric             `yaml:"metric"`
+	Metadata           ConfigMetadata           `yaml:"metadata"`
+	Username           string                   `yaml:"username"`
 	BucketName         string                   `yaml:"bucketName"`
 	ScopeName          string                   `yaml:"scopeName" default:"_default"`
-	CollectionNames    []string                 `yaml:"collectionNames"`
 	Password           string                   `yaml:"password"`
-	Username           string                   `yaml:"username"`
-	SecureConnection   bool                     `yaml:"secureConnection"`
 	RootCAPath         string                   `yaml:"rootCAPath"`
+	CollectionNames    []string                 `yaml:"collectionNames"`
+	Metric             ConfigMetric             `yaml:"metric"`
 	Hosts              []string                 `yaml:"hosts"`
 	Checkpoint         ConfigCheckpoint         `yaml:"checkpoint"`
+	LeaderElection     ConfigLeaderElection     `yaml:"leaderElector"`
 	Dcp                ConfigDCP                `yaml:"dcp"`
-	API                ConfigAPI                `yaml:"api"`
 	HealthCheck        ConfigHealthCheck        `yaml:"healthCheck"`
+	API                ConfigAPI                `yaml:"api"`
 	RollbackMitigation ConfigRollbackMitigation `yaml:"rollbackMitigation"`
-	Metadata           ConfigMetadata           `yaml:"metadata"`
+	SecureConnection   bool                     `yaml:"secureConnection"`
 	Debug              bool                     `yaml:"debug"`
 }
 

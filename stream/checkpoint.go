@@ -16,6 +16,11 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 )
 
+const (
+	CheckpointTypeAuto            = "auto"
+	CheckpointAutoResetTypeLatest = "latest"
+)
+
 type Checkpoint interface {
 	Save()
 	Load() (map[uint16]*models.Offset, map[uint16]bool, bool)
@@ -29,11 +34,11 @@ type checkpoint struct {
 	client     couchbase.Client
 	metadata   metadata.Metadata
 	schedule   *time.Ticker
-	bucketUUID string
-	vbIds      []uint16
 	config     *helpers.Config
 	saveLock   *sync.Mutex
 	loadLock   *sync.Mutex
+	bucketUUID string
+	vbIds      []uint16
 }
 
 func (s *checkpoint) Save() {
@@ -91,7 +96,7 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 	dirtyOffsets := map[uint16]bool{}
 	anyDirtyOffset := false
 
-	if !exist && s.config.Checkpoint.AutoReset == helpers.CheckpointAutoResetTypeLatest {
+	if !exist && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
 		logger.Log.Printf("no checkpoint found, auto reset checkpoint to latest")
 
 		seqNoMap, err := s.client.GetVBucketSeqNos()
@@ -141,7 +146,7 @@ func (s *checkpoint) Clear() {
 }
 
 func (s *checkpoint) StartSchedule() {
-	if s.config.Checkpoint.Type != helpers.CheckpointTypeAuto {
+	if s.config.Checkpoint.Type != CheckpointTypeAuto {
 		return
 	}
 
@@ -156,7 +161,7 @@ func (s *checkpoint) StartSchedule() {
 }
 
 func (s *checkpoint) StopSchedule() {
-	if s.config.Checkpoint.Type != helpers.CheckpointTypeAuto {
+	if s.config.Checkpoint.Type != CheckpointTypeAuto {
 		return
 	}
 

@@ -38,8 +38,8 @@ type serviceDiscovery struct {
 	monitorTicker   *time.Ticker
 	info            *membership.Model
 	servicesLock    *sync.RWMutex
-	amILeader       bool
 	config          *helpers.Config
+	amILeader       bool
 }
 
 func (s *serviceDiscovery) Add(service *Service) {

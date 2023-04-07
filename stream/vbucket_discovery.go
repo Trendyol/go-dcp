@@ -20,14 +20,14 @@ type VBucketDiscovery interface {
 
 type vBucketDiscovery struct {
 	membership             membership.Membership
-	vBucketNumber          int
 	vBucketDiscoveryMetric *VBucketDiscoveryMetric
+	vBucketNumber          int
 }
 
 type VBucketDiscoveryMetric struct {
+	Type              string
 	TotalMembers      int
 	MemberNumber      int
-	Type              string
 	VBucketCount      int
 	VBucketRangeStart uint16
 	VBucketRangeEnd   uint16
@@ -78,13 +78,13 @@ func NewVBucketDiscovery(client couchbase.Client,
 	var ms membership.Membership
 
 	switch {
-	case config.Dcp.Group.Membership.Type == helpers.StaticMembershipType:
+	case config.Dcp.Group.Membership.Type == membership.StaticMembershipType:
 		ms = membership.NewStaticMembership(config)
-	case config.Dcp.Group.Membership.Type == helpers.CouchbaseMembershipType:
+	case config.Dcp.Group.Membership.Type == membership.CouchbaseMembershipType:
 		ms = couchbase.NewCBMembership(config, client, bus)
-	case config.Dcp.Group.Membership.Type == helpers.KubernetesStatefulSetMembershipType:
+	case config.Dcp.Group.Membership.Type == membership.KubernetesStatefulSetMembershipType:
 		ms = kubernetes.NewStatefulSetMembership(config)
-	case config.Dcp.Group.Membership.Type == helpers.KubernetesHaMembershipType:
+	case config.Dcp.Group.Membership.Type == membership.KubernetesHaMembershipType:
 		ms = kubernetes.NewHaMembership(config, bus)
 	default:
 		err := errors.New("unknown membership")

@@ -30,7 +30,7 @@ func listener(ctx *models.ListenerContext) {
 }
 
 func main() {
-	dcp, err := godcpclient.NewDcp("config_static.yml", listener)
+	dcp, err := godcpclient.NewDcp("config.yml", listener)
 	if err != nil {
 		panic(err)
 	}

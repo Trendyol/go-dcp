@@ -42,17 +42,20 @@ type ObserverMetric struct {
 }
 
 type observer struct {
-	currentSnapshots       map[uint16]*models.SnapshotMarker
-	failoverLogs           map[uint16][]gocbcore.FailoverEntry
-	metrics                map[uint16]*ObserverMetric
+	bus                    helpers.Bus
+	listenerCh             models.ListenerCh
+	currentSnapshotsLock   *sync.Mutex
 	collectionIDs          map[uint32]string
 	catchup                map[uint16]uint64
-	listenerCh             models.ListenerCh
+	persistSeqNo           map[uint16]gocbcore.SeqNo
+	currentSnapshots       map[uint16]*models.SnapshotMarker
 	listenerEndCh          models.ListenerEndCh
-	currentSnapshotsLock   *sync.Mutex
+	metrics                map[uint16]*ObserverMetric
 	metricsLock            *sync.Mutex
 	catchupLock            *sync.Mutex
 	failoverLogsLock       *sync.Mutex
+	persistSeqNoLock       *sync.Mutex
+	failoverLogs           map[uint16][]gocbcore.FailoverEntry
 	catchupNeededVbIDCount int
 }
 
@@ -346,6 +349,20 @@ func (so *observer) ListenEnd() models.ListenerEndCh {
 	return so.listenerEndCh
 }
 
+func (so *observer) persistSeqNoChangedListener(event interface{}) {
+	so.persistSeqNoLock.Lock()
+	defer so.persistSeqNoLock.Unlock()
+
+	tuple := event.([]interface{})
+
+	vbID := tuple[0].(uint16)
+	seqNo := tuple[1].(gocbcore.SeqNo)
+
+	if seqNo != 0 {
+		so.persistSeqNo[vbID] = seqNo
+	}
+}
+
 // nolint:staticcheck
 func (so *observer) Close() {
 	defer func() {
@@ -382,8 +399,9 @@ func (so *observer) CloseEnd() {
 func NewObserver(
 	config *helpers.Config,
 	collectionIDs map[uint32]string,
+	bus helpers.Bus,
 ) Observer {
-	return &observer{
+	observer := &observer{
 		currentSnapshots:     map[uint16]*models.SnapshotMarker{},
 		currentSnapshotsLock: &sync.Mutex{},
 
@@ -400,5 +418,14 @@ func NewObserver(
 
 		listenerCh:    make(models.ListenerCh, config.Dcp.Listener.BufferSize),
 		listenerEndCh: make(models.ListenerEndCh, 1),
+
+		bus: bus,
+
+		persistSeqNo:     map[uint16]gocbcore.SeqNo{},
+		persistSeqNoLock: &sync.Mutex{},
 	}
+
+	observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)
+
+	return observer
 }

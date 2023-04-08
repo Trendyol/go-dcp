@@ -15,4 +15,5 @@ const (
 	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
 	FileMetadataFileNameConfig                  = "fileName"
 	MembershipChangedBusEventName               = "membershipChanged"
+	PersistSeqNoChangedBusEventName             = "persistSeqNoChanged"
 )

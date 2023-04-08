@@ -123,7 +123,7 @@ func (s *dcp) Start() {
 
 	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, bus)
 
-	s.stream = stream.NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh)
+	s.stream = stream.NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh, bus)
 
 	if s.config.LeaderElection.Enabled {
 		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, bus)

@@ -30,7 +30,7 @@ type Client interface {
 	GetBucketUUID() string
 	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
-	GetVBucketUUIDMap(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error)
+	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(
 		vbID uint16,
 		collectionIDs map[uint32]string,
@@ -46,6 +46,7 @@ type Client interface {
 	GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error)
 	CreatePath(ctx context.Context, scopeName string, collectionName string, id []byte, path []byte, value interface{}) error
 	Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error)
+	GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 }
 
 type client struct {
@@ -308,17 +309,17 @@ func (s *client) DcpClose() {
 }
 
 func (s *client) GetBucketUUID() string {
-	snapshot, err := s.dcpAgent.ConfigSnapshot()
-
-	if err == nil {
-		return snapshot.BucketUUID()
+	snapshot, err := s.GetConfigSnapshot()
+	if err != nil {
+		logger.ErrorLog.Printf("failed to get config snapshot: %v", err)
+		panic(err)
 	}
 
-	return ""
+	return snapshot.BucketUUID()
 }
 
 func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
-	snapshot, err := s.dcpAgent.ConfigSnapshot()
+	snapshot, err := s.GetConfigSnapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -356,145 +357,47 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 }
 
 func (s *client) GetNumVBuckets() int {
-	var err error
-
-	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
-		if vBuckets, err := snapshot.NumVbuckets(); err == nil {
-			return vBuckets
-		}
-	}
-
-	logger.ErrorLog.Printf("failed to get number of vbucket: %v", err)
-	panic(err)
-}
-
-func (s *client) getNumReplicas() int { //nolint:unused
-	var err error
-
-	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
-		if replicas, err := snapshot.NumReplicas(); err == nil {
-			return replicas
-		}
-	}
-
-	logger.ErrorLog.Printf("failed to get number of replica: %v", err)
-	panic(err)
-}
-
-func (s *client) getConfigSnapshot() *gocbcore.ConfigSnapshot { //nolint:unused
-	var err error
-
-	if snapshot, err := s.dcpAgent.ConfigSnapshot(); err == nil {
-		return snapshot
-	}
-
-	logger.ErrorLog.Printf("failed to get number of replica: %v", err)
-	panic(err)
-}
-
-func (s *client) GetVBucketUUIDMap(vbIds []uint16) (map[uint16][]gocbcore.FailoverEntry, error) {
-	uuIDMap := make(map[uint16][]gocbcore.FailoverEntry)
-
-	for _, vbID := range vbIds {
-		opm := NewAsyncOp(context.Background())
-
-		op, err := s.dcpAgent.GetFailoverLog(
-			vbID,
-			func(entries []gocbcore.FailoverEntry, err error) {
-				uuIDMap[vbID] = entries
-
-				opm.Resolve()
-			})
-		if err != nil {
-			return nil, err
-		}
-
-		_ = opm.Wait(op, err)
-	}
-
-	return uuIDMap, nil
-}
-
-func (s *client) getAbsentInstances(vbID uint16, replicas int) (map[int]bool, error) { //nolint:unused
-	snapshot := s.getConfigSnapshot()
-	absentInstances := map[int]bool{}
-
-	for idx := 0; idx <= replicas; idx++ {
-		serverIndex, err := snapshot.VbucketToServer(vbID, uint32(idx))
-		if err != nil {
-			return nil, err
-		}
-
-		if serverIndex < 0 {
-			absentInstances[idx] = true
-		}
-	}
-
-	return absentInstances, nil
-}
-
-//nolint:unused
-func (s *client) getObserveInstances(vbID uint16,
-	vbUUID gocbcore.VbUUID,
-	replicas int,
-) (map[int]*gocbcore.ObserveVbResult, error) {
-	observeInstances := map[int]*gocbcore.ObserveVbResult{}
-
-	for idx := 0; idx <= replicas; idx++ {
-		observeResult, err := s.observeVbID(vbID, vbUUID, idx)
-		if err != nil {
-			return nil, err
-		}
-
-		observeInstances[idx] = observeResult
-	}
-
-	return observeInstances, nil
-}
-
-func (s *client) getMinSeqNo(vbID uint16, vbUUID gocbcore.VbUUID) (gocbcore.SeqNo, error) { //nolint:unused
-	replicas := s.getNumReplicas()
-	absentInstances, err := s.getAbsentInstances(vbID, replicas)
+	snapshot, err := s.GetConfigSnapshot()
 	if err != nil {
-		return 0, err
+		logger.ErrorLog.Printf("failed to get config snapshot: %v", err)
+		panic(err)
 	}
 
-	startIndex := -1
-
-	for i := 0; i <= replicas; i++ {
-		if !absentInstances[i] {
-			startIndex = i
-			break
-		}
-	}
-
-	if startIndex == -1 {
-		return 0, nil
-	}
-
-	observeInstances, err := s.getObserveInstances(vbID, vbUUID, replicas)
+	vBuckets, err := snapshot.NumVbuckets()
 	if err != nil {
-		return 0, err
+		logger.ErrorLog.Printf("failed to get number of vbucket: %v", err)
+		panic(err)
 	}
 
-	vbuuid := observeInstances[startIndex].VbUUID
-	minSeqNo := observeInstances[startIndex].PersistSeqNo
+	return vBuckets
+}
 
-	for i := startIndex + 1; i <= replicas; i++ {
-		if absentInstances[i] {
-			continue
-		}
+func (s *client) GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error) { //nolint:unused
+	return s.dcpAgent.ConfigSnapshot()
+}
 
-		if vbuuid != observeInstances[i].VbUUID {
-			return 0, nil
-		}
+func (s *client) GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) {
+	opm := NewAsyncOp(context.Background())
+	ch := make(chan error)
 
-		if minSeqNo > observeInstances[i].PersistSeqNo {
-			minSeqNo = observeInstances[i].PersistSeqNo
-		}
+	var failoverLogs []gocbcore.FailoverEntry
+
+	op, err := s.dcpAgent.GetFailoverLog(
+		vbID,
+		func(entries []gocbcore.FailoverEntry, err error) {
+			failoverLogs = entries
+
+			opm.Resolve()
+
+			ch <- err
+		})
+
+	err = opm.Wait(op, err)
+	if err != nil {
+		return nil, err
 	}
 
-	return minSeqNo, nil
+	return failoverLogs, <-ch
 }
 
 func (s *client) openStreamWithRollback(vbID uint16,
@@ -597,33 +500,6 @@ func (s *client) OpenStream(
 	}
 
 	return err
-}
-
-func (s *client) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID, replica int) (*gocbcore.ObserveVbResult, error) { //nolint:unused
-	opm := NewAsyncOp(context.Background())
-	ch := make(chan error)
-
-	var response *gocbcore.ObserveVbResult
-
-	op, err := s.agent.ObserveVb(gocbcore.ObserveVbOptions{
-		VbID:       vbID,
-		VbUUID:     vbUUID,
-		ReplicaIdx: replica,
-	}, func(result *gocbcore.ObserveVbResult, err error) {
-		opm.Resolve()
-
-		response = result
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return response, <-ch
 }
 
 func (s *client) CloseStream(vbID uint16) error {

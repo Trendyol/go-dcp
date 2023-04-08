@@ -69,7 +69,7 @@ type ConfigHealthCheck struct {
 }
 
 type ConfigRollbackMitigation struct {
-	Enabled bool `yaml:"enabled" default:"true"`
+	Enabled bool `yaml:"enabled" default:"false"`
 }
 
 type ConfigMetadata struct {

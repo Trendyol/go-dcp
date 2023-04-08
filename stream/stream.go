@@ -37,24 +37,26 @@ type Metric struct {
 }
 
 type stream struct {
-	vBucketDiscovery VBucketDiscovery
-	metadata         metadata.Metadata
-	checkpoint       Checkpoint
-	client           couchbase.Client
-	observer         couchbase.Observer
-	dirtyOffsets     map[uint16]bool
-	collectionIDs    map[uint32]string
-	listener         models.Listener
-	offsets          map[uint16]*models.Offset
-	metric           *Metric
-	stopCh           chan struct{}
-	config           *helpers.Config
-	activeStreams    *sync.WaitGroup
-	streamsLock      *sync.Mutex
-	offsetsLock      *sync.Mutex
-	rebalanceTimer   *time.Timer
-	anyDirtyOffset   bool
-	balancing        bool
+	client             couchbase.Client
+	metadata           metadata.Metadata
+	checkpoint         Checkpoint
+	rollbackMitigation couchbase.RollbackMitigation
+	observer           couchbase.Observer
+	vBucketDiscovery   VBucketDiscovery
+	bus                helpers.Bus
+	stopCh             chan struct{}
+	offsets            map[uint16]*models.Offset
+	dirtyOffsets       map[uint16]bool
+	listener           models.Listener
+	config             *helpers.Config
+	activeStreams      *sync.WaitGroup
+	streamsLock        *sync.Mutex
+	offsetsLock        *sync.Mutex
+	rebalanceTimer     *time.Timer
+	collectionIDs      map[uint32]string
+	metric             *Metric
+	anyDirtyOffset     bool
+	balancing          bool
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -116,6 +118,11 @@ func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 	vBucketNumber := len(vbIds)
 
+	if s.config.RollbackMitigation.Enabled {
+		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, vbIds, s.bus)
+		s.rollbackMitigation.Start()
+	}
+
 	s.activeStreams.Add(vBucketNumber)
 
 	openWg := &sync.WaitGroup{}
@@ -124,7 +131,7 @@ func (s *stream) Open() {
 	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
-	observer := couchbase.NewObserver(s.config, s.collectionIDs)
+	observer := couchbase.NewObserver(s.config, s.collectionIDs, s.bus)
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
@@ -216,6 +223,10 @@ func (s *stream) wait() {
 }
 
 func (s *stream) Close() {
+	if s.config.RollbackMitigation.Enabled {
+		s.rollbackMitigation.Stop()
+	}
+
 	s.observer.Close()
 
 	if s.checkpoint != nil {
@@ -268,6 +279,7 @@ func NewStream(client couchbase.Client,
 	listener models.Listener,
 	collectionIDs map[uint32]string,
 	stopCh chan struct{},
+	bus helpers.Bus,
 ) Stream {
 	return &stream{
 		client:           client,
@@ -280,6 +292,7 @@ func NewStream(client couchbase.Client,
 		collectionIDs:    collectionIDs,
 		activeStreams:    &sync.WaitGroup{},
 		stopCh:           stopCh,
+		bus:              bus,
 		metric: &Metric{
 			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 			DcpLatency:       ewma.NewMovingAverage(config.Metric.AverageWindowSec),

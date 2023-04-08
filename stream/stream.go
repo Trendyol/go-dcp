@@ -119,7 +119,7 @@ func (s *stream) Open() {
 	vBucketNumber := len(vbIds)
 
 	if s.config.RollbackMitigation.Enabled {
-		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, vbIds, s.bus)
+		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
 		s.rollbackMitigation.Start()
 	}
 

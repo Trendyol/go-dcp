@@ -24,12 +24,14 @@ type vbUUIDAndSeqNo struct {
 
 type rollbackMitigation struct {
 	client           Client
+	config           *helpers.Config
 	bus              helpers.Bus
 	configSnapshot   *gocbcore.ConfigSnapshot
 	persistedSeqNos  map[uint16][]*vbUUIDAndSeqNo
 	configWatchTimer *time.Ticker
 	vbIds            []uint16
 	activeGroupID    int
+	closed           bool
 }
 
 func (r *rollbackMitigation) getRevEpochAndID(snapshot *gocbcore.ConfigSnapshot) (int64, int64) {
@@ -170,8 +172,7 @@ func (r *rollbackMitigation) reconfigure() {
 				panic(err)
 			}
 
-			observeTimer := time.NewTicker(100 * time.Millisecond)
-
+			observeTimer := time.NewTicker(r.config.RollbackMitigation.Interval)
 			for range observeTimer.C {
 				if stop := r.observe(innerVbId, failoverLogs[0].VbUUID, groupID); stop {
 					break
@@ -182,12 +183,16 @@ func (r *rollbackMitigation) reconfigure() {
 }
 
 func (r *rollbackMitigation) observe(vbID uint16, vbUUID gocbcore.VbUUID, groupID int) bool {
-	if r.activeGroupID != groupID {
+	if r.activeGroupID != groupID || r.closed {
 		return true
 	}
 
 	result, err := r.observeVbID(vbID, vbUUID)
 	if err != nil {
+		if r.closed {
+			return true
+		}
+
 		if errors.Is(err, gocbcore.ErrTemporaryFailure) {
 			return false
 		} else {
@@ -234,12 +239,14 @@ func (r *rollbackMitigation) Start() {
 }
 
 func (r *rollbackMitigation) Stop() {
+	r.closed = true
 	r.configWatchTimer.Stop()
 }
 
-func NewRollbackMitigation(client Client, vbIds []uint16, bus helpers.Bus) RollbackMitigation {
+func NewRollbackMitigation(client Client, config *helpers.Config, vbIds []uint16, bus helpers.Bus) RollbackMitigation {
 	return &rollbackMitigation{
 		client: client,
+		config: config,
 		vbIds:  vbIds,
 		bus:    bus,
 	}

@@ -43,20 +43,22 @@ type ObserverMetric struct {
 
 type observer struct {
 	bus                    helpers.Bus
-	listenerCh             models.ListenerCh
-	currentSnapshotsLock   *sync.Mutex
+	metrics                map[uint16]*ObserverMetric
+	listenerEndCh          models.ListenerEndCh
 	collectionIDs          map[uint32]string
 	catchup                map[uint16]uint64
-	persistSeqNo           map[uint16]gocbcore.SeqNo
-	currentSnapshots       map[uint16]*models.SnapshotMarker
-	listenerEndCh          models.ListenerEndCh
-	metrics                map[uint16]*ObserverMetric
 	metricsLock            *sync.Mutex
+	currentSnapshots       map[uint16]*models.SnapshotMarker
+	currentSnapshotsLock   *sync.Mutex
+	listenerCh             models.ListenerCh
+	persistSeqNo           map[uint16]gocbcore.SeqNo
 	catchupLock            *sync.Mutex
 	failoverLogsLock       *sync.Mutex
 	persistSeqNoLock       *sync.Mutex
 	failoverLogs           map[uint16][]gocbcore.FailoverEntry
+	config                 *helpers.Config
 	catchupNeededVbIDCount int
+	closed                 bool
 }
 
 func (so *observer) AddCatchup(vbID uint16, seqNo uint64) {
@@ -67,7 +69,24 @@ func (so *observer) AddCatchup(vbID uint16, seqNo uint64) {
 	so.catchupNeededVbIDCount++
 }
 
+func (so *observer) checkPersistSeqNo(vbID uint16, seqNo uint64) bool {
+	so.persistSeqNoLock.Lock()
+	endSeqNo, ok := so.persistSeqNo[vbID]
+	so.persistSeqNoLock.Unlock()
+
+	return (ok && gocbcore.SeqNo(seqNo) <= endSeqNo) || so.closed
+}
+
 func (so *observer) isCatchupDone(vbID uint16, seqNo uint64) bool {
+	if so.config.RollbackMitigation.Enabled && !so.checkPersistSeqNo(vbID, seqNo) {
+		ticker := time.NewTicker(10 * time.Millisecond)
+		for range ticker.C {
+			if so.checkPersistSeqNo(vbID, seqNo) {
+				break
+			}
+		}
+	}
+
 	if so.catchupNeededVbIDCount == 0 {
 		return true
 	}
@@ -371,6 +390,7 @@ func (so *observer) Close() {
 		}
 	}()
 
+	so.closed = true
 	close(so.listenerCh)
 }
 
@@ -423,6 +443,8 @@ func NewObserver(
 
 		persistSeqNo:     map[uint16]gocbcore.SeqNo{},
 		persistSeqNoLock: &sync.Mutex{},
+
+		config: config,
 	}
 
 	observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)

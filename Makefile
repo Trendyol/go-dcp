@@ -15,4 +15,4 @@ linter:
 	golangci-lint run -c .golangci.yml --timeout=5m -v --fix
 
 test:
-	go test ./...
+	go test ./... -bench . -benchmem

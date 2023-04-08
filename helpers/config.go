@@ -69,7 +69,8 @@ type ConfigHealthCheck struct {
 }
 
 type ConfigRollbackMitigation struct {
-	Enabled bool `yaml:"enabled" default:"false"`
+	Enabled  bool          `yaml:"enabled" default:"false"`
+	Interval time.Duration `yaml:"interval"`
 }
 
 type ConfigMetadata struct {
@@ -175,6 +176,10 @@ func Options(opts *config.Options) {
 }
 
 func applyUnhandledDefaults(_config *Config) {
+	if _config.RollbackMitigation.Interval == 0 {
+		_config.RollbackMitigation.Interval = 100 * time.Millisecond
+	}
+
 	if _config.Checkpoint.Interval == 0 {
 		_config.Checkpoint.Interval = 20 * time.Second
 	}

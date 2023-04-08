@@ -62,45 +62,45 @@ $ go get github.com/Trendyol/go-dcp-client
 
 ### Configuration
 
-| Variable                              | Type              | Required | Default   |
-|---------------------------------------|-------------------|----------|-----------|
-| `hosts`                               | []string          | yes      |           |
-| `username`                            | string            | yes      |           |
-| `password`                            | string            | yes      |           |
-| `bucketName`                          | string            | yes      |           |
-| `dcp.group.name`                      | string            | yes      |           |
-| `secureConnection`                    | bool              | no       | false     |
-| `rootCAPath`                          | string            | no       | *not set  |
-| `dcp.group.membership.type`           | string            | no       | couchbase |
-| `scopeName`                           | string            | no       | _default  |
-| `collectionNames`                     | []string          | no       | _default  |
-| `dcp.bufferSize`                      | int               | no       | 16777216  |
-| `dcp.connectionBufferSize`            | uint              | no       | 20971520  |
-| `dcp.connectionTimeout`               | time.Duration     | no       | 5s        |
-| `dcp.listener.bufferSize`             | int               | no       | 1         |
-| `dcp.group.membership.memberNumber`   | int               | no       | 1         |
-| `dcp.group.membership.totalMembers`   | int               | no       | 1         |
-| `dcp.group.membership.rebalanceDelay` | time.Duration     | no       | 20s       |
-| `api.port`                            | int               | no       | 8080      |
-| `api.enabled`                         | bool              | no       | true      |
-| `metric.averageWindowSec`             | float64           | no       | 10.0      |
-| `metric.path`                         | string            | no       | /metrics  |
-| `leaderElection.enabled`              | bool              | no       | false     |
-| `leaderElection.type`                 | string            | no       | *not set  |
-| `leaderElection.config`               | map[string]string | no       | *not set  |
-| `leaderElection.rpc.port`             | int               | no       | 8081      |
-| `checkpoint.type`                     | string            | no       | auto      |
-| `checkpoint.autoReset`                | string            | no       | earliest  |
-| `checkpoint.interval`                 | time.Duration     | no       | 20s       |
-| `checkpoint.timeout`                  | time.Duration     | no       | 5s        |
-| `healthCheck.enabled`                 | bool              | no       | true      |
-| `healthCheck.interval`                | time.Duration     | no       | 20s       |
-| `healthCheck.timeout`                 | time.Duration     | no       | 5s        |
-| `rollbackMitigation.enabled`          | bool              | no       | true      |
-| `metadata.type`                       | string            | no       | couchbase |
-| `metadata.readOnly`                   | bool              | no       | false     |
-| `metadata.config`                     | map[string]string | no       | *not set  |
-| `debug`                               | bool              | no       | false     |
+| Variable                              |       Type        | Required |  Default   | Description                                                                                                         |
+|---------------------------------------|:-----------------:|:--------:|:----------:|---------------------------------------------------------------------------------------------------------------------|
+| `hosts`                               |     []string      |   yes    |     -      | Couchbase host like `localhost:8091`.                                                                               |
+| `username`                            |      string       |   yes    |     -      | Couchbase username.                                                                                                 |
+| `password`                            |      string       |   yes    |     -      | Couchbase password.                                                                                                 |
+| `bucketName`                          |      string       |   yes    |     -      | Couchbase DCP bucket.                                                                                               |
+| `secureConnection`                    |       bool        |    no    |   false    | Enable TLS connection of Couchbase.                                                                                 |
+| `rootCAPath`                          |      string       |    no    |  *not set  | if `secureConnection` set `true` this field is required.                                                            |
+| `scopeName`                           |      string       |    no    |  _default  | Couchbase scope name.                                                                                               |
+| `collectionNames`                     |     []string      |    no    |  _default  | Couchbase collection names.                                                                                         |
+| `debug`                               |       bool        |    no    |   false    | For debugging purpose.                                                                                              |
+| `dcp.bufferSize`                      |        int        |    no    |  16777216  | Go DCP listener pre-allocated buffer size. `16mb` is default. Check this if you get OOM Killed.                     |
+| `dcp.connectionBufferSize`            |       uint        |    no    |  20971520  | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed. |
+| `dcp.connectionTimeout`               |   time.Duration   |    no    |     5s     | DCP connection timeout.                                                                                             |
+| `dcp.listener.bufferSize`             |       uint        |    no    |     1      | Go DCP listener buffered channel size.                                                                              |
+| `dcp.group.name`                      |      string       |   yes    |            | DCP group name for vbuckets.                                                                                        |
+| `dcp.group.membership.type`           |      string       |    no    | couchbase  | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details. |
+| `dcp.group.membership.memberNumber`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
+| `dcp.group.membership.totalMembers`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
+| `dcp.group.membership.rebalanceDelay` |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                          |
+| `leaderElection.enabled`              |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                      |
+| `leaderElection.type`                 |      string       |    no    | kubernetes |                                                                                                                     |
+| `leaderElection.config`               | map[string]string |    no    |  *not set  | Set lease key-values like `leaseLockName`,`leaseLockNamespace`.                                                     |
+| `leaderElection.rpc.port`             |        int        |    no    |    8081    | This field is usable for `kubernetesStatefulSet` membership.                                                        |
+| `checkpoint.type`                     |      string       |    no    |    auto    | Set checkpoint type `auto` or `manual`.                                                                             |
+| `checkpoint.autoReset`                |      string       |    no    |  earliest  | Set checkpoint start point to `earliest` or `latest`.                                                               |
+| `checkpoint.interval`                 |   time.Duration   |    no    |    20s     | Checkpoint checking interval.                                                                                       |
+| `checkpoint.timeout`                  |   time.Duration   |    no    |     5s     | Checkpoint checking timeout.                                                                                        |
+| `healthCheck.enabled`                 |       bool        |    no    |    true    | Enable Couchbase connection health check.                                                                           |
+| `healthCheck.interval`                |   time.Duration   |    no    |    20s     | Couchbase connection health checking interval duration.                                                             |
+| `healthCheck.timeout`                 |   time.Duration   |    no    |     5s     | Couchbase connection health checking timeout duration.                                                              |
+| `rollbackMitigation.enabled`          |       bool        |    no    |    true    | Enable reprocessing for roll-backed Vbucket offsets.                                                                |
+| `metadata.type`                       |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                     |
+| `metadata.readOnly`                   |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                              |
+| `metadata.config`                     | map[string]string |    no    |  *not set  | Set key-values of config. `bucket` for `couchbase` type.                                                            |
+| `api.enabled`                         |       bool        |    no    |    true    | Enable metric and debug pprof endpoints                                                                             |
+| `api.port`                            |        int        |    no    |    8080    | Set API port                                                                                                        |
+| `metric.path`                         |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                           |
+| `metric.averageWindowSec`             |      float64      |    no    |    10.0    | Set metric window range.                                                                                            |
 
 ### Examples
 

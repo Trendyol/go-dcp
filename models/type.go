@@ -18,24 +18,24 @@ type SnapshotMarker struct {
 }
 
 type InternalDcpMutation struct {
-	CollectionName string
-	EventTime      time.Time
+	EventTime time.Time
 	*gocbcore.DcpMutation
 	*Offset
+	CollectionName string
 }
 
 type InternalDcpDeletion struct {
-	CollectionName string
-	EventTime      time.Time
+	EventTime time.Time
 	*gocbcore.DcpDeletion
 	*Offset
+	CollectionName string
 }
 
 type InternalDcpExpiration struct {
-	CollectionName string
-	EventTime      time.Time
+	EventTime time.Time
 	*gocbcore.DcpExpiration
 	*Offset
+	CollectionName string
 }
 
 type InternalDcpSeqNoAdvance struct {
@@ -69,14 +69,14 @@ type CheckpointDocumentSnapshot struct {
 }
 
 type CheckpointDocumentCheckpoint struct {
+	Snapshot *CheckpointDocumentSnapshot `json:"snapshot"`
 	VbUUID   uint64                      `json:"vbuuid"`
 	SeqNo    uint64                      `json:"seqno"`
-	Snapshot *CheckpointDocumentSnapshot `json:"snapshot"`
 }
 
 type CheckpointDocument struct {
-	BucketUUID string                        `json:"bucketUuid"`
 	Checkpoint *CheckpointDocumentCheckpoint `json:"checkpoint"`
+	BucketUUID string                        `json:"bucketUuid"`
 }
 
 func NewEmptyCheckpointDocument(bucketUUID string) *CheckpointDocument {

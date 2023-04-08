@@ -46,7 +46,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Contains(t, config.CollectionNames, "_default")
 	assert.Equal(t, "sample", config.Metadata.Config["bucket"])
 	assert.Equal(t, "manual", config.Checkpoint.Type)
-	assert.Equal(t, 1024, config.Dcp.Listener.BufferSize)
+	assert.Equal(t, uint(1024), config.Dcp.Listener.BufferSize)
 	assert.Equal(t, "groupName", config.Dcp.Group.Name)
 	assert.Equal(t, "static", config.Dcp.Group.Membership.Type)
 }

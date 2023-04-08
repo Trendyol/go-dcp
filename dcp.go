@@ -175,7 +175,7 @@ func (s *dcp) Close() {
 	}
 	s.vBucketDiscovery.Close()
 
-	if s.config.Checkpoint.Type == helpers.CheckpointTypeAuto {
+	if s.config.Checkpoint.Type == stream.CheckpointTypeAuto {
 		s.stream.Save()
 	}
 	s.stream.Close()

@@ -16,6 +16,10 @@ import (
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 )
 
+const (
+	KubernetesLeaderElectionType = "kubernetes"
+)
+
 type LeaderElection interface {
 	Start()
 	Stop()
@@ -58,7 +62,6 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *models.Identity) {
 	l.serviceDiscovery.AssignLeader(leaderService)
 
 	err = leaderClient.Register()
-
 	if err != nil {
 		logger.ErrorLog.Printf("error while registering leader client: %v", err)
 		panic(err)
@@ -71,7 +74,7 @@ func (l *leaderElection) Start() {
 
 	var elector leaderelector.LeaderElector
 
-	if l.config.LeaderElection.Type == helpers.KubernetesLeaderElectionType {
+	if l.config.LeaderElection.Type == KubernetesLeaderElectionType {
 		kubernetesClient := kubernetes.NewClient(l.myIdentity)
 		elector = kubernetes.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.bus)
 	}

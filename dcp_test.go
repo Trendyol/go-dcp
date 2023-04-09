@@ -30,6 +30,8 @@ dcp:
     name: groupName
     membership:
       type: static
+rollbackMitigation:
+  enabled: true
 debug: true`
 
 func setupContainer(b *testing.B, config *helpers.Config) func() {

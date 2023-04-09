@@ -103,6 +103,44 @@ $ go get github.com/Trendyol/go-dcp-client
 | `metric.path`                         |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                           |
 | `metric.averageWindowSec`             |      float64      |    no    |    10.0    | Set metric window range.                                                                                            |
 
+### Monitoring
+
+The client offers an API that handles different endpoints and expose several metrics.
+
+### API
+
+| Endpoint                | Description                                                                              |
+|-------------------------|------------------------------------------------------------------------------------------|
+| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |
+| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            |
+| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        |
+| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |
+
+The Client collects relevant metrics and makes them available at /metrics endpoint.
+In case you haven't configured a metric.path, the metrics will be exposed at the /metrics.
+
+You can adjust the average window time for the metrics by specifying the value of metric.averageWindowSec.
+
+- Note : Metrics is enabled only when the debug option is present in the configuration.
+
+### Exposed metrics
+
+| Metric Name                     | Description                                                                      | Labels                  | Value Type |
+|---------------------------------|----------------------------------------------------------------------------------|-------------------------|------------|
+| cbgo_mutation_total             | The total number of mutations on a specific vBucket                              | vbId: ID of the vBucket | Counter    |
+| cbgo_deletion_total             | The total number of deletions on a specific vBucket                              | vbId: ID of the vBucket | Counter    |
+| cbgo_expiration_total           | The total number of expirations on a specific vBucket                            | vbId: ID of the vBucket | Counter    |
+| cbgo_seq_no_current             | The current sequence number on a specific vBucket                                | vbId: ID of the vBucket | Gauge      |
+| cbgo_start_seq_no_current       | The starting sequence number on a specific vBucket                               | vbId: ID of the vBucket | Gauge      |
+| cbgo_end_seq_no_current         | The ending sequence number on a specific vBucket                                 | vbId: ID of the vBucket | Gauge      |
+| cbgo_lag_current                | The current lag on a specific vBucket                                            | vbId: ID of the vBucket | Gauge      |
+| cbgo_average_process_ms_current | The average processing time in milliseconds for the last metric.averageWindowSec | N/A                     | Gauge      |
+| cbgo_dcp_latency_ms_current     | The latency in milliseconds for the last metric.averageWindowSec                 | N/A                     | Gauge      |
+| cbgo_rebalance_count_current    | The number of total rebalances                                                   | N/A                     | Gauge      |
+| cbgo_total_members_current      | The total number of members in the cluster                                       | N/A                     | Gauge      |
+| cbgo_member_number_current      | The number of the current member                                                 | N/A                     | Gauge      |
+| cbgo_membership_type_current    | The type of membership of the current member                                     | Membership type         | Gauge      |
+
 ### Examples
 
 - [example with couchbase membership](example/main.go)

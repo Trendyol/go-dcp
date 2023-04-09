@@ -83,7 +83,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `dcp.group.membership.totalMembers`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
 | `dcp.group.membership.rebalanceDelay` |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                          |
 | `leaderElection.enabled`              |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                      |
-| `leaderElection.type`                 |      string       |    no    | kubernetes |                                                                                                                     |
+| `leaderElection.type`                 |      string       |    no    | kubernetes | Leader Election types. `kubernetes`                                                                                 |
 | `leaderElection.config`               | map[string]string |    no    |  *not set  | Set lease key-values like `leaseLockName`,`leaseLockNamespace`.                                                     |
 | `leaderElection.rpc.port`             |        int        |    no    |    8081    | This field is usable for `kubernetesStatefulSet` membership.                                                        |
 | `checkpoint.type`                     |      string       |    no    |    auto    | Set checkpoint type `auto` or `manual`.                                                                             |
@@ -121,7 +121,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 
 You can adjust the average window time for the metrics by specifying the value of metric.averageWindowSec.
 
-- Note : Metrics is enabled only when the debug option is present in the configuration.
+- Note : pprof is enabled when the debug option is present in the configuration.
 
 ### Exposed metrics
 

@@ -27,9 +27,9 @@ type metricCollector struct {
 	startSeqNo   *prometheus.Desc
 	endSeqNo     *prometheus.Desc
 
-	averageProcessMs *prometheus.Desc
-	dcpLatency       *prometheus.Desc
-	rebalanceCount   *prometheus.Desc
+	processLatency *prometheus.Desc
+	dcpLatency     *prometheus.Desc
+	rebalance      *prometheus.Desc
 
 	lag *prometheus.Desc
 
@@ -39,6 +39,9 @@ type metricCollector struct {
 	vBucketCount      *prometheus.Desc
 	vBucketRangeStart *prometheus.Desc
 	vBucketRangeEnd   *prometheus.Desc
+
+	offsetWrite        *prometheus.Desc
+	offsetWriteLatency *prometheus.Desc
 }
 
 func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -133,9 +136,9 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	streamMetric := s.stream.GetMetric()
 
 	ch <- prometheus.MustNewConstMetric(
-		s.averageProcessMs,
+		s.processLatency,
 		prometheus.GaugeValue,
-		streamMetric.AverageProcessMs.Value(),
+		streamMetric.ProcessLatency.Value(),
 		[]string{}...,
 	)
 
@@ -147,9 +150,9 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	)
 
 	ch <- prometheus.MustNewConstMetric(
-		s.rebalanceCount,
+		s.rebalance,
 		prometheus.CounterValue,
-		float64(streamMetric.RebalanceCount),
+		float64(streamMetric.Rebalance),
 		[]string{}...,
 	)
 
@@ -194,6 +197,22 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		s.vBucketRangeEnd,
 		prometheus.GaugeValue,
 		float64(vBucketDiscoveryMetric.VBucketRangeEnd),
+		[]string{}...,
+	)
+
+	checkpointMetric := s.stream.GetCheckpointMetric()
+
+	ch <- prometheus.MustNewConstMetric(
+		s.offsetWrite,
+		prometheus.GaugeValue,
+		checkpointMetric.OffsetWrite.Value(),
+		[]string{}...,
+	)
+
+	ch <- prometheus.MustNewConstMetric(
+		s.offsetWriteLatency,
+		prometheus.GaugeValue,
+		checkpointMetric.OffsetWriteLatency.Value(),
 		[]string{}...,
 	)
 }
@@ -247,20 +266,20 @@ func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 			[]string{"vbId"},
 			nil,
 		),
-		averageProcessMs: prometheus.NewDesc(
-			prometheus.BuildFQName(helpers.Name, "average_process_ms", "current"),
-			"Average process ms at 10sec windows",
+		processLatency: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "process_latency_ms", "current"),
+			"Average process latency ms",
 			[]string{},
 			nil,
 		),
 		dcpLatency: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "dcp_latency_ms", "current"),
-			"Dcp latency ms at 10sec windows",
+			"Average dcp latency ms",
 			[]string{},
 			nil,
 		),
-		rebalanceCount: prometheus.NewDesc(
-			prometheus.BuildFQName(helpers.Name, "rebalance_count", "current"),
+		rebalance: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "rebalance", "current"),
 			"Rebalance count",
 			[]string{},
 			nil,
@@ -298,6 +317,18 @@ func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 		vBucketRangeEnd: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "vbucket_range_end", "current"),
 			"VBucket range end",
+			[]string{},
+			nil,
+		),
+		offsetWrite: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "offset_write", "current"),
+			"Average offset write",
+			[]string{},
+			nil,
+		),
+		offsetWriteLatency: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "offset_write_latency_ms", "current"),
+			"Average offset write latency ms",
 			[]string{},
 			nil,
 		),

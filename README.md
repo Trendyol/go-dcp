@@ -125,21 +125,23 @@ You can adjust the average window time for the metrics by specifying the value o
 
 ### Exposed metrics
 
-| Metric Name                     | Description                                                                      | Labels                  | Value Type |
-|---------------------------------|----------------------------------------------------------------------------------|-------------------------|------------|
-| cbgo_mutation_total             | The total number of mutations on a specific vBucket                              | vbId: ID of the vBucket | Counter    |
-| cbgo_deletion_total             | The total number of deletions on a specific vBucket                              | vbId: ID of the vBucket | Counter    |
-| cbgo_expiration_total           | The total number of expirations on a specific vBucket                            | vbId: ID of the vBucket | Counter    |
-| cbgo_seq_no_current             | The current sequence number on a specific vBucket                                | vbId: ID of the vBucket | Gauge      |
-| cbgo_start_seq_no_current       | The starting sequence number on a specific vBucket                               | vbId: ID of the vBucket | Gauge      |
-| cbgo_end_seq_no_current         | The ending sequence number on a specific vBucket                                 | vbId: ID of the vBucket | Gauge      |
-| cbgo_lag_current                | The current lag on a specific vBucket                                            | vbId: ID of the vBucket | Gauge      |
-| cbgo_average_process_ms_current | The average processing time in milliseconds for the last metric.averageWindowSec | N/A                     | Gauge      |
-| cbgo_dcp_latency_ms_current     | The latency in milliseconds for the last metric.averageWindowSec                 | N/A                     | Gauge      |
-| cbgo_rebalance_count_current    | The number of total rebalances                                                   | N/A                     | Gauge      |
-| cbgo_total_members_current      | The total number of members in the cluster                                       | N/A                     | Gauge      |
-| cbgo_member_number_current      | The number of the current member                                                 | N/A                     | Gauge      |
-| cbgo_membership_type_current    | The type of membership of the current member                                     | Membership type         | Gauge      |
+| Metric Name                          | Description                                                                           | Labels                  | Value Type |
+|--------------------------------------|---------------------------------------------------------------------------------------|-------------------------|------------|
+| cbgo_mutation_total                  | The total number of mutations on a specific vBucket                                   | vbId: ID of the vBucket | Counter    |
+| cbgo_deletion_total                  | The total number of deletions on a specific vBucket                                   | vbId: ID of the vBucket | Counter    |
+| cbgo_expiration_total                | The total number of expirations on a specific vBucket                                 | vbId: ID of the vBucket | Counter    |
+| cbgo_seq_no_current                  | The current sequence number on a specific vBucket                                     | vbId: ID of the vBucket | Gauge      |
+| cbgo_start_seq_no_current            | The starting sequence number on a specific vBucket                                    | vbId: ID of the vBucket | Gauge      |
+| cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket                                      | vbId: ID of the vBucket | Gauge      |
+| cbgo_lag_current                     | The current lag on a specific vBucket                                                 | vbId: ID of the vBucket | Gauge      |
+| cbgo_process_latency_ms_current      | The average process latency in milliseconds for the last metric.averageWindowSec      | N/A                     | Gauge      |
+| cbgo_dcp_latency_ms_current          | The average dcp latency in milliseconds for the last metric.averageWindowSec          | N/A                     | Gauge      |
+| cbgo_rebalance_current               | The number of total rebalances                                                        | N/A                     | Gauge      |
+| cbgo_total_members_current           | The total number of members in the cluster                                            | N/A                     | Gauge      |
+| cbgo_member_number_current           | The number of the current member                                                      | N/A                     | Gauge      |
+| cbgo_membership_type_current         | The type of membership of the current member                                          | Membership type         | Gauge      |
+| cbgo_offset_write_current            | The average number of the offset write for the last metric.averageWindowSec           | N/A                     | Gauge      |
+| cbgo_offset_write_latency_ms_current | The average offset write latency in milliseconds for the last metric.averageWindowSec | N/A                     | Gauge      |
 
 ### Examples
 

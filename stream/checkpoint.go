@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VividCortex/ewma"
+
 	"github.com/Trendyol/go-dcp-client/metadata"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
@@ -27,6 +29,12 @@ type Checkpoint interface {
 	Clear()
 	StartSchedule()
 	StopSchedule()
+	GetMetric() *CheckpointMetric
+}
+
+type CheckpointMetric struct {
+	OffsetWrite        ewma.MovingAverage
+	OffsetWriteLatency ewma.MovingAverage
 }
 
 type checkpoint struct {
@@ -37,6 +45,7 @@ type checkpoint struct {
 	config     *helpers.Config
 	saveLock   *sync.Mutex
 	loadLock   *sync.Mutex
+	metric     *CheckpointMetric
 	bucketUUID string
 	vbIds      []uint16
 }
@@ -71,7 +80,21 @@ func (s *checkpoint) Save() {
 		}
 	}
 
+	var dirtyOffsetCount int
+	for _, dirt := range dirtyOffsets {
+		if dirt {
+			dirtyOffsetCount++
+		}
+	}
+
+	s.metric.OffsetWrite.Add(float64(dirtyOffsetCount))
+
+	start := time.Now()
+
 	err := s.metadata.Save(dump, dirtyOffsets, s.bucketUUID)
+
+	s.metric.OffsetWriteLatency.Add(float64(time.Since(start).Milliseconds()))
+
 	if err == nil {
 		logger.Log.Printf("saved checkpoint")
 		s.stream.UnmarkDirtyOffsets()
@@ -172,6 +195,10 @@ func (s *checkpoint) StopSchedule() {
 	logger.Log.Printf("stopped checkpoint schedule")
 }
 
+func (s *checkpoint) GetMetric() *CheckpointMetric {
+	return s.metric
+}
+
 func NewCheckpoint(
 	stream Stream,
 	vbIds []uint16,
@@ -188,5 +215,9 @@ func NewCheckpoint(
 		config:     config,
 		saveLock:   &sync.Mutex{},
 		loadLock:   &sync.Mutex{},
+		metric: &CheckpointMetric{
+			OffsetWrite:        ewma.NewMovingAverage(config.Metric.AverageWindowSec),
+			OffsetWriteLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
+		},
 	}
 }

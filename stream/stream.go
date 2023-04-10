@@ -28,12 +28,13 @@ type Stream interface {
 	GetObserver() couchbase.Observer
 	GetMetric() *Metric
 	UnmarkDirtyOffsets()
+	GetCheckpointMetric() *CheckpointMetric
 }
 
 type Metric struct {
-	AverageProcessMs ewma.MovingAverage
-	DcpLatency       ewma.MovingAverage
-	RebalanceCount   int
+	ProcessLatency ewma.MovingAverage
+	DcpLatency     ewma.MovingAverage
+	Rebalance      int
 }
 
 type stream struct {
@@ -87,7 +88,7 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 
 	s.listener(ctx)
 
-	s.metric.AverageProcessMs.Add(float64(time.Since(start).Milliseconds()))
+	s.metric.ProcessLatency.Add(float64(time.Since(start).Milliseconds()))
 }
 
 func (s *stream) listen() {
@@ -171,7 +172,7 @@ func (s *stream) rebalance() {
 
 	logger.Log.Printf("rebalance is finished")
 
-	s.metric.RebalanceCount++
+	s.metric.Rebalance++
 }
 
 func (s *stream) Rebalance() {
@@ -267,6 +268,10 @@ func (s *stream) GetMetric() *Metric {
 	return s.metric
 }
 
+func (s *stream) GetCheckpointMetric() *CheckpointMetric {
+	return s.checkpoint.GetMetric()
+}
+
 func (s *stream) UnmarkDirtyOffsets() {
 	s.anyDirtyOffset = false
 	s.dirtyOffsets = map[uint16]bool{}
@@ -294,8 +299,8 @@ func NewStream(client couchbase.Client,
 		stopCh:           stopCh,
 		bus:              bus,
 		metric: &Metric{
-			AverageProcessMs: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
-			DcpLatency:       ewma.NewMovingAverage(config.Metric.AverageWindowSec),
+			ProcessLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
+			DcpLatency:     ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},
 	}
 }

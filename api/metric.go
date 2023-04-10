@@ -144,8 +144,8 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(
 		s.dcpLatency,
-		prometheus.GaugeValue,
-		streamMetric.DcpLatency.Value(),
+		prometheus.CounterValue,
+		float64(streamMetric.DcpLatency),
 		[]string{}...,
 	)
 
@@ -274,7 +274,7 @@ func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 		),
 		dcpLatency: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "dcp_latency_ms", "current"),
-			"Average dcp latency ms",
+			"Latest consumed dcp message latency ms",
 			[]string{},
 			nil,
 		),

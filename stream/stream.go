@@ -33,7 +33,7 @@ type Stream interface {
 
 type Metric struct {
 	ProcessLatency ewma.MovingAverage
-	DcpLatency     ewma.MovingAverage
+	DcpLatency     int64
 	Rebalance      int
 }
 
@@ -73,7 +73,7 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 		return
 	}
 
-	s.metric.DcpLatency.Add(float64(time.Since(eventTime).Milliseconds()))
+	s.metric.DcpLatency = time.Since(eventTime).Milliseconds()
 
 	ctx := &models.ListenerContext{
 		Commit: s.checkpoint.Save,
@@ -300,7 +300,6 @@ func NewStream(client couchbase.Client,
 		bus:              bus,
 		metric: &Metric{
 			ProcessLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
-			DcpLatency:     ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},
 	}
 }

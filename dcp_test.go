@@ -113,7 +113,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 	logger.Log.Printf("mock data stream finished with totalSize=%v", mockDataSize)
 }
 
-func dcpBench(mockDataSize int) {
+func dcpBench(b *testing.B, mockDataSize int) {
 	totalNotify := 10
 	notifySize := mockDataSize / totalNotify
 
@@ -188,10 +188,10 @@ func dcpBench(mockDataSize int) {
 //nolint:funlen
 func BenchmarkDcp(b *testing.B) {
 	b.Run("Dcp(640000)", func(b *testing.B) {
-		dcpBench(640000)
+		dcpBench(b, 640000)
 	})
 
 	b.Run("Dcp(1280000)", func(b *testing.B) {
-		dcpBench(1280000)
+		dcpBench(b, 1280000)
 	})
 }

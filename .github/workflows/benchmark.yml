@@ -13,11 +13,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Continuous Benchmarking for Go
-        uses: bobheadxi/gobenchdata@v1.3.1
+      - name: Set up Go
+        uses: actions/setup-go@v3
         with:
-          PUBLISH: true
+          go-version: 1.19
+
+      - name: Continuous Benchmarking
+        run: go run go.bobheadxi.dev/gobenchdata@v1 action
         env:
+          INPUT_PUBLISH: true
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,4 +1,4 @@
-package helpers
+package config
 
 import (
 	"errors"
@@ -6,14 +6,25 @@ import (
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/gookit/config/v2"
-	"github.com/gookit/config/v2/yamlv3"
+)
+
+const (
+	DefaultScopeName                            = "_default"
+	DefaultCollectionName                       = "_default"
+	MetadataTypeCouchbase                       = "couchbase"
+	MetadataTypeFile                            = "file"
+	CouchbaseMetadataBucketConfig               = "bucket"
+	CouchbaseMetadataScopeConfig                = "scope"
+	CouchbaseMetadataCollectionConfig           = "collection"
+	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
+	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
+	FileMetadataFileNameConfig                  = "fileName"
 )
 
 type ConfigDCPGroupMembership struct {
-	Type           string        `yaml:"type" default:"couchbase"`
-	MemberNumber   int           `yaml:"memberNumber" default:"1"`
-	TotalMembers   int           `yaml:"totalMembers" default:"1"`
+	Type           string        `yaml:"type"`
+	MemberNumber   int           `yaml:"memberNumber"`
+	TotalMembers   int           `yaml:"totalMembers"`
 	RebalanceDelay time.Duration `yaml:"rebalanceDelay"`
 }
 
@@ -23,66 +34,66 @@ type ConfigDCPGroup struct {
 }
 
 type ConfigDCPListener struct {
-	BufferSize uint `yaml:"bufferSize" default:"1"`
+	BufferSize uint `yaml:"bufferSize"`
 }
 
 type ConfigDCP struct {
 	Group                ConfigDCPGroup    `yaml:"group"`
-	BufferSize           int               `yaml:"bufferSize" default:"16777216"`
-	ConnectionBufferSize uint              `yaml:"connectionBufferSize" default:"20971520"`
+	BufferSize           int               `yaml:"bufferSize"`
+	ConnectionBufferSize uint              `yaml:"connectionBufferSize"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
 	Listener             ConfigDCPListener `yaml:"listener"`
 }
 
 type ConfigAPI struct {
-	Port    int  `yaml:"port" default:"8080"`
-	Enabled bool `yaml:"enabled" default:"true"`
+	Port    int  `yaml:"port"`
+	Enabled bool `yaml:"enabled"`
 }
 
 type ConfigMetric struct {
-	Path             string  `yaml:"path" default:"/metrics"`
-	AverageWindowSec float64 `yaml:"averageWindowSec" default:"10.0"`
+	Path             string  `yaml:"path"`
+	AverageWindowSec float64 `yaml:"averageWindowSec"`
 }
 
 type ConfigLeaderElection struct {
 	Config  map[string]string `yaml:"config"`
-	Type    string            `yaml:"type" default:"kubernetes"`
+	Type    string            `yaml:"type"`
 	RPC     ConfigRPC         `yaml:"rpc"`
-	Enabled bool              `yaml:"enabled" default:"false"`
+	Enabled bool              `yaml:"enabled"`
 }
 
 type ConfigRPC struct {
-	Port int `yaml:"port" default:"8081"`
+	Port int `yaml:"port"`
 }
 
 type ConfigCheckpoint struct {
-	Type      string        `yaml:"type" default:"auto"`
-	AutoReset string        `yaml:"autoReset" default:"earliest"`
+	Type      string        `yaml:"type"`
+	AutoReset string        `yaml:"autoReset"`
 	Interval  time.Duration `yaml:"interval"`
 	Timeout   time.Duration `yaml:"timeout"`
 }
 
 type ConfigHealthCheck struct {
-	Enabled  bool          `yaml:"enabled" default:"true"`
+	Enabled  bool          `yaml:"enabled"`
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 }
 
 type ConfigRollbackMitigation struct {
-	Enabled  bool          `yaml:"enabled" default:"false"`
+	Enabled  bool          `yaml:"enabled"`
 	Interval time.Duration `yaml:"interval"`
 }
 
 type ConfigMetadata struct {
 	Config   map[string]string `yaml:"config"`
-	Type     string            `yaml:"type" default:"couchbase"`
-	ReadOnly bool              `json:"readOnly" default:"false"`
+	Type     string            `yaml:"type"`
+	ReadOnly bool              `json:"readOnly"`
 }
 
-type Config struct {
+type DCP struct {
 	Username             string                   `yaml:"username"`
 	BucketName           string                   `yaml:"bucketName"`
-	ScopeName            string                   `yaml:"scopeName" default:"_default"`
+	ScopeName            string                   `yaml:"scopeName"`
 	Password             string                   `yaml:"password"`
 	RootCAPath           string                   `yaml:"rootCAPath"`
 	Metadata             ConfigMetadata           `yaml:"metadata"`
@@ -96,24 +107,24 @@ type Config struct {
 	API                  ConfigAPI                `yaml:"api"`
 	RollbackMitigation   ConfigRollbackMitigation `yaml:"rollbackMitigation"`
 	ConnectionTimeout    time.Duration            `yaml:"connectionTimeout"`
-	ConnectionBufferSize uint                     `yaml:"connectionBufferSize" default:"20971520"`
+	ConnectionBufferSize uint                     `yaml:"connectionBufferSize"`
 	SecureConnection     bool                     `yaml:"secureConnection"`
 	Debug                bool                     `yaml:"debug"`
 }
 
-func (c *Config) IsCollectionModeEnabled() bool {
+func (c *DCP) IsCollectionModeEnabled() bool {
 	return !(c.ScopeName == DefaultScopeName && len(c.CollectionNames) == 1 && c.CollectionNames[0] == DefaultCollectionName)
 }
 
-func (c *Config) IsCouchbaseMetadata() bool {
+func (c *DCP) IsCouchbaseMetadata() bool {
 	return c.Metadata.Type == MetadataTypeCouchbase
 }
 
-func (c *Config) IsFileMetadata() bool {
+func (c *DCP) IsFileMetadata() bool {
 	return c.Metadata.Type == MetadataTypeFile
 }
 
-func (c *Config) GetFileMetadata() string {
+func (c *DCP) GetFileMetadata() string {
 	var fileName string
 
 	if _, ok := c.Metadata.Config[FileMetadataFileNameConfig]; ok {
@@ -133,7 +144,7 @@ func (c *Config) GetFileMetadata() string {
 	return fileName
 }
 
-func (c *Config) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
+func (c *DCP) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
 	var bucket, scope, collection string
 	var connectionBufferSize uint
 	var connectionTimeout time.Duration
@@ -183,71 +194,112 @@ func (c *Config) GetCouchbaseMetadata() (string, string, string, uint, time.Dura
 	return bucket, scope, collection, connectionBufferSize, connectionTimeout
 }
 
-func Options(opts *config.Options) {
-	opts.ParseTime = true
-	opts.Readonly = true
-	opts.EnableCache = true
-	opts.ParseDefault = true
-}
-
-func applyUnhandledDefaults(_config *Config) {
-	if _config.RollbackMitigation.Interval == 0 {
-		_config.RollbackMitigation.Interval = 200 * time.Millisecond
+func (c *DCP) ApplyDefaults() {
+	if c.RollbackMitigation.Interval == 0 {
+		c.RollbackMitigation.Interval = 200 * time.Millisecond
 	}
 
-	if _config.Checkpoint.Interval == 0 {
-		_config.Checkpoint.Interval = 20 * time.Second
+	if c.Checkpoint.Interval == 0 {
+		c.Checkpoint.Interval = 20 * time.Second
 	}
 
-	if _config.Checkpoint.Timeout == 0 {
-		_config.Checkpoint.Timeout = 5 * time.Second
+	if c.Checkpoint.Timeout == 0 {
+		c.Checkpoint.Timeout = 5 * time.Second
 	}
 
-	if _config.HealthCheck.Interval == 0 {
-		_config.HealthCheck.Interval = 20 * time.Second
+	if c.HealthCheck.Interval == 0 {
+		c.HealthCheck.Interval = 20 * time.Second
 	}
 
-	if _config.HealthCheck.Timeout == 0 {
-		_config.HealthCheck.Timeout = 5 * time.Second
+	if c.HealthCheck.Timeout == 0 {
+		c.HealthCheck.Timeout = 5 * time.Second
 	}
 
-	if _config.Dcp.Group.Membership.RebalanceDelay == 0 {
-		_config.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
+	if c.Dcp.Group.Membership.RebalanceDelay == 0 {
+		c.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
 	}
 
-	if _config.Dcp.ConnectionTimeout == 0 {
-		_config.Dcp.ConnectionTimeout = 5 * time.Second
+	if c.Dcp.ConnectionTimeout == 0 {
+		c.Dcp.ConnectionTimeout = 5 * time.Second
 	}
 
-	if _config.ConnectionTimeout == 0 {
-		_config.ConnectionTimeout = 5 * time.Second
+	if c.ConnectionTimeout == 0 {
+		c.ConnectionTimeout = 5 * time.Second
 	}
 
-	if _config.CollectionNames == nil {
-		_config.CollectionNames = []string{DefaultCollectionName}
-	}
-}
-
-func NewConfig(name string, filePath string) *Config {
-	conf := config.New(name).WithOptions(Options).WithDriver(yamlv3.Driver)
-
-	err := conf.LoadFiles(filePath)
-	if err != nil {
-		logger.ErrorLog.Printf("cannot load config file: %v", err)
-		panic(err)
+	if c.CollectionNames == nil {
+		c.CollectionNames = []string{DefaultCollectionName}
 	}
 
-	_config := &Config{}
-	err = conf.Decode(_config)
-
-	if err != nil {
-		logger.ErrorLog.Printf("cannot decode config file: %v", err)
-		panic(err)
+	if c.ScopeName == "" {
+		c.ScopeName = DefaultScopeName
 	}
 
-	logger.Log.Printf("config loaded from file: %v", filePath)
+	if c.ConnectionBufferSize == 0 {
+		c.ConnectionBufferSize = 20971520
+	}
 
-	applyUnhandledDefaults(_config)
+	if c.Metadata.Type == "" {
+		c.Metadata.Type = "couchbase"
+	}
 
-	return _config
+	if c.Metric.Path == "" {
+		c.Metric.Path = "/metrics"
+	}
+
+	if c.Metric.AverageWindowSec == 0.0 {
+		c.Metric.AverageWindowSec = 10.0
+	}
+
+	if c.API.Enabled == false {
+		c.API.Enabled = true
+	}
+
+	if c.API.Port == 0 {
+		c.API.Port = 8080
+	}
+
+	if c.Checkpoint.Type == "" {
+		c.Checkpoint.Type = "auto"
+	}
+
+	if c.Checkpoint.AutoReset == "" {
+		c.Checkpoint.AutoReset = "earliest"
+	}
+
+	if c.HealthCheck.Enabled == false {
+		c.HealthCheck.Enabled = true
+	}
+
+	if c.LeaderElection.Type == "" {
+		c.LeaderElection.Type = "kubernetes"
+	}
+
+	if c.LeaderElection.RPC.Port == 0 {
+		c.LeaderElection.RPC.Port = 8081
+	}
+
+	if c.Dcp.BufferSize == 0 {
+		c.Dcp.BufferSize = 16777216
+	}
+
+	if c.Dcp.ConnectionBufferSize == 0 {
+		c.Dcp.ConnectionBufferSize = 20971520
+	}
+
+	if c.Dcp.Group.Membership.TotalMembers == 0 {
+		c.Dcp.Group.Membership.TotalMembers = 1
+	}
+
+	if c.Dcp.Group.Membership.MemberNumber == 0 {
+		c.Dcp.Group.Membership.MemberNumber = 1
+	}
+
+	if c.Dcp.Group.Membership.Type == "" {
+		c.Dcp.Group.Membership.Type = "couchbase"
+	}
+
+	if c.Dcp.Listener.BufferSize == 0 {
+		c.Dcp.Listener.BufferSize = 1
+	}
 }

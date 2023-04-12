@@ -1,10 +1,6 @@
-name: 🔨 Build And Test
+name: Build
 
-on:
-  push:
-    branches:
-      - master
-      - 'feature/**'
+on: push
 
 jobs:
   build:
@@ -31,10 +27,3 @@ jobs:
 
       - name: Build
         run: go build -v ./...
-
-      - name: Continuous Benchmarking for Go
-        uses: bobheadxi/gobenchdata@v1.3.1
-        with:
-          PUBLISH: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

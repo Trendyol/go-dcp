@@ -67,7 +67,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 	chunks := helpers.ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
 
 	// Concurrency is limited to 24 to avoid server overload
-	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(16))))
+	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(8))))
 
 	for _, iteration := range iterations {
 		for _, chunk := range iteration {
@@ -116,7 +116,7 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 
 //nolint:funlen
 func BenchmarkDcp(b *testing.B) {
-	mockDataSize := 2560000
+	mockDataSize := 1280000
 	totalNotify := 10
 	notifySize := mockDataSize / totalNotify
 

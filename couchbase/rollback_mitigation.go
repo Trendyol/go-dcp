@@ -3,6 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/config"
 	"reflect"
 	"time"
 
@@ -24,7 +25,7 @@ type vbUUIDAndSeqNo struct {
 
 type rollbackMitigation struct {
 	client           Client
-	config           *helpers.Config
+	config           *config.Dcp
 	bus              helpers.Bus
 	configSnapshot   *gocbcore.ConfigSnapshot
 	persistedSeqNos  map[uint16][]*vbUUIDAndSeqNo
@@ -280,7 +281,7 @@ func (r *rollbackMitigation) Stop() {
 	logger.Log.Printf("rollback mitigation stopped")
 }
 
-func NewRollbackMitigation(client Client, config *helpers.Config, vbIds []uint16, bus helpers.Bus) RollbackMitigation {
+func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bus helpers.Bus) RollbackMitigation {
 	return &rollbackMitigation{
 		client: client,
 		config: config,

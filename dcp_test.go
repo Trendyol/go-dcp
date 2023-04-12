@@ -31,7 +31,7 @@ dcp:
     membership:
       rebalanceDelay: 5s`
 
-func setupContainer(ctx context.Context, config *helpers.Config) (testcontainers.Container, error) {
+func setupContainer(ctx context.Context, config *config.Dcp) (testcontainers.Container, error) {
 	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
@@ -48,7 +48,7 @@ func setupContainer(ctx context.Context, config *helpers.Config) (testcontainers
 	})
 }
 
-func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Config) {
+func insertDataToContainer(b *testing.B, mockDataSize int, config *config.Dcp) {
 	logger.Log.Printf("mock data stream started with totalSize=%v", mockDataSize)
 
 	client := couchbase.NewClient(config)

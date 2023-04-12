@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/config"
 	"time"
 
 	"github.com/Trendyol/go-dcp-client/membership"
@@ -90,7 +91,7 @@ func (le *leaderElector) membershipChangedListener(event interface{}) {
 
 func NewLeaderElector(
 	client Client,
-	config *helpers.Config,
+	config *config.Dcp,
 	myIdentity *models.Identity,
 	handler leaderelector.Handler,
 	bus helpers.Bus,

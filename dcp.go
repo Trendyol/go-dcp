@@ -2,6 +2,7 @@ package godcpclient
 
 import (
 	"errors"
+	"github.com/Trendyol/go-dcp-client/config"
 	"os"
 	"os/signal"
 	"reflect"
@@ -30,7 +31,7 @@ type Dcp interface {
 	Start()
 	Close()
 	Commit()
-	GetConfig() *helpers.Config
+	GetConfig() *config.Dcp
 	SetMetadata(metadata metadata.Metadata)
 	SetMetricCollectors(collectors ...prometheus.Collector)
 }
@@ -47,7 +48,7 @@ type dcp struct {
 	apiShutdown       chan struct{}
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
-	config            *helpers.Config
+	config            *config.Dcp
 	healthCheckTicker *time.Ticker
 	listener          models.Listener
 	readyCh           chan struct{}
@@ -197,11 +198,11 @@ func (s *dcp) Commit() {
 	s.stream.Save()
 }
 
-func (s *dcp) GetConfig() *helpers.Config {
+func (s *dcp) GetConfig() *config.Dcp {
 	return s.config
 }
 
-func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
+func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	client := couchbase.NewClient(config)
 
 	err := client.Connect()
@@ -228,18 +229,18 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 	}, nil
 }
 
-// NewDcp creates a new DCP client
+// NewDcp creates a new Dcp client
 //
 // config: path to a configuration file or a configuration struct
 // listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(configPath string, listener models.Listener) (Dcp, error) {
-	config := helpers.NewConfig(helpers.Name, configPath)
+func NewDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
+	config.ApplyDefaults()
 	return newDcp(config, listener)
 }
 
-func NewDcpWithLoggers(configPath string, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
+func NewDcpWithLoggers(config *config.Dcp, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
 	logger.SetLogger(infoLogger)
 	logger.SetErrorLogger(errorLogger)
 
-	return NewDcp(configPath, listener)
+	return NewDcp(config, listener)
 }

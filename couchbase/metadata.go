@@ -3,6 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/config"
 	"strconv"
 	"sync"
 
@@ -18,10 +19,8 @@ import (
 )
 
 type cbMetadata struct {
-	client         Client
-	config         *helpers.Config
-	scopeName      string
-	collectionName string
+	client Client
+	config *config.Dcp
 }
 
 func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffsets map[uint16]bool, _ string) error {
@@ -39,14 +38,14 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 			}
 
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-			err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+			err = s.upsertXattrs(ctx, s.config.Metadata.CouchbaseMetadata.Scope, s.config.Metadata.CouchbaseMetadata.Collection, id, helpers.Name, checkpointDocument, 0)
 
 			var kvErr *gocbcore.KeyValueError
 			if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-				err = s.client.CreateDocument(ctx, s.scopeName, s.collectionName, id, []byte{}, 0)
+				err = s.client.CreateDocument(ctx, s.config.Metadata.CouchbaseMetadata.Scope, s.config.Metadata.CouchbaseMetadata.Collection, id, []byte{}, 0)
 
 				if err == nil {
-					err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+					err = s.upsertXattrs(ctx, s.config.Metadata.CouchbaseMetadata.Scope, s.config.Metadata.CouchbaseMetadata.Collection, id, helpers.Name, checkpointDocument, 0)
 				}
 			}
 
@@ -122,7 +121,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*models
 
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-			data, err := s.getXattrs(s.scopeName, s.collectionName, id, helpers.Name)
+			data, err := s.getXattrs(s.config.Metadata.CouchbaseMetadata.Scope, s.config.Metadata.CouchbaseMetadata.Collection, id, helpers.Name)
 
 			var doc *models.CheckpointDocument
 
@@ -242,26 +241,22 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	for _, vbID := range vbIds {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-		s.deleteDocument(ctx, s.scopeName, s.collectionName, id)
+		s.deleteDocument(ctx, s.config.Metadata.CouchbaseMetadata.Scope, s.config.Metadata.CouchbaseMetadata.Collection, id)
 	}
 
 	return nil
 }
 
-func NewCBMetadata(client Client, config *helpers.Config) metadata.Metadata {
+func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize couchbase metadata: %v", err)
 		panic(err)
 	}
 
-	_, scope, collection, _, _ := config.GetCouchbaseMetadata()
-
 	return &cbMetadata{
-		client:         client,
-		config:         config,
-		scopeName:      scope,
-		collectionName: collection,
+		client: client,
+		config: config,
 	}
 }
 

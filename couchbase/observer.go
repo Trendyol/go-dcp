@@ -1,6 +1,7 @@
 package couchbase
 
 import (
+	godcpclient "github.com/Trendyol/go-dcp-client/config"
 	"sync"
 	"time"
 
@@ -35,6 +36,8 @@ type Observer interface {
 	SetFailoverLogs(vbID uint16, logs []gocbcore.FailoverEntry)
 }
 
+const DefaultCollectionName = "_default"
+
 type ObserverMetric struct {
 	TotalMutations   float64
 	TotalDeletions   float64
@@ -56,7 +59,7 @@ type observer struct {
 	failoverLogsLock       *sync.Mutex
 	persistSeqNoLock       *sync.Mutex
 	failoverLogs           map[uint16][]gocbcore.FailoverEntry
-	config                 *helpers.Config
+	config                 *godcpclient.Dcp
 	catchupNeededVbIDCount int
 	closed                 bool
 }
@@ -130,7 +133,7 @@ func (so *observer) convertToCollectionName(collectionID uint32) string {
 		return name
 	}
 
-	return helpers.DefaultCollectionName
+	return DefaultCollectionName
 }
 
 // nolint:staticcheck
@@ -420,7 +423,7 @@ func (so *observer) CloseEnd() {
 }
 
 func NewObserver(
-	config *helpers.Config,
+	config *godcpclient.Dcp,
 	collectionIDs map[uint32]string,
 	bus helpers.Bus,
 ) Observer {

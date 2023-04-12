@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"github.com/Trendyol/go-dcp-client/config"
 	"sync"
 	"time"
 
@@ -49,7 +50,7 @@ type stream struct {
 	offsets            map[uint16]*models.Offset
 	dirtyOffsets       map[uint16]bool
 	listener           models.Listener
-	config             *helpers.Config
+	config             *config.Dcp
 	activeStreams      *sync.WaitGroup
 	streamsLock        *sync.Mutex
 	offsetsLock        *sync.Mutex
@@ -279,7 +280,7 @@ func (s *stream) UnmarkDirtyOffsets() {
 
 func NewStream(client couchbase.Client,
 	metadata metadata.Metadata,
-	config *helpers.Config,
+	config *config.Dcp,
 	vBucketDiscovery VBucketDiscovery,
 	listener models.Listener,
 	collectionIDs map[uint32]string,

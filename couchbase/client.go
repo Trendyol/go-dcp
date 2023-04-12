@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/config"
 	"os"
 	"time"
 
@@ -12,7 +13,6 @@ import (
 
 	"github.com/json-iterator/go"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -47,7 +47,7 @@ type client struct {
 	agent     *gocbcore.Agent
 	metaAgent *gocbcore.Agent
 	dcpAgent  *gocbcore.DCPAgent
-	config    *helpers.Config
+	config    *config.Dcp
 }
 
 func (s *client) Ping() error {
@@ -191,13 +191,15 @@ func (s *client) Connect() error {
 	connectionBufferSize := s.config.ConnectionBufferSize
 	connectionTimeout := s.config.ConnectionTimeout
 
+	//TODO: why do we overwrite here?
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
-		if metadataBucketName == s.config.BucketName {
-			if metadataConnectionBufferSize > connectionBufferSize {
-				connectionBufferSize = metadataConnectionBufferSize
+		if s.config.Metadata.CouchbaseMetadata.Bucket == s.config.BucketName {
+			metadataBufferSize := s.config.Metadata.CouchbaseMetadata.ConnectionBufferSize
+			if metadataBufferSize > connectionBufferSize {
+				connectionBufferSize = metadataBufferSize
 			}
 
+			metadataConnectionTimeout := s.config.Metadata.CouchbaseMetadata.ConnectionTimeout
 			if metadataConnectionTimeout > connectionTimeout {
 				connectionTimeout = metadataConnectionTimeout
 			}
@@ -212,8 +214,6 @@ func (s *client) Connect() error {
 	s.agent = agent
 
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
-
 		if metadataBucketName == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
@@ -608,7 +608,7 @@ func (s *client) CreateDocument(ctx context.Context,
 	return <-ch
 }
 
-func NewClient(config *helpers.Config) Client {
+func NewClient(config *config.Dcp) Client {
 	return &client{
 		agent:    nil,
 		dcpAgent: nil,

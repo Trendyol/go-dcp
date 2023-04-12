@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"github.com/Trendyol/go-dcp-client/config"
 	"sync"
 
 	"github.com/Trendyol/go-dcp-client/leaderelector"
@@ -30,7 +31,7 @@ type leaderElection struct {
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	bus              helpers.Bus
 	myIdentity       *models.Identity
-	config           *helpers.Config
+	config           *config.Dcp
 	newLeaderLock    *sync.Mutex
 }
 
@@ -87,7 +88,7 @@ func (l *leaderElection) Stop() {
 }
 
 func NewLeaderElection(
-	config *helpers.Config,
+	config *config.Dcp,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
 	bus helpers.Bus,
 ) LeaderElection {

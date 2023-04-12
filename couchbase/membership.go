@@ -3,6 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/config"
 	"sort"
 	"time"
 
@@ -24,7 +25,7 @@ type cbMembership struct {
 	info                *membership.Model
 	infoChan            chan *membership.Model
 	heartbeatTicker     *time.Ticker
-	config              *helpers.Config
+	config              *config.Dcp
 	monitorTicker       *time.Ticker
 	scopeName           string
 	collectionName      string
@@ -409,7 +410,7 @@ func (h *cbMembership) membershipChangedListener(event interface{}) {
 	}()
 }
 
-func NewCBMembership(config *helpers.Config, client Client, bus helpers.Bus) membership.Membership {
+func NewCBMembership(config *config.Dcp, client Client, bus helpers.Bus) membership.Membership {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize couchbase membership, err: %v", err)

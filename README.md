@@ -80,7 +80,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `dcp.connectionTimeout`               |   time.Duration   |    no    |     5s     | DCP connection timeout.                                                                                             |
 | `dcp.listener.bufferSize`             |       uint        |    no    |     1      | Go DCP listener buffered channel size.                                                                              |
 | `dcp.group.name`                      |      string       |   yes    |            | DCP group name for vbuckets.                                                                                        |
-| `dcp.group.membership.type`           |      string       |    no    | couchbase  | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details. |
+| `dcp.group.membership.type`           |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details. |
 | `dcp.group.membership.memberNumber`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
 | `dcp.group.membership.totalMembers`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
 | `dcp.group.membership.rebalanceDelay` |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                          |

@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/Trendyol/go-dcp-client"
+	"github.com/Trendyol/go-dcp-client/config"
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/models"
@@ -30,7 +31,8 @@ func listener(ctx *models.ListenerContext) {
 }
 
 func main() {
-	dcp, err := godcpclient.NewDcp("config.yml", listener)
+	// TODO: fill the example config
+	dcp, err := godcpclient.NewDcp(&config.Dcp{}, listener)
 	if err != nil {
 		panic(err)
 	}

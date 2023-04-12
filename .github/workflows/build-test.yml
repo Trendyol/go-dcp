@@ -1,6 +1,10 @@
 name: 🔨 Build And Test
 
-on: [ push ]
+on:
+  push:
+    branches:
+      - master
+      - 'feature/**'
 
 jobs:
   build:
@@ -33,4 +37,4 @@ jobs:
         with:
           PUBLISH: true
         env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

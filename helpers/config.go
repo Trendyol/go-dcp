@@ -69,7 +69,7 @@ type ConfigHealthCheck struct {
 }
 
 type ConfigRollbackMitigation struct {
-	Enabled  bool          `yaml:"enabled" default:"false"`
+	Enabled  bool          `yaml:"enabled" default:"true"`
 	Interval time.Duration `yaml:"interval"`
 }
 
@@ -80,23 +80,25 @@ type ConfigMetadata struct {
 }
 
 type Config struct {
-	Metadata           ConfigMetadata           `yaml:"metadata"`
-	Username           string                   `yaml:"username"`
-	BucketName         string                   `yaml:"bucketName"`
-	ScopeName          string                   `yaml:"scopeName" default:"_default"`
-	Password           string                   `yaml:"password"`
-	RootCAPath         string                   `yaml:"rootCAPath"`
-	CollectionNames    []string                 `yaml:"collectionNames"`
-	Metric             ConfigMetric             `yaml:"metric"`
-	Hosts              []string                 `yaml:"hosts"`
-	Checkpoint         ConfigCheckpoint         `yaml:"checkpoint"`
-	LeaderElection     ConfigLeaderElection     `yaml:"leaderElector"`
-	Dcp                ConfigDCP                `yaml:"dcp"`
-	HealthCheck        ConfigHealthCheck        `yaml:"healthCheck"`
-	API                ConfigAPI                `yaml:"api"`
-	RollbackMitigation ConfigRollbackMitigation `yaml:"rollbackMitigation"`
-	SecureConnection   bool                     `yaml:"secureConnection"`
-	Debug              bool                     `yaml:"debug"`
+	Username             string                   `yaml:"username"`
+	BucketName           string                   `yaml:"bucketName"`
+	ScopeName            string                   `yaml:"scopeName" default:"_default"`
+	Password             string                   `yaml:"password"`
+	RootCAPath           string                   `yaml:"rootCAPath"`
+	Metadata             ConfigMetadata           `yaml:"metadata"`
+	Hosts                []string                 `yaml:"hosts"`
+	CollectionNames      []string                 `yaml:"collectionNames"`
+	Metric               ConfigMetric             `yaml:"metric"`
+	Checkpoint           ConfigCheckpoint         `yaml:"checkpoint"`
+	LeaderElection       ConfigLeaderElection     `yaml:"leaderElector"`
+	Dcp                  ConfigDCP                `yaml:"dcp"`
+	HealthCheck          ConfigHealthCheck        `yaml:"healthCheck"`
+	API                  ConfigAPI                `yaml:"api"`
+	RollbackMitigation   ConfigRollbackMitigation `yaml:"rollbackMitigation"`
+	ConnectionTimeout    time.Duration            `yaml:"connectionTimeout"`
+	ConnectionBufferSize uint                     `yaml:"connectionBufferSize" default:"20971520"`
+	SecureConnection     bool                     `yaml:"secureConnection"`
+	Debug                bool                     `yaml:"debug"`
 }
 
 func (c *Config) IsCollectionModeEnabled() bool {
@@ -131,9 +133,10 @@ func (c *Config) GetFileMetadata() string {
 	return fileName
 }
 
-func (c *Config) GetCouchbaseMetadata() (string, string, string, uint) {
+func (c *Config) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
 	var bucket, scope, collection string
 	var connectionBufferSize uint
+	var connectionTimeout time.Duration
 
 	if _, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
 		bucket = c.Metadata.Config[CouchbaseMetadataBucketConfig]
@@ -165,7 +168,19 @@ func (c *Config) GetCouchbaseMetadata() (string, string, string, uint) {
 		connectionBufferSize = 20971520
 	}
 
-	return bucket, scope, collection, connectionBufferSize
+	if _, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
+		parsedConnectionTimeout, err := time.ParseDuration(c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig])
+		if err != nil {
+			logger.ErrorLog.Printf("failed to parse metadata connection timeout: %v", err)
+			panic(err)
+		}
+
+		connectionTimeout = parsedConnectionTimeout
+	} else {
+		connectionTimeout = 5 * time.Second
+	}
+
+	return bucket, scope, collection, connectionBufferSize, connectionTimeout
 }
 
 func Options(opts *config.Options) {
@@ -177,7 +192,7 @@ func Options(opts *config.Options) {
 
 func applyUnhandledDefaults(_config *Config) {
 	if _config.RollbackMitigation.Interval == 0 {
-		_config.RollbackMitigation.Interval = 100 * time.Millisecond
+		_config.RollbackMitigation.Interval = 200 * time.Millisecond
 	}
 
 	if _config.Checkpoint.Interval == 0 {
@@ -202,6 +217,10 @@ func applyUnhandledDefaults(_config *Config) {
 
 	if _config.Dcp.ConnectionTimeout == 0 {
 		_config.Dcp.ConnectionTimeout = 5 * time.Second
+	}
+
+	if _config.ConnectionTimeout == 0 {
+		_config.ConnectionTimeout = 5 * time.Second
 	}
 
 	if _config.CollectionNames == nil {

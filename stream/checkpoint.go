@@ -199,6 +199,16 @@ func (s *checkpoint) GetMetric() *CheckpointMetric {
 	return s.metric
 }
 
+func getBucketUUID(client couchbase.Client) string {
+	snapshot, err := client.GetConfigSnapshot()
+	if err != nil {
+		logger.ErrorLog.Printf("failed to get config snapshot: %v", err)
+		panic(err)
+	}
+
+	return snapshot.BucketUUID()
+}
+
 func NewCheckpoint(
 	stream Stream,
 	vbIds []uint16,
@@ -210,7 +220,7 @@ func NewCheckpoint(
 		client:     client,
 		stream:     stream,
 		vbIds:      vbIds,
-		bucketUUID: client.GetBucketUUID(),
+		bucketUUID: getBucketUUID(client),
 		metadata:   metadata,
 		config:     config,
 		saveLock:   &sync.Mutex{},

@@ -41,20 +41,17 @@ func ChunkSlice[T any](slice []T, chunks int) [][]T {
 	return result
 }
 
-func CreateConfigFile(content string) (string, func(), error) {
+func CreateConfigFile(content string) (*os.File, error) {
 	tmpFile, err := os.CreateTemp("", "*.yml")
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	if _, err = tmpFile.WriteString(content); err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
-	return tmpFile.Name(), func() {
-		tmpFile.Close()
-		os.Remove(tmpFile.Name())
-	}, nil
+	return tmpFile, nil
 }
 
 func byteToMb(b uint64) uint64 {

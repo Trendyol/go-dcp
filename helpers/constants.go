@@ -13,6 +13,7 @@ const (
 	CouchbaseMetadataScopeConfig                = "scope"
 	CouchbaseMetadataCollectionConfig           = "collection"
 	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
+	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
 	FileMetadataFileNameConfig                  = "fileName"
 	MembershipChangedBusEventName               = "membershipChanged"
 	PersistSeqNoChangedBusEventName             = "persistSeqNoChanged"

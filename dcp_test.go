@@ -3,11 +3,13 @@ package godcpclient
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
+	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
 	"github.com/Trendyol/go-dcp-client/models"
@@ -20,49 +22,41 @@ import (
 
 var configStr = `hosts:
   - localhost:8091
-username: Administrator
+username: user
 password: password
-bucketName: sample
-checkpoint:
-  type: manual
+bucketName: dcp-test
 dcp:
   group:
     name: groupName
     membership:
-      type: static
-rollbackMitigation:
-  enabled: true
-debug: true`
+      rebalanceDelay: 5s`
 
-func setupContainer(b *testing.B, config *helpers.Config) func() {
-	ctx := context.Background()
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+func setupContainer(ctx context.Context, config *helpers.Config) (testcontainers.Container, error) {
+	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
 			ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
 			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(20 * time.Second),
 			Env: map[string]string{
-				"USERNAME":    config.Username,
-				"PASSWORD":    config.Password,
-				"BUCKET_NAME": config.BucketName,
+				"USERNAME":       config.Username,
+				"PASSWORD":       config.Password,
+				"BUCKET_NAME":    config.BucketName,
+				"BUCKET_RAMSIZE": "512",
 			},
 		},
 		Started: true,
 	})
-	if err != nil {
-		b.Error(err)
-	}
-
-	return func() {
-		_ = container.Terminate(ctx)
-	}
 }
 
 func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Config) {
+	logger.Log.Printf("mock data stream started with totalSize=%v", mockDataSize)
+
 	client := couchbase.NewClient(config)
 
-	_ = client.Connect()
+	err := client.Connect()
+	if err != nil {
+		b.Error(err)
+	}
 
 	ids := make([]int, mockDataSize)
 	for i := range ids {
@@ -72,8 +66,8 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 	// 2048 is the default value for the max queue size of the client, so we need to make sure that we don't exceed that
 	chunks := helpers.ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
 
-	// Concurrency is limited to 8 to avoid server overload
-	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(8))))
+	// Concurrency is limited to 24 to avoid server overload
+	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(16))))
 
 	for _, iteration := range iterations {
 		for _, chunk := range iteration {
@@ -113,48 +107,48 @@ func insertDataToContainer(b *testing.B, mockDataSize int, config *helpers.Confi
 
 			wg.Wait()
 		}
-		time.Sleep(1 * time.Second)
 	}
 
 	client.Close()
 
-	time.Sleep(5 * time.Second)
-
-	log.Printf("Inserted %v items", mockDataSize)
+	logger.Log.Printf("mock data stream finished with totalSize=%v", mockDataSize)
 }
 
-func BenchmarkDcp(benchmark *testing.B) {
-	mockDataSize := 640000
-	saveTarget := mockDataSize / 2
+//nolint:funlen
+func BenchmarkDcp(b *testing.B) {
+	mockDataSize := 2560000
+	totalNotify := 10
+	notifySize := mockDataSize / totalNotify
 
-	configPath, configFileClean, err := helpers.CreateConfigFile(configStr)
+	ctx := context.Background()
+
+	configFile, err := helpers.CreateConfigFile(configStr)
 	if err != nil {
-		benchmark.Error(err)
+		b.Error(err)
 	}
-	defer configFileClean()
-
+	configPath := configFile.Name()
 	config := helpers.NewConfig(fmt.Sprintf("%v_data_insert", helpers.Name), configPath)
 
-	containerShutdown := setupContainer(benchmark, config)
-	defer containerShutdown()
-
-	insertDataToContainer(benchmark, mockDataSize, config)
-
-	var dcp Dcp
+	container, err := setupContainer(ctx, config)
+	if err != nil {
+		b.Error(err)
+	}
 
 	counter := 0
 	finish := make(chan struct{}, 1)
 
-	benchmark.ResetTimer()
-
-	dcp, err = NewDcp(configPath, func(ctx *models.ListenerContext) {
+	dcp, err := NewDcp(configPath, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
+			if counter == 0 {
+				b.ResetTimer()
+			}
+
 			ctx.Ack()
 
 			counter++
 
-			if counter == saveTarget {
-				ctx.Commit()
+			if counter%notifySize == 0 {
+				logger.Log.Printf("%v/%v processed", counter/notifySize, totalNotify)
 			}
 
 			if counter == mockDataSize {
@@ -162,10 +156,14 @@ func BenchmarkDcp(benchmark *testing.B) {
 			}
 		}
 	})
-
 	if err != nil {
-		benchmark.Error(err)
+		b.Error(err)
 	}
+
+	go func() {
+		<-dcp.WaitUntilReady()
+		insertDataToContainer(b, mockDataSize, config)
+	}()
 
 	go func() {
 		<-finish
@@ -173,4 +171,19 @@ func BenchmarkDcp(benchmark *testing.B) {
 	}()
 
 	dcp.Start()
+
+	err = container.Terminate(ctx)
+	if err != nil {
+		b.Error(err)
+	}
+
+	err = configFile.Close()
+	if err != nil {
+		b.Error(err)
+	}
+
+	err = os.Remove(configPath)
+	if err != nil {
+		b.Error(err)
+	}
 }

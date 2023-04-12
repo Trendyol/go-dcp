@@ -69,6 +69,23 @@ func (so *observer) AddCatchup(vbID uint16, seqNo uint64) {
 	so.catchupNeededVbIDCount++
 }
 
+func (so *observer) persistSeqNoChangedListener(event interface{}) {
+	tuple := event.([]interface{})
+
+	vbID := tuple[0].(uint16)
+	seqNo := tuple[1].(gocbcore.SeqNo)
+
+	if seqNo != 0 {
+		so.persistSeqNoLock.Lock()
+
+		if so.persistSeqNo[vbID] != seqNo {
+			so.persistSeqNo[vbID] = seqNo
+		}
+
+		so.persistSeqNoLock.Unlock()
+	}
+}
+
 func (so *observer) checkPersistSeqNo(vbID uint16, seqNo uint64) bool {
 	so.persistSeqNoLock.Lock()
 	endSeqNo, ok := so.persistSeqNo[vbID]
@@ -366,20 +383,6 @@ func (so *observer) Listen() models.ListenerCh {
 
 func (so *observer) ListenEnd() models.ListenerEndCh {
 	return so.listenerEndCh
-}
-
-func (so *observer) persistSeqNoChangedListener(event interface{}) {
-	so.persistSeqNoLock.Lock()
-	defer so.persistSeqNoLock.Unlock()
-
-	tuple := event.([]interface{})
-
-	vbID := tuple[0].(uint16)
-	seqNo := tuple[1].(gocbcore.SeqNo)
-
-	if seqNo != 0 {
-		so.persistSeqNo[vbID] = seqNo
-	}
 }
 
 // nolint:staticcheck

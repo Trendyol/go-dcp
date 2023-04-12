@@ -58,6 +58,87 @@ func (h *cbMembership) GetInfo() *membership.Model {
 	return <-h.infoChan
 }
 
+func (h *cbMembership) get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error) {
+	opm := NewAsyncOp(context.Background())
+
+	deadline, _ := ctx.Deadline()
+
+	errorCh := make(chan error)
+	documentCh := make(chan []byte)
+
+	op, err := h.client.GetMetaAgent().Get(gocbcore.GetOptions{
+		Key:            id,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+	}, func(result *gocbcore.GetResult, err error) {
+		opm.Resolve()
+
+		if err == nil {
+			documentCh <- result.Value
+		} else {
+			documentCh <- nil
+		}
+
+		errorCh <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return nil, err
+	}
+
+	document := <-documentCh
+	err = <-errorCh
+
+	return document, err
+}
+
+func (h *cbMembership) createPath(ctx context.Context,
+	scopeName string,
+	collectionName string,
+	id []byte,
+	path []byte,
+	value interface{},
+) error {
+	opm := NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	payload, _ := jsoniter.Marshal(value)
+
+	ch := make(chan error)
+
+	op, err := h.client.GetMetaAgent().MutateIn(gocbcore.MutateInOptions{
+		Key: id,
+		Ops: []gocbcore.SubDocOp{
+			{
+				Op:    memd.SubDocOpDictSet,
+				Value: payload,
+				Path:  string(path),
+			},
+		},
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+	}, func(result *gocbcore.MutateInResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return err
+	}
+
+	err = <-ch
+
+	return err
+}
+
 func (h *cbMembership) register() {
 	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
 	defer cancel()
@@ -78,14 +159,14 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	err = h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 
 		if err == nil {
-			err = h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+			err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 		}
 	}
 
@@ -95,15 +176,59 @@ func (h *cbMembership) register() {
 	}
 }
 
+func (h *cbMembership) updateDocument(ctx context.Context,
+	scopeName string,
+	collectionName string,
+	id []byte,
+	value interface{},
+	expiry uint32,
+) error {
+	opm := NewAsyncOp(ctx)
+
+	deadline, _ := ctx.Deadline()
+
+	payload, _ := jsoniter.Marshal(value)
+
+	ch := make(chan error)
+
+	op, err := h.client.GetMetaAgent().MutateIn(gocbcore.MutateInOptions{
+		Key: id,
+		Ops: []gocbcore.SubDocOp{
+			{
+				Op:    memd.SubDocOpSetDoc,
+				Value: payload,
+			},
+		},
+		Expiry:         expiry,
+		Deadline:       deadline,
+		ScopeName:      scopeName,
+		CollectionName: collectionName,
+	}, func(result *gocbcore.MutateInResult, err error) {
+		opm.Resolve()
+
+		ch <- err
+	})
+
+	err = opm.Wait(op, err)
+
+	if err != nil {
+		return err
+	}
+
+	err = <-ch
+
+	return err
+}
+
 func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
-	err := h.client.CreatePath(ctx, h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
+	err := h.createPath(ctx, h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.instanceAll, struct{}{}, 0)
 
 		if err == nil {
-			err = h.client.CreatePath(ctx, h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
+			err = h.createPath(ctx, h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
 		}
 	}
 
@@ -134,7 +259,7 @@ func (h *cbMembership) heartbeat() {
 		ClusterJoinTime: h.clusterJoinTime,
 	}
 
-	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	err := h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
 	if err != nil {
 		logger.ErrorLog.Printf("error while heartbeat: %v", err)
 		return
@@ -149,7 +274,7 @@ func (h *cbMembership) monitor() {
 	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
 	defer cancel()
 
-	data, err := h.client.Get(ctx, h.scopeName, h.collectionName, h.instanceAll)
+	data, err := h.get(ctx, h.scopeName, h.collectionName, h.instanceAll)
 	if err != nil {
 		logger.ErrorLog.Printf("error while monitor try to get index: %v", err)
 		return
@@ -175,7 +300,7 @@ func (h *cbMembership) monitor() {
 	var instances []*Instance
 
 	for _, id := range ids {
-		doc, err := h.client.Get(ctx, h.scopeName, h.collectionName, []byte(id))
+		doc, err := h.get(ctx, h.scopeName, h.collectionName, []byte(id))
 		var kvErr *gocbcore.KeyValueError
 		if err != nil {
 			if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
@@ -215,7 +340,7 @@ func (h *cbMembership) updateIndex(ctx context.Context) {
 		all[*instance.ID] = instance.ClusterJoinTime
 	}
 
-	err := h.client.UpdateDocument(ctx, h.scopeName, h.collectionName, h.instanceAll, all, 0)
+	err := h.updateDocument(ctx, h.scopeName, h.collectionName, h.instanceAll, all, 0)
 	if err != nil {
 		logger.ErrorLog.Printf("error while update instances: %v", err)
 		return
@@ -291,7 +416,7 @@ func NewCBMembership(config *helpers.Config, client Client, bus helpers.Bus) mem
 		panic(err)
 	}
 
-	_, scope, collection, _ := config.GetCouchbaseMetadata()
+	_, scope, collection, _, _ := config.GetCouchbaseMetadata()
 
 	cbm := &cbMembership{
 		infoChan:       make(chan *membership.Model),

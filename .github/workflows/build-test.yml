@@ -28,5 +28,9 @@ jobs:
       - name: Build
         run: go build -v ./...
 
-      - name: Test
-        run: go test -v ./... -bench . -benchmem
+      - name: Continuous Benchmarking for Go
+        uses: bobheadxi/gobenchdata@v1.3.1
+        with:
+          PUBLISH: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}

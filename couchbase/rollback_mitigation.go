@@ -228,7 +228,42 @@ func (r *rollbackMitigation) reset() {
 	}
 }
 
+func (r *rollbackMitigation) waitFirstConfig() error {
+	opm := NewAsyncOp(context.Background())
+
+	ch := make(chan error)
+
+	op, err := r.client.GetAgent().WaitForConfigSnapshot(
+		time.Now().Add(r.config.ConnectionTimeout),
+		gocbcore.WaitForConfigSnapshotOptions{},
+		func(result *gocbcore.WaitForConfigSnapshotResult, err error) {
+			r.configSnapshot = result.Snapshot
+
+			opm.Resolve()
+
+			ch <- err
+		},
+	)
+
+	err = opm.Wait(op, err)
+	if err != nil {
+		return err
+	}
+
+	return <-ch
+}
+
 func (r *rollbackMitigation) Start() {
+	logger.Log.Printf("rollback mitigation will start with %v interval", r.config.RollbackMitigation.Interval)
+
+	err := r.waitFirstConfig()
+	if err != nil {
+		logger.ErrorLog.Printf("cannot get first config: %v", err)
+		panic(err)
+	}
+
+	r.reconfigure()
+
 	r.configWatchTimer = time.NewTicker(time.Second * 2)
 
 	go func() {
@@ -241,6 +276,8 @@ func (r *rollbackMitigation) Start() {
 func (r *rollbackMitigation) Stop() {
 	r.closed = true
 	r.configWatchTimer.Stop()
+
+	logger.Log.Printf("rollback mitigation stopped")
 }
 
 func NewRollbackMitigation(client Client, config *helpers.Config, vbIds []uint16, bus helpers.Bus) RollbackMitigation {

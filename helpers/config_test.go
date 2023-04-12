@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,11 +29,12 @@ dcp:
       type: static`
 
 func TestLoadConfig(t *testing.T) {
-	configPath, configFileClean, err := CreateConfigFile(configStr)
+	configFile, err := CreateConfigFile(configStr)
 	if err != nil {
 		t.Error(err)
 	}
-	defer configFileClean()
+
+	configPath := configFile.Name()
 
 	config := NewConfig(Name, configPath)
 
@@ -49,4 +51,14 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, uint(1024), config.Dcp.Listener.BufferSize)
 	assert.Equal(t, "groupName", config.Dcp.Group.Name)
 	assert.Equal(t, "static", config.Dcp.Group.Membership.Type)
+
+	err = configFile.Close()
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = os.Remove(configPath)
+	if err != nil {
+		t.Error(err)
+	}
 }

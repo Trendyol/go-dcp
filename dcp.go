@@ -26,6 +26,7 @@ import (
 )
 
 type Dcp interface {
+	WaitUntilReady() chan struct{}
 	Start()
 	Close()
 	Commit()
@@ -41,31 +42,16 @@ type dcp struct {
 	leaderElection    stream.LeaderElection
 	vBucketDiscovery  stream.VBucketDiscovery
 	serviceDiscovery  servicediscovery.ServiceDiscovery
-	listener          models.Listener
-	apiShutdown       chan struct{}
+	metadata          metadata.Metadata
 	cancelCh          chan os.Signal
+	apiShutdown       chan struct{}
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
 	config            *helpers.Config
 	healthCheckTicker *time.Ticker
-	metadata          metadata.Metadata
+	listener          models.Listener
+	readyCh           chan struct{}
 	metricCollectors  []prometheus.Collector
-}
-
-func (s *dcp) getCollectionIDs() map[uint32]string {
-	collectionIDs := map[uint32]string{}
-
-	if s.config.IsCollectionModeEnabled() {
-		ids, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
-		if err != nil {
-			logger.ErrorLog.Printf("cannot get collection ids: %v", err)
-			panic(err)
-		}
-
-		collectionIDs = ids
-	}
-
-	return collectionIDs
 }
 
 func (s *dcp) startHealthCheck() {
@@ -99,6 +85,7 @@ func (s *dcp) membershipChangedListener(_ interface{}) {
 	s.stream.Rebalance()
 }
 
+//nolint:funlen
 func (s *dcp) Start() {
 	if s.metadata == nil {
 		switch {
@@ -123,7 +110,10 @@ func (s *dcp) Start() {
 
 	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, bus)
 
-	s.stream = stream.NewStream(s.client, s.metadata, s.config, s.vBucketDiscovery, s.listener, s.getCollectionIDs(), s.stopCh, bus)
+	s.stream = stream.NewStream(
+		s.client, s.metadata, s.config, s.vBucketDiscovery,
+		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, bus,
+	)
 
 	if s.config.LeaderElection.Enabled {
 		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, bus)
@@ -162,11 +152,17 @@ func (s *dcp) Start() {
 		helpers.LogMemUsage()
 	}
 
+	s.readyCh <- struct{}{}
+
 	select {
 	case <-s.stopCh:
 	case <-s.cancelCh:
 	case <-s.healCheckFailedCh:
 	}
+}
+
+func (s *dcp) WaitUntilReady() chan struct{} {
+	return s.readyCh
 }
 
 func (s *dcp) Close() {
@@ -227,6 +223,7 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 		cancelCh:          make(chan os.Signal, 1),
 		stopCh:            make(chan struct{}, 1),
 		healCheckFailedCh: make(chan struct{}, 1),
+		readyCh:           make(chan struct{}, 1),
 		metricCollectors:  []prometheus.Collector{},
 	}, nil
 }

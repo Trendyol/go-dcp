@@ -23,11 +23,11 @@ import (
 type Client interface {
 	Ping() error
 	GetAgent() *gocbcore.Agent
+	GetMetaAgent() *gocbcore.Agent
 	Connect() error
 	Close()
 	DcpConnect() error
 	DcpClose()
-	GetBucketUUID() string
 	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
 	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
@@ -38,14 +38,8 @@ type Client interface {
 		observer Observer,
 	) error
 	CloseStream(vbID uint16) error
-	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
-	UpsertXattrs(ctx context.Context, scopeName string, collectionName string, id []byte, path string, xattrs interface{}, expiry uint32) error
+	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
 	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
-	UpdateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
-	DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte)
-	GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error)
-	CreatePath(ctx context.Context, scopeName string, collectionName string, id []byte, path []byte, value interface{}) error
-	Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error)
 	GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 }
 
@@ -114,6 +108,10 @@ func (s *client) GetAgent() *gocbcore.Agent {
 	return s.agent
 }
 
+func (s *client) GetMetaAgent() *gocbcore.Agent {
+	return s.metaAgent
+}
+
 func (s *client) tlsRootCaProvider() *x509.CertPool {
 	cert, err := os.ReadFile(os.ExpandEnv(s.config.RootCAPath))
 	if err != nil {
@@ -143,7 +141,7 @@ func (s *client) getSecurityConfig() gocbcore.SecurityConfig {
 	return config
 }
 
-func (s *client) connect(bucketName string, connectionBufferSize uint) (*gocbcore.Agent, error) {
+func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
 	client, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
 			BucketName: bucketName,
@@ -169,7 +167,7 @@ func (s *client) connect(bucketName string, connectionBufferSize uint) (*gocbcor
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(s.config.Dcp.ConnectionTimeout),
+		time.Now().Add(connectionTimeout),
 		gocbcore.WaitUntilReadyOptions{
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},
@@ -190,18 +188,23 @@ func (s *client) connect(bucketName string, connectionBufferSize uint) (*gocbcor
 }
 
 func (s *client) Connect() error {
-	connectionBufferSize := s.config.Dcp.ConnectionBufferSize
+	connectionBufferSize := s.config.ConnectionBufferSize
+	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _, metadataConnectionBufferSize := s.config.GetCouchbaseMetadata()
+		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
 		if metadataBucketName == s.config.BucketName {
 			if metadataConnectionBufferSize > connectionBufferSize {
 				connectionBufferSize = metadataConnectionBufferSize
 			}
+
+			if metadataConnectionTimeout > connectionTimeout {
+				connectionTimeout = metadataConnectionTimeout
+			}
 		}
 	}
 
-	agent, err := s.connect(s.config.BucketName, connectionBufferSize)
+	agent, err := s.connect(s.config.BucketName, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		return err
 	}
@@ -209,12 +212,12 @@ func (s *client) Connect() error {
 	s.agent = agent
 
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _, connectionBufferSize := s.config.GetCouchbaseMetadata()
+		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
 
 		if metadataBucketName == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
-			metaAgent, err := s.connect(metadataBucketName, connectionBufferSize)
+			metaAgent, err := s.connect(metadataBucketName, metadataConnectionBufferSize, metadataConnectionTimeout)
 			if err != nil {
 				return err
 			}
@@ -280,7 +283,7 @@ func (s *client) DcpConnect() error {
 	ch := make(chan error)
 
 	_, err = client.WaitUntilReady(
-		time.Now().Add(time.Second*5),
+		time.Now().Add(s.config.Dcp.ConnectionTimeout),
 		gocbcore.WaitUntilReadyOptions{
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},
@@ -306,16 +309,6 @@ func (s *client) DcpConnect() error {
 func (s *client) DcpClose() {
 	_ = s.dcpAgent.Close()
 	logger.Log.Printf("dcp connection closed %s", s.config.Hosts)
-}
-
-func (s *client) GetBucketUUID() string {
-	snapshot, err := s.GetConfigSnapshot()
-	if err != nil {
-		logger.ErrorLog.Printf("failed to get config snapshot: %v", err)
-		panic(err)
-	}
-
-	return snapshot.BucketUUID()
 }
 
 func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
@@ -559,154 +552,22 @@ func (s *client) getCollectionID(scopeName string, collectionName string) (uint3
 	return collectionID, <-ch
 }
 
-func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error) {
-	collectionIDs := make(map[uint32]string)
+func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string {
+	collectionIDs := map[uint32]string{}
 
-	for _, collectionName := range collectionNames {
-		collectionID, err := s.getCollectionID(scopeName, collectionName)
-		if err != nil {
-			return nil, err
+	if s.config.IsCollectionModeEnabled() {
+		for _, collectionName := range collectionNames {
+			collectionID, err := s.getCollectionID(scopeName, collectionName)
+			if err != nil {
+				logger.ErrorLog.Printf("cannot get collection ids: %v", err)
+				panic(err)
+			}
+
+			collectionIDs[collectionID] = collectionName
 		}
-
-		collectionIDs[collectionID] = collectionName
 	}
 
-	return collectionIDs, nil
-}
-
-func (s *client) UpsertXattrs(ctx context.Context,
-	scopeName string,
-	collectionName string,
-	id []byte,
-	path string,
-	xattrs interface{},
-	expiry uint32,
-) error {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(xattrs)
-
-	ch := make(chan error)
-
-	op, err := s.metaAgent.MutateIn(gocbcore.MutateInOptions{
-		Key: id,
-		Ops: []gocbcore.SubDocOp{
-			{
-				Op:    memd.SubDocOpDictSet,
-				Flags: memd.SubdocFlagXattrPath,
-				Path:  path,
-				Value: payload,
-			},
-		},
-		Expiry:         expiry,
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.MutateInResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return err
-	}
-
-	err = <-ch
-
-	return err
-}
-
-func (s *client) UpdateDocument(ctx context.Context,
-	scopeName string,
-	collectionName string,
-	id []byte,
-	value interface{},
-	expiry uint32,
-) error {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(value)
-
-	ch := make(chan error)
-
-	op, err := s.metaAgent.MutateIn(gocbcore.MutateInOptions{
-		Key: id,
-		Ops: []gocbcore.SubDocOp{
-			{
-				Op:    memd.SubDocOpSetDoc,
-				Value: payload,
-			},
-		},
-		Expiry:         expiry,
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.MutateInResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return err
-	}
-
-	err = <-ch
-
-	return err
-}
-
-func (s *client) CreatePath(ctx context.Context,
-	scopeName string,
-	collectionName string,
-	id []byte,
-	path []byte,
-	value interface{},
-) error {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(value)
-
-	ch := make(chan error)
-
-	op, err := s.metaAgent.MutateIn(gocbcore.MutateInOptions{
-		Key: id,
-		Ops: []gocbcore.SubDocOp{
-			{
-				Op:    memd.SubDocOpDictSet,
-				Value: payload,
-				Path:  string(path),
-			},
-		},
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.MutateInResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return err
-	}
-
-	err = <-ch
-
-	return err
+	return collectionIDs
 }
 
 func (s *client) CreateDocument(ctx context.Context,
@@ -745,115 +606,6 @@ func (s *client) CreateDocument(ctx context.Context,
 	}
 
 	return <-ch
-}
-
-func (s *client) DeleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte) {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	ch := make(chan error)
-
-	op, err := s.metaAgent.Delete(gocbcore.DeleteOptions{
-		Key:            id,
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.DeleteResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return
-	}
-
-	err = <-ch
-
-	if err != nil {
-		return
-	}
-}
-
-func (s *client) GetXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error) {
-	opm := NewAsyncOp(context.Background())
-
-	errorCh := make(chan error)
-	documentCh := make(chan []byte)
-
-	op, err := s.metaAgent.LookupIn(gocbcore.LookupInOptions{
-		Key: id,
-		Ops: []gocbcore.SubDocOp{
-			{
-				Op:    memd.SubDocOpGet,
-				Flags: memd.SubdocFlagXattrPath,
-				Path:  path,
-			},
-		},
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.LookupInResult, err error) {
-		opm.Resolve()
-
-		if err == nil {
-			documentCh <- result.Ops[0].Value
-		} else {
-			documentCh <- nil
-		}
-
-		errorCh <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return nil, err
-	}
-
-	document := <-documentCh
-	err = <-errorCh
-
-	return document, err
-}
-
-func (s *client) Get(ctx context.Context, scopeName string, collectionName string, id []byte) ([]byte, error) {
-	opm := NewAsyncOp(context.Background())
-
-	deadline, _ := ctx.Deadline()
-
-	errorCh := make(chan error)
-	documentCh := make(chan []byte)
-
-	op, err := s.metaAgent.Get(gocbcore.GetOptions{
-		Key:            id,
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.GetResult, err error) {
-		opm.Resolve()
-
-		if err == nil {
-			documentCh <- result.Value
-		} else {
-			documentCh <- nil
-		}
-
-		errorCh <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return nil, err
-	}
-
-	document := <-documentCh
-	err = <-errorCh
-
-	return document, err
 }
 
 func NewClient(config *helpers.Config) Client {

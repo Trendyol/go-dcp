@@ -68,10 +68,12 @@ $ go get github.com/Trendyol/go-dcp-client
 | `username`                            |      string       |   yes    |     -      | Couchbase username.                                                                                                 |
 | `password`                            |      string       |   yes    |     -      | Couchbase password.                                                                                                 |
 | `bucketName`                          |      string       |   yes    |     -      | Couchbase DCP bucket.                                                                                               |
-| `secureConnection`                    |       bool        |    no    |   false    | Enable TLS connection of Couchbase.                                                                                 |
-| `rootCAPath`                          |      string       |    no    |  *not set  | if `secureConnection` set `true` this field is required.                                                            |
 | `scopeName`                           |      string       |    no    |  _default  | Couchbase scope name.                                                                                               |
 | `collectionNames`                     |     []string      |    no    |  _default  | Couchbase collection names.                                                                                         |
+| `connectionBufferSize`                |       uint        |    no    |  20971520  | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed. |
+| `connectionTimeout`                   |   time.Duration   |    no    |     5s     | Couchbase connection timeout.                                                                                       |
+| `secureConnection`                    |       bool        |    no    |   false    | Enable TLS connection of Couchbase.                                                                                 |
+| `rootCAPath`                          |      string       |    no    |  *not set  | if `secureConnection` set `true` this field is required.                                                            |
 | `debug`                               |       bool        |    no    |   false    | For debugging purpose.                                                                                              |
 | `dcp.bufferSize`                      |        int        |    no    |  16777216  | Go DCP listener pre-allocated buffer size. `16mb` is default. Check this if you get OOM Killed.                     |
 | `dcp.connectionBufferSize`            |       uint        |    no    |  20971520  | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed. |
@@ -93,8 +95,8 @@ $ go get github.com/Trendyol/go-dcp-client
 | `healthCheck.enabled`                 |       bool        |    no    |    true    | Enable Couchbase connection health check.                                                                           |
 | `healthCheck.interval`                |   time.Duration   |    no    |    20s     | Couchbase connection health checking interval duration.                                                             |
 | `healthCheck.timeout`                 |   time.Duration   |    no    |     5s     | Couchbase connection health checking timeout duration.                                                              |
-| `rollbackMitigation.enabled`          |       bool        |    no    |   false    | Enable reprocessing for roll-backed Vbucket offsets.                                                                |
-| `rollbackMitigation.interval`         |   time.Duration   |    no    |   100ms    | Persisted sequence numbers polling interval.                                                                        |
+| `rollbackMitigation.enabled`          |       bool        |    no    |    true    | Enable reprocessing for roll-backed Vbucket offsets.                                                                |
+| `rollbackMitigation.interval`         |   time.Duration   |    no    |   200ms    | Persisted sequence numbers polling interval.                                                                        |
 | `metadata.type`                       |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                     |
 | `metadata.readOnly`                   |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                              |
 | `metadata.config`                     | map[string]string |    no    |  *not set  | Set key-values of config. `bucket` for `couchbase` type.                                                            |
@@ -109,19 +111,18 @@ The client offers an API that handles different endpoints and expose several met
 
 ### API
 
-| Endpoint                | Description                                                                              |
-|-------------------------|------------------------------------------------------------------------------------------|
-| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |
-| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            |
-| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        |
-| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |
+| Endpoint                | Description                                                                              | Debug Mode |
+|-------------------------|------------------------------------------------------------------------------------------|------------|
+| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |            |
+| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |            |
+| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            | x          | 
+| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        | x          |
+| `GET /debug/pprof/*`    | [Fiber Pprof](https://docs.gofiber.io/api/middleware/pprof/)                             | x          |
 
 The Client collects relevant metrics and makes them available at /metrics endpoint.
 In case you haven't configured a metric.path, the metrics will be exposed at the /metrics.
 
 You can adjust the average window time for the metrics by specifying the value of metric.averageWindowSec.
-
-- Note : pprof is enabled when the debug option is present in the configuration.
 
 ### Exposed metrics
 

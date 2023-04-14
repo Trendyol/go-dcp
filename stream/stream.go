@@ -117,40 +117,20 @@ func (s *stream) listenEnd() {
 
 func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
-	vBucketNumber := len(vbIds)
 
 	if s.config.RollbackMitigation.Enabled {
 		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
 		s.rollbackMitigation.Start()
 	}
 
-	s.activeStreams.Add(vBucketNumber)
-
-	openWg := &sync.WaitGroup{}
-	openWg.Add(vBucketNumber)
+	s.activeStreams.Add(len(vbIds))
 
 	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
+	s.observer = couchbase.NewObserver(s.config, s.collectionIDs, s.bus)
 
-	observer := couchbase.NewObserver(s.config, s.collectionIDs, s.bus)
+	s.openAllStreams(vbIds)
 
-	for _, vbID := range vbIds {
-		go func(innerVbId uint16) {
-			err := s.client.OpenStream(innerVbId, s.collectionIDs, s.offsets[innerVbId], observer)
-			if err != nil {
-				logger.ErrorLog.Printf("cannot open stream, vbID: %d, err: %v", innerVbId, err)
-				panic(err)
-			}
-
-			s.streamsLock.Lock()
-			defer s.streamsLock.Unlock()
-
-			openWg.Done()
-		}(vbID)
-	}
-	openWg.Wait()
-
-	s.observer = observer
 	go s.listenEnd()
 	go s.listen()
 
@@ -188,6 +168,28 @@ func (s *stream) Rebalance() {
 
 func (s *stream) Save() {
 	s.checkpoint.Save()
+}
+
+func (s *stream) openAllStreams(vbIds []uint16) {
+	openWg := &sync.WaitGroup{}
+	openWg.Add(len(vbIds))
+
+	for _, vbID := range vbIds {
+		go func(innerVbId uint16) {
+			err := s.client.OpenStream(innerVbId, s.collectionIDs, s.offsets[innerVbId], s.observer)
+			if err != nil {
+				logger.ErrorLog.Printf("cannot open stream, vbID: %d, err: %v", innerVbId, err)
+				panic(err)
+			}
+
+			s.streamsLock.Lock()
+			defer s.streamsLock.Unlock()
+
+			openWg.Done()
+		}(vbID)
+	}
+
+	openWg.Wait()
 }
 
 func (s *stream) closeAllStreams() error {

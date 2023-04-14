@@ -31,7 +31,7 @@ type Observer interface {
 	Close()
 	CloseEnd()
 	ListenEnd() models.ListenerEndCh
-	AddCatchup(vbID uint16, seqNo uint64)
+	AddCatchup(vbID uint16, seqNo gocbcore.SeqNo)
 	SetFailoverLogs(vbID uint16, logs []gocbcore.FailoverEntry)
 }
 
@@ -61,11 +61,11 @@ type observer struct {
 	closed                 bool
 }
 
-func (so *observer) AddCatchup(vbID uint16, seqNo uint64) {
+func (so *observer) AddCatchup(vbID uint16, seqNo gocbcore.SeqNo) {
 	so.catchupLock.Lock()
 	defer so.catchupLock.Unlock()
 
-	so.catchup[vbID] = seqNo
+	so.catchup[vbID] = uint64(seqNo)
 	so.catchupNeededVbIDCount++
 }
 
@@ -94,18 +94,9 @@ func (so *observer) checkPersistSeqNo(vbID uint16, seqNo uint64) bool {
 	return (ok && gocbcore.SeqNo(seqNo) <= endSeqNo) || so.closed
 }
 
-func (so *observer) isCatchupDone(vbID uint16, seqNo uint64) bool {
-	if so.config.RollbackMitigation.Enabled && !so.checkPersistSeqNo(vbID, seqNo) {
-		ticker := time.NewTicker(10 * time.Millisecond)
-		for range ticker.C {
-			if so.checkPersistSeqNo(vbID, seqNo) {
-				break
-			}
-		}
-	}
-
+func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
 	if so.catchupNeededVbIDCount == 0 {
-		return true
+		return false
 	}
 
 	so.catchupLock.Lock()
@@ -116,13 +107,32 @@ func (so *observer) isCatchupDone(vbID uint16, seqNo uint64) bool {
 			delete(so.catchup, vbID)
 			so.catchupNeededVbIDCount--
 
-			return seqNo != catchupSeqNo
+			return seqNo == catchupSeqNo
 		}
 	} else {
-		return true
+		return false
 	}
 
-	return false
+	return true
+}
+
+func (so *observer) waitRollbackMitigation(vbID uint16, seqNo uint64) {
+	if !so.checkPersistSeqNo(vbID, seqNo) {
+		ticker := time.NewTicker(50 * time.Millisecond)
+		for range ticker.C {
+			if so.checkPersistSeqNo(vbID, seqNo) {
+				break
+			}
+		}
+	}
+}
+
+func (so *observer) canForward(vbID uint16, seqNo uint64) bool {
+	if so.config.RollbackMitigation.Enabled {
+		so.waitRollbackMitigation(vbID, seqNo)
+	}
+
+	return !so.needCatchup(vbID, seqNo)
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) string {
@@ -160,7 +170,7 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
-	if !so.isCatchupDone(mutation.VbID, mutation.SeqNo) {
+	if !so.canForward(mutation.VbID, mutation.SeqNo) {
 		return
 	}
 
@@ -196,7 +206,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
-	if !so.isCatchupDone(deletion.VbID, deletion.SeqNo) {
+	if !so.canForward(deletion.VbID, deletion.SeqNo) {
 		return
 	}
 
@@ -232,7 +242,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 }
 
 func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dupl
-	if !so.isCatchupDone(expiration.VbID, expiration.SeqNo) {
+	if !so.canForward(expiration.VbID, expiration.SeqNo) {
 		return
 	}
 
@@ -272,7 +282,7 @@ func (so *observer) End(event models.DcpStreamEnd, _ error) {
 }
 
 func (so *observer) CreateCollection(event models.DcpCollectionCreation) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
@@ -282,7 +292,7 @@ func (so *observer) CreateCollection(event models.DcpCollectionCreation) {
 }
 
 func (so *observer) DeleteCollection(event models.DcpCollectionDeletion) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
@@ -292,7 +302,7 @@ func (so *observer) DeleteCollection(event models.DcpCollectionDeletion) {
 }
 
 func (so *observer) FlushCollection(event models.DcpCollectionFlush) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
@@ -302,7 +312,7 @@ func (so *observer) FlushCollection(event models.DcpCollectionFlush) {
 }
 
 func (so *observer) CreateScope(event models.DcpScopeCreation) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
@@ -312,7 +322,7 @@ func (so *observer) CreateScope(event models.DcpScopeCreation) {
 }
 
 func (so *observer) DeleteScope(event models.DcpScopeDeletion) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
@@ -322,7 +332,7 @@ func (so *observer) DeleteScope(event models.DcpScopeDeletion) {
 }
 
 func (so *observer) ModifyCollection(event models.DcpCollectionModification) {
-	if !so.isCatchupDone(event.VbID, event.SeqNo) {
+	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
@@ -338,7 +348,7 @@ func (so *observer) OSOSnapshot(event models.DcpOSOSnapshot) {
 }
 
 func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
-	if !so.isCatchupDone(advanced.VbID, advanced.SeqNo) {
+	if !so.canForward(advanced.VbID, advanced.SeqNo) {
 		return
 	}
 

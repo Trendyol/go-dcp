@@ -31,12 +31,7 @@ type Client interface {
 	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
 	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
-	OpenStream(
-		vbID uint16,
-		collectionIDs map[uint32]string,
-		offset *models.Offset,
-		observer Observer,
-	) error
+	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
 	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
@@ -420,6 +415,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		openStreamOptions,
 		func(failoverLogs []gocbcore.FailoverEntry, err error) {
 			observer.SetFailoverLogs(vbID, failoverLogs)
+			observer.AddCatchup(vbID, failedSeqNo)
 
 			opm.Resolve()
 

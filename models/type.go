@@ -20,27 +20,27 @@ type SnapshotMarker struct {
 type InternalDcpMutation struct {
 	EventTime time.Time
 	*gocbcore.DcpMutation
-	*Offset
+	Offset         *Offset
 	CollectionName string
 }
 
 type InternalDcpDeletion struct {
 	EventTime time.Time
 	*gocbcore.DcpDeletion
-	*Offset
+	Offset         *Offset
 	CollectionName string
 }
 
 type InternalDcpExpiration struct {
 	EventTime time.Time
 	*gocbcore.DcpExpiration
-	*Offset
+	Offset         *Offset
 	CollectionName string
 }
 
 type InternalDcpSeqNoAdvance struct {
 	*gocbcore.DcpSeqNoAdvanced
-	*Offset
+	Offset *Offset
 }
 
 func (i *InternalDcpMutation) IsCreated() bool {

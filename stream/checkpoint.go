@@ -1,9 +1,10 @@
 package stream
 
 import (
-	"github.com/Trendyol/go-dcp-client/config"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/VividCortex/ewma"
 

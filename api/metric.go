@@ -1,8 +1,9 @@
 package api
 
 import (
-	godcpclient "github.com/Trendyol/go-dcp-client/config"
 	"strconv"
+
+	godcpclient "github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
 	"github.com/Trendyol/go-dcp-client/helpers"

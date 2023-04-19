@@ -3,8 +3,9 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/config"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/models"

@@ -3,9 +3,10 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"github.com/Trendyol/go-dcp-client/config"
 	"reflect"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"

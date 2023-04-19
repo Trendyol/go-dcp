@@ -2,12 +2,14 @@ package godcpclient
 
 import (
 	"errors"
-	"github.com/Trendyol/go-dcp-client/config"
+	jsoniter "github.com/json-iterator/go"
 	"os"
 	"os/signal"
 	"reflect"
 	"syscall"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -203,6 +205,7 @@ func (s *dcp) GetConfig() *config.Dcp {
 }
 
 func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
+	config.ApplyDefaults()
 	client := couchbase.NewClient(config)
 
 	err := client.Connect()
@@ -233,14 +236,33 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 //
 // config: path to a configuration file or a configuration struct
 // listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
-	config.ApplyDefaults()
-	return newDcp(config, listener)
+func NewDcp(cfg any, listener models.Listener) (Dcp, error) {
+	switch v := cfg.(type) {
+	case *config.Dcp:
+		return newDcp(v, listener)
+	case string:
+		return newDcpWithPath(v, listener)
+	default:
+		return nil, errors.New("invalid config")
+	}
 }
 
-func NewDcpWithLoggers(config *config.Dcp, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
+func newDcpWithPath(path string, listener models.Listener) (Dcp, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var c config.Dcp
+	err = jsoniter.Unmarshal(file, &c)
+	if err != nil {
+		return nil, err
+	}
+	return newDcp(&c, listener)
+}
+
+func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
 	logger.SetLogger(infoLogger)
 	logger.SetErrorLogger(errorLogger)
 
-	return NewDcp(config, listener)
+	return NewDcp(cfg, listener)
 }

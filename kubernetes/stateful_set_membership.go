@@ -2,10 +2,11 @@ package kubernetes
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/config"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"

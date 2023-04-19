@@ -2,10 +2,11 @@ package servicediscovery
 
 import (
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/config"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/membership"
 

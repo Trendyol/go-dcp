@@ -1,9 +1,10 @@
 package couchbase
 
 import (
-	godcpclient "github.com/Trendyol/go-dcp-client/config"
 	"sync"
 	"time"
+
+	godcpclient "github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/models"

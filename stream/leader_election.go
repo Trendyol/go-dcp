@@ -2,8 +2,9 @@ package stream
 
 import (
 	"context"
-	"github.com/Trendyol/go-dcp-client/config"
 	"sync"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/leaderelector"
 

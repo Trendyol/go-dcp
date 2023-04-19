@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+
 	godcpclient "github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/prometheus/client_golang/prometheus"

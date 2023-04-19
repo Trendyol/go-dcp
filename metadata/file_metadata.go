@@ -2,8 +2,9 @@ package metadata
 
 import (
 	"errors"
-	"github.com/Trendyol/go-dcp-client/config"
 	"os"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -58,6 +59,6 @@ func NewFSMetadata(config *config.Dcp) Metadata { //nolint:unused
 	}
 
 	return &fileMetadata{
-		fileName: config.Metadata.FileMetadata.FileName,
+		fileName: config.GetFileMetadata(),
 	}
 }

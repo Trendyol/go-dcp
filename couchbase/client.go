@@ -5,9 +5,10 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/config"
 	"os"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/google/uuid"
 
@@ -191,15 +192,13 @@ func (s *client) Connect() error {
 	connectionBufferSize := s.config.ConnectionBufferSize
 	connectionTimeout := s.config.ConnectionTimeout
 
-	//TODO: why do we overwrite here?
 	if s.config.IsCouchbaseMetadata() {
-		if s.config.Metadata.CouchbaseMetadata.Bucket == s.config.BucketName {
-			metadataBufferSize := s.config.Metadata.CouchbaseMetadata.ConnectionBufferSize
-			if metadataBufferSize > connectionBufferSize {
-				connectionBufferSize = metadataBufferSize
+		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
+		if metadataBucketName == s.config.BucketName {
+			if metadataConnectionBufferSize > connectionBufferSize {
+				connectionBufferSize = metadataConnectionBufferSize
 			}
 
-			metadataConnectionTimeout := s.config.Metadata.CouchbaseMetadata.ConnectionTimeout
 			if metadataConnectionTimeout > connectionTimeout {
 				connectionTimeout = metadataConnectionTimeout
 			}
@@ -214,6 +213,7 @@ func (s *client) Connect() error {
 	s.agent = agent
 
 	if s.config.IsCouchbaseMetadata() {
+		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
 		if metadataBucketName == s.config.BucketName {
 			s.metaAgent = agent
 		} else {

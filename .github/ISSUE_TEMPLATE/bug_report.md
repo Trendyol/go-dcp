@@ -12,6 +12,7 @@ A clear and concise description of what the bug is.
 
 **To Reproduce**
 Steps to reproduce the behavior:
+
 1. Do the following '...'
 2. Run the project with '....'
 3. See error
@@ -23,9 +24,10 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Version (please complete the following information):**
- - OS: [e.g. macOS]
- - Golang version [e.g. 1.17]
- - Couchbase/Kafka version
+
+- OS: [e.g. macOS]
+- Golang version [e.g. 1.17]
+- Couchbase/Kafka version
 
 **Additional context**
 Add any other context about the problem here.

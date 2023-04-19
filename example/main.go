@@ -4,7 +4,6 @@ import (
 	"github.com/Trendyol/go-dcp-client"
 	"github.com/Trendyol/go-dcp-client/config"
 	"github.com/Trendyol/go-dcp-client/logger"
-
 	"github.com/Trendyol/go-dcp-client/models"
 )
 
@@ -31,8 +30,19 @@ func listener(ctx *models.ListenerContext) {
 }
 
 func main() {
-	// TODO: fill the example config
-	dcp, err := godcpclient.NewDcp(&config.Dcp{}, listener)
+	c := &config.Dcp{
+		Hosts:      []string{"localhost:8091"},
+		Username:   "user",
+		Password:   "password",
+		BucketName: "dcp-test",
+		Dcp: config.ConfigDCP{
+			Group: config.ConfigDCPGroup{
+				Name: "groupName",
+			},
+		},
+	}
+
+	dcp, err := godcpclient.NewDcp(c, listener)
 	if err != nil {
 		panic(err)
 	}

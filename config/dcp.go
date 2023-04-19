@@ -1,12 +1,24 @@
 package config
 
 import (
+	"errors"
+	"strconv"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/logger"
 )
 
 const (
-	DefaultScopeName      = "_default"
-	DefaultCollectionName = "_default"
+	DefaultScopeName                            = "_default"
+	DefaultCollectionName                       = "_default"
+	FileMetadataFileNameConfig                  = "fileName"
+	MetadataTypeCouchbase                       = "couchbase"
+	MetadataTypeFile                            = "file"
+	CouchbaseMetadataBucketConfig               = "bucket"
+	CouchbaseMetadataScopeConfig                = "scope"
+	CouchbaseMetadataCollectionConfig           = "collection"
+	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
+	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
 )
 
 type ConfigDCPGroupMembership struct {
@@ -73,25 +85,9 @@ type ConfigRollbackMitigation struct {
 }
 
 type ConfigMetadata struct {
-	KafkaMetadata     *KafkaMetadata     `json:"kafkaMetadata"`
-	CouchbaseMetadata *CouchbaseMetadata `json:"couchbaseMetadata"`
-	FileMetadata      *FileMetadata      `json:"fileMetadata"`
-	ReadOnly          bool               `json:"readOnly"`
-}
-
-type CouchbaseMetadata struct {
-	Bucket               string        `json:"bucket"`
-	Scope                string        `json:"scope"`
-	Collection           string        `json:"collection"`
-	ConnectionBufferSize uint          `json:"connectionBufferSize"`
-	ConnectionTimeout    time.Duration `json:"connectionTimeout"`
-}
-
-type KafkaMetadata struct {
-}
-
-type FileMetadata struct {
-	FileName string `json:"fileName"`
+	Config   map[string]string `yaml:"config"`
+	Type     string            `yaml:"type"`
+	ReadOnly bool              `json:"readOnly"`
 }
 
 type Dcp struct {
@@ -121,13 +117,84 @@ func (c *Dcp) IsCollectionModeEnabled() bool {
 }
 
 func (c *Dcp) IsCouchbaseMetadata() bool {
-	return c.Metadata.CouchbaseMetadata != nil
+	return c.Metadata.Type == MetadataTypeCouchbase
 }
 
 func (c *Dcp) IsFileMetadata() bool {
-	return c.Metadata.FileMetadata != nil
+	return c.Metadata.Type == MetadataTypeFile
 }
 
+func (c *Dcp) GetFileMetadata() string {
+	var fileName string
+
+	if _, ok := c.Metadata.Config[FileMetadataFileNameConfig]; ok {
+		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
+	} else {
+		err := errors.New("file metadata file name is not set")
+		logger.ErrorLog.Printf("failed to get metadata file name: %v", err)
+		panic(err)
+	}
+
+	if fileName == "" {
+		err := errors.New("file metadata file name is empty")
+		logger.ErrorLog.Printf("failed to get metadata file name: %v", err)
+		panic(err)
+	}
+
+	return fileName
+}
+
+func (c *Dcp) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
+	var bucket, scope, collection string
+	var connectionBufferSize uint
+	var connectionTimeout time.Duration
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
+		bucket = c.Metadata.Config[CouchbaseMetadataBucketConfig]
+	} else {
+		bucket = c.BucketName
+	}
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
+		scope = c.Metadata.Config[CouchbaseMetadataScopeConfig]
+	} else {
+		scope = DefaultScopeName
+	}
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
+		collection = c.Metadata.Config[CouchbaseMetadataCollectionConfig]
+	} else {
+		collection = DefaultCollectionName
+	}
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
+		parsedConnectionBufferSize, err := strconv.ParseUint(c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig], 10, 32)
+		if err != nil {
+			logger.ErrorLog.Printf("failed to parse metadata connection buffer size: %v", err)
+			panic(err)
+		}
+
+		connectionBufferSize = uint(parsedConnectionBufferSize)
+	} else {
+		connectionBufferSize = 20971520
+	}
+
+	if _, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
+		parsedConnectionTimeout, err := time.ParseDuration(c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig])
+		if err != nil {
+			logger.ErrorLog.Printf("failed to parse metadata connection timeout: %v", err)
+			panic(err)
+		}
+
+		connectionTimeout = parsedConnectionTimeout
+	} else {
+		connectionTimeout = 5 * time.Second
+	}
+
+	return bucket, scope, collection, connectionBufferSize, connectionTimeout
+}
+
+//nolint:funlen
 func (c *Dcp) ApplyDefaults() {
 	if c.RollbackMitigation.Interval == 0 {
 		c.RollbackMitigation.Interval = 200 * time.Millisecond
@@ -181,7 +248,7 @@ func (c *Dcp) ApplyDefaults() {
 		c.Metric.AverageWindowSec = 10.0
 	}
 
-	if c.API.Enabled == false {
+	if !c.API.Enabled {
 		c.API.Enabled = true
 	}
 
@@ -197,7 +264,7 @@ func (c *Dcp) ApplyDefaults() {
 		c.Checkpoint.AutoReset = "earliest"
 	}
 
-	if c.HealthCheck.Enabled == false {
+	if !c.HealthCheck.Enabled {
 		c.HealthCheck.Enabled = true
 	}
 
@@ -231,5 +298,15 @@ func (c *Dcp) ApplyDefaults() {
 
 	if c.Dcp.Listener.BufferSize == 0 {
 		c.Dcp.Listener.BufferSize = 1
+	}
+
+	if c.Metadata.Type == "" {
+		c.Metadata.Type = "couchbase"
+	}
+
+	if len(c.Metadata.Config) == 0 {
+		c.Metadata.Config = map[string]string{
+			"bucketName": c.BucketName,
+		}
 	}
 }

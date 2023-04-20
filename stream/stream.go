@@ -40,26 +40,28 @@ type Metric struct {
 }
 
 type stream struct {
-	client             couchbase.Client
-	metadata           metadata.Metadata
-	checkpoint         Checkpoint
-	rollbackMitigation couchbase.RollbackMitigation
-	observer           couchbase.Observer
-	vBucketDiscovery   VBucketDiscovery
-	bus                helpers.Bus
-	stopCh             chan struct{}
-	offsets            map[uint16]*models.Offset
-	dirtyOffsets       map[uint16]bool
-	listener           models.Listener
-	config             *config.Dcp
-	activeStreams      *sync.WaitGroup
-	streamsLock        *sync.Mutex
-	offsetsLock        *sync.Mutex
-	rebalanceTimer     *time.Timer
-	collectionIDs      map[uint32]string
-	metric             *Metric
-	anyDirtyOffset     bool
-	balancing          bool
+	client                     couchbase.Client
+	metadata                   metadata.Metadata
+	checkpoint                 Checkpoint
+	rollbackMitigation         couchbase.RollbackMitigation
+	observer                   couchbase.Observer
+	vBucketDiscovery           VBucketDiscovery
+	bus                        helpers.Bus
+	offsets                    map[uint16]*models.Offset
+	rebalanceTimer             *time.Timer
+	finishStreamWithEndEventCh chan struct{}
+	stopCh                     chan struct{}
+	dirtyOffsets               map[uint16]bool
+	listener                   models.Listener
+	config                     *config.Dcp
+	metric                     *Metric
+	streamsLock                *sync.Mutex
+	offsetsLock                *sync.Mutex
+	finishStreamWithCloseCh    chan struct{}
+	collectionIDs              map[uint32]string
+	activeStreams              int
+	anyDirtyOffset             bool
+	balancing                  bool
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -113,7 +115,10 @@ func (s *stream) listen() {
 
 func (s *stream) listenEnd() {
 	for range s.observer.ListenEnd() {
-		s.activeStreams.Done()
+		s.activeStreams--
+		if s.activeStreams == 0 {
+			s.finishStreamWithEndEventCh <- struct{}{}
+		}
 	}
 }
 
@@ -125,7 +130,7 @@ func (s *stream) Open() {
 		s.rollbackMitigation.Start()
 	}
 
-	s.activeStreams.Add(len(vbIds))
+	s.activeStreams = len(vbIds)
 
 	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
@@ -221,7 +226,11 @@ func (s *stream) closeAllStreams() error {
 }
 
 func (s *stream) wait() {
-	s.activeStreams.Wait()
+	select {
+	case <-s.finishStreamWithCloseCh:
+	case <-s.finishStreamWithEndEventCh:
+	}
+
 	if !s.balancing {
 		close(s.stopCh)
 	}
@@ -243,7 +252,7 @@ func (s *stream) Close() {
 		logger.ErrorLog.Printf("cannot close all streams: %v", err)
 	}
 
-	s.activeStreams.Wait()
+	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
 	s.observer = nil
 	s.offsets = map[uint16]*models.Offset{}
@@ -291,17 +300,18 @@ func NewStream(client couchbase.Client,
 	bus helpers.Bus,
 ) Stream {
 	return &stream{
-		client:           client,
-		metadata:         metadata,
-		listener:         listener,
-		config:           config,
-		vBucketDiscovery: vBucketDiscovery,
-		offsetsLock:      &sync.Mutex{},
-		streamsLock:      &sync.Mutex{},
-		collectionIDs:    collectionIDs,
-		activeStreams:    &sync.WaitGroup{},
-		stopCh:           stopCh,
-		bus:              bus,
+		client:                     client,
+		metadata:                   metadata,
+		listener:                   listener,
+		config:                     config,
+		vBucketDiscovery:           vBucketDiscovery,
+		offsetsLock:                &sync.Mutex{},
+		streamsLock:                &sync.Mutex{},
+		collectionIDs:              collectionIDs,
+		finishStreamWithCloseCh:    make(chan struct{}, 1),
+		finishStreamWithEndEventCh: make(chan struct{}, 1),
+		stopCh:                     stopCh,
+		bus:                        bus,
 		metric: &Metric{
 			ProcessLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},

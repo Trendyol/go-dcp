@@ -281,7 +281,14 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 	}
 }
 
+// nolint:staticcheck
 func (so *observer) End(event models.DcpStreamEnd, _ error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// listenerEndCh channel is closed
+		}
+	}()
+
 	so.listenerEndCh <- event
 }
 

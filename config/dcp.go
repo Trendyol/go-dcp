@@ -145,53 +145,59 @@ func (c *Dcp) GetFileMetadata() string {
 }
 
 func (c *Dcp) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
-	var bucket, scope, collection string
-	var connectionBufferSize uint
-	var connectionTimeout time.Duration
+	return c.getBucket(), c.getScope(), c.getCollection(), c.getConnectionBufferSize(), c.getConnectionTimeout()
+}
 
-	if _, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
-		bucket = c.Metadata.Config[CouchbaseMetadataBucketConfig]
-	} else {
-		bucket = c.BucketName
+func (c *Dcp) getBucket() string {
+	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
+		return bucket
 	}
 
-	if _, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
-		scope = c.Metadata.Config[CouchbaseMetadataScopeConfig]
-	} else {
-		scope = DefaultScopeName
+	return c.BucketName
+}
+
+func (c *Dcp) getScope() string {
+	if scope, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
+		return scope
 	}
 
-	if _, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
-		collection = c.Metadata.Config[CouchbaseMetadataCollectionConfig]
-	} else {
-		collection = DefaultCollectionName
+	return DefaultScopeName
+}
+
+func (c *Dcp) getCollection() string {
+	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
+		return collection
 	}
 
-	if _, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
-		parsedConnectionBufferSize, err := strconv.ParseUint(c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig], 10, 32)
+	return DefaultCollectionName
+}
+
+func (c *Dcp) getConnectionBufferSize() uint {
+	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
+		parsedConnectionBufferSize, err := strconv.ParseUint(connectionBufferSize, 10, 32)
 		if err != nil {
 			logger.ErrorLog.Printf("failed to parse metadata connection buffer size: %v", err)
 			panic(err)
 		}
 
-		connectionBufferSize = uint(parsedConnectionBufferSize)
-	} else {
-		connectionBufferSize = 20971520
+		return uint(parsedConnectionBufferSize)
 	}
 
-	if _, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
-		parsedConnectionTimeout, err := time.ParseDuration(c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig])
+	return 20971520
+}
+
+func (c *Dcp) getConnectionTimeout() time.Duration {
+	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
+		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
 		if err != nil {
 			logger.ErrorLog.Printf("failed to parse metadata connection timeout: %v", err)
 			panic(err)
 		}
 
-		connectionTimeout = parsedConnectionTimeout
-	} else {
-		connectionTimeout = 5 * time.Second
+		return parsedConnectionTimeout
 	}
 
-	return bucket, scope, collection, connectionBufferSize, connectionTimeout
+	return 5 * time.Second
 }
 
 func (c *Dcp) ApplyDefaults() {

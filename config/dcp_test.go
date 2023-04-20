@@ -19,6 +19,46 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, "couchbase", config.Dcp.Group.Membership.Type)
 }
 
+func TestGetCouchbaseMetadata(t *testing.T) {
+	dcp := &Dcp{
+		Metadata: Metadata{
+			Config: map[string]string{
+				CouchbaseMetadataBucketConfig: "mybucket",
+				CouchbaseMetadataScopeConfig:  "myscope",
+			},
+		},
+		BucketName: "mybucket2",
+	}
+
+	bucket, scope, collection, connectionBufferSize, connectionTimeout := dcp.GetCouchbaseMetadata()
+
+	expectedBucket := "mybucket"
+	expectedScope := "myscope"
+	expectedCollection := DefaultCollectionName
+	expectedConnectionBufferSize := uint(20971520)
+	expectedConnectionTimeout := 5 * time.Second
+
+	assert.Equal(t, expectedBucket, bucket)
+	assert.Equal(t, expectedScope, scope)
+	assert.Equal(t, expectedCollection, collection)
+	assert.Equal(t, expectedConnectionBufferSize, connectionBufferSize)
+	assert.Equal(t, expectedConnectionTimeout, connectionTimeout)
+}
+
+func TestDcp_GetFileMetadata(t *testing.T) {
+	dcp := &Dcp{
+		Metadata: Metadata{
+			Config: map[string]string{
+				FileMetadataFileNameConfig: "testfile.json",
+			},
+		},
+	}
+
+	metadata := dcp.GetFileMetadata()
+
+	assert.Equal(t, "testfile.json", metadata)
+}
+
 func TestApplyDefaultRollbackMitigation(t *testing.T) {
 	c := &Dcp{
 		RollbackMitigation: RollbackMitigation{},

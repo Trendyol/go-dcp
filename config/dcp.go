@@ -21,95 +21,95 @@ const (
 	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
 )
 
-type ConfigDCPGroupMembership struct {
+type DCPGroupMembership struct {
 	Type           string        `yaml:"type"`
 	MemberNumber   int           `yaml:"memberNumber"`
 	TotalMembers   int           `yaml:"totalMembers"`
 	RebalanceDelay time.Duration `yaml:"rebalanceDelay"`
 }
 
-type ConfigDCPGroup struct {
-	Name       string                   `yaml:"name"`
-	Membership ConfigDCPGroupMembership `yaml:"membership"`
+type DCPGroup struct {
+	Name       string             `yaml:"name"`
+	Membership DCPGroupMembership `yaml:"membership"`
 }
 
-type ConfigDCPListener struct {
+type DCPListener struct {
 	BufferSize uint `yaml:"bufferSize"`
 }
 
-type ConfigDCP struct {
-	Group                ConfigDCPGroup    `yaml:"group"`
-	BufferSize           int               `yaml:"bufferSize"`
-	ConnectionBufferSize uint              `yaml:"connectionBufferSize"`
-	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
-	Listener             ConfigDCPListener `yaml:"listener"`
+type DCP struct {
+	Group                DCPGroup      `yaml:"group"`
+	BufferSize           int           `yaml:"bufferSize"`
+	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
+	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
+	Listener             DCPListener   `yaml:"listener"`
 }
 
-type ConfigAPI struct {
+type API struct {
 	Port    int  `yaml:"port"`
 	Enabled bool `yaml:"enabled"`
 }
 
-type ConfigMetric struct {
+type Metric struct {
 	Path             string  `yaml:"path"`
 	AverageWindowSec float64 `yaml:"averageWindowSec"`
 }
 
-type ConfigLeaderElection struct {
+type LeaderElection struct {
 	Config  map[string]string `yaml:"config"`
 	Type    string            `yaml:"type"`
-	RPC     ConfigRPC         `yaml:"rpc"`
+	RPC     RPC               `yaml:"rpc"`
 	Enabled bool              `yaml:"enabled"`
 }
 
-type ConfigRPC struct {
+type RPC struct {
 	Port int `yaml:"port"`
 }
 
-type ConfigCheckpoint struct {
+type Checkpoint struct {
 	Type      string        `yaml:"type"`
 	AutoReset string        `yaml:"autoReset"`
 	Interval  time.Duration `yaml:"interval"`
 	Timeout   time.Duration `yaml:"timeout"`
 }
 
-type ConfigHealthCheck struct {
+type HealthCheck struct {
 	Enabled  bool          `yaml:"enabled"`
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 }
 
-type ConfigRollbackMitigation struct {
+type RollbackMitigation struct {
 	Enabled  bool          `yaml:"enabled"`
 	Interval time.Duration `yaml:"interval"`
 }
 
-type ConfigMetadata struct {
+type Metadata struct {
 	Config   map[string]string `yaml:"config"`
 	Type     string            `yaml:"type"`
 	ReadOnly bool              `json:"readOnly"`
 }
 
 type Dcp struct {
-	Username             string                   `yaml:"username"`
-	BucketName           string                   `yaml:"bucketName"`
-	ScopeName            string                   `yaml:"scopeName"`
-	Password             string                   `yaml:"password"`
-	RootCAPath           string                   `yaml:"rootCAPath"`
-	Metadata             ConfigMetadata           `yaml:"metadata"`
-	Hosts                []string                 `yaml:"hosts"`
-	CollectionNames      []string                 `yaml:"collectionNames"`
-	Metric               ConfigMetric             `yaml:"metric"`
-	Checkpoint           ConfigCheckpoint         `yaml:"checkpoint"`
-	LeaderElection       ConfigLeaderElection     `yaml:"leaderElector"`
-	Dcp                  ConfigDCP                `yaml:"dcp"`
-	HealthCheck          ConfigHealthCheck        `yaml:"healthCheck"`
-	API                  ConfigAPI                `yaml:"api"`
-	RollbackMitigation   ConfigRollbackMitigation `yaml:"rollbackMitigation"`
-	ConnectionTimeout    time.Duration            `yaml:"connectionTimeout"`
-	ConnectionBufferSize uint                     `yaml:"connectionBufferSize"`
-	SecureConnection     bool                     `yaml:"secureConnection"`
-	Debug                bool                     `yaml:"debug"`
+	Username             string             `yaml:"username"`
+	BucketName           string             `yaml:"bucketName"`
+	ScopeName            string             `yaml:"scopeName"`
+	Password             string             `yaml:"password"`
+	RootCAPath           string             `yaml:"rootCAPath"`
+	Metadata             Metadata           `yaml:"metadata"`
+	Hosts                []string           `yaml:"hosts"`
+	CollectionNames      []string           `yaml:"collectionNames"`
+	Metric               Metric             `yaml:"metric"`
+	Checkpoint           Checkpoint         `yaml:"checkpoint"`
+	LeaderElection       LeaderElection     `yaml:"leaderElector"`
+	Dcp                  DCP                `yaml:"dcp"`
+	HealthCheck          HealthCheck        `yaml:"healthCheck"`
+	API                  API                `yaml:"api"`
+	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
+	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
+	ConnectionBufferSize uint               `yaml:"connectionBufferSize"`
+	SecureConnection     bool               `yaml:"secureConnection"`
+	Debug                bool               `yaml:"debug"`
 }
 
 func (c *Dcp) IsCollectionModeEnabled() bool {
@@ -194,66 +194,35 @@ func (c *Dcp) GetCouchbaseMetadata() (string, string, string, uint, time.Duratio
 	return bucket, scope, collection, connectionBufferSize, connectionTimeout
 }
 
-//nolint:funlen
 func (c *Dcp) ApplyDefaults() {
+	c.applyDefaultRollbackMitigation()
+	c.applyDefaultCheckpoint()
+	c.applyDefaultHealthCheck()
+	c.applyDefaultGroupMembership()
+	c.applyDefaultConnectionTimeout()
+	c.applyDefaultCollections()
+	c.applyDefaultScopeName()
+	c.applyDefaultConnectionBufferSize()
+	c.applyDefaultMetrics()
+	c.applyDefaultAPI()
+	c.applyDefaultLeaderElection()
+	c.applyDefaultDcp()
+	c.applyDefaultMetadata()
+}
+
+func (c *Dcp) applyDefaultRollbackMitigation() {
 	if c.RollbackMitigation.Interval == 0 {
 		c.RollbackMitigation.Interval = 200 * time.Millisecond
 	}
+}
 
+func (c *Dcp) applyDefaultCheckpoint() {
 	if c.Checkpoint.Interval == 0 {
 		c.Checkpoint.Interval = 20 * time.Second
 	}
 
 	if c.Checkpoint.Timeout == 0 {
 		c.Checkpoint.Timeout = 5 * time.Second
-	}
-
-	if c.HealthCheck.Interval == 0 {
-		c.HealthCheck.Interval = 20 * time.Second
-	}
-
-	if c.HealthCheck.Timeout == 0 {
-		c.HealthCheck.Timeout = 5 * time.Second
-	}
-
-	if c.Dcp.Group.Membership.RebalanceDelay == 0 {
-		c.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
-	}
-
-	if c.Dcp.ConnectionTimeout == 0 {
-		c.Dcp.ConnectionTimeout = 5 * time.Second
-	}
-
-	if c.ConnectionTimeout == 0 {
-		c.ConnectionTimeout = 5 * time.Second
-	}
-
-	if c.CollectionNames == nil {
-		c.CollectionNames = []string{DefaultCollectionName}
-	}
-
-	if c.ScopeName == "" {
-		c.ScopeName = DefaultScopeName
-	}
-
-	if c.ConnectionBufferSize == 0 {
-		c.ConnectionBufferSize = 20971520
-	}
-
-	if c.Metric.Path == "" {
-		c.Metric.Path = "/metrics"
-	}
-
-	if c.Metric.AverageWindowSec == 0.0 {
-		c.Metric.AverageWindowSec = 10.0
-	}
-
-	if !c.API.Enabled {
-		c.API.Enabled = true
-	}
-
-	if c.API.Port == 0 {
-		c.API.Port = 8080
 	}
 
 	if c.Checkpoint.Type == "" {
@@ -263,11 +232,89 @@ func (c *Dcp) ApplyDefaults() {
 	if c.Checkpoint.AutoReset == "" {
 		c.Checkpoint.AutoReset = "earliest"
 	}
+}
+
+func (c *Dcp) applyDefaultHealthCheck() {
+	if c.HealthCheck.Interval == 0 {
+		c.HealthCheck.Interval = 20 * time.Second
+	}
+
+	if c.HealthCheck.Timeout == 0 {
+		c.HealthCheck.Timeout = 5 * time.Second
+	}
 
 	if !c.HealthCheck.Enabled {
 		c.HealthCheck.Enabled = true
 	}
+}
 
+func (c *Dcp) applyDefaultGroupMembership() {
+	if c.Dcp.Group.Membership.RebalanceDelay == 0 {
+		c.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
+	}
+
+	if c.Dcp.Group.Membership.TotalMembers == 0 {
+		c.Dcp.Group.Membership.TotalMembers = 1
+	}
+
+	if c.Dcp.Group.Membership.MemberNumber == 0 {
+		c.Dcp.Group.Membership.MemberNumber = 1
+	}
+
+	if c.Dcp.Group.Membership.Type == "" {
+		c.Dcp.Group.Membership.Type = "couchbase"
+	}
+}
+
+func (c *Dcp) applyDefaultConnectionTimeout() {
+	if c.Dcp.ConnectionTimeout == 0 {
+		c.Dcp.ConnectionTimeout = 5 * time.Second
+	}
+
+	if c.ConnectionTimeout == 0 {
+		c.ConnectionTimeout = 5 * time.Second
+	}
+}
+
+func (c *Dcp) applyDefaultCollections() {
+	if c.CollectionNames == nil {
+		c.CollectionNames = []string{DefaultCollectionName}
+	}
+}
+
+func (c *Dcp) applyDefaultScopeName() {
+	if c.ScopeName == "" {
+		c.ScopeName = DefaultScopeName
+	}
+}
+
+func (c *Dcp) applyDefaultConnectionBufferSize() {
+	if c.ConnectionBufferSize == 0 {
+		c.ConnectionBufferSize = 20971520
+	}
+}
+
+func (c *Dcp) applyDefaultMetrics() {
+	if c.Metric.Path == "" {
+		c.Metric.Path = "/metrics"
+	}
+
+	if c.Metric.AverageWindowSec == 0.0 {
+		c.Metric.AverageWindowSec = 10.0
+	}
+}
+
+func (c *Dcp) applyDefaultAPI() {
+	if !c.API.Enabled {
+		c.API.Enabled = true
+	}
+
+	if c.API.Port == 0 {
+		c.API.Port = 8080
+	}
+}
+
+func (c *Dcp) applyDefaultLeaderElection() {
 	if c.LeaderElection.Type == "" {
 		c.LeaderElection.Type = "kubernetes"
 	}
@@ -275,7 +322,9 @@ func (c *Dcp) ApplyDefaults() {
 	if c.LeaderElection.RPC.Port == 0 {
 		c.LeaderElection.RPC.Port = 8081
 	}
+}
 
+func (c *Dcp) applyDefaultDcp() {
 	if c.Dcp.BufferSize == 0 {
 		c.Dcp.BufferSize = 16777216
 	}
@@ -299,7 +348,9 @@ func (c *Dcp) ApplyDefaults() {
 	if c.Dcp.Listener.BufferSize == 0 {
 		c.Dcp.Listener.BufferSize = 1
 	}
+}
 
+func (c *Dcp) applyDefaultMetadata() {
 	if c.Metadata.Type == "" {
 		c.Metadata.Type = "couchbase"
 	}

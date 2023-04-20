@@ -117,10 +117,10 @@ func BenchmarkDcp(b *testing.B) {
 		BucketName: "dcp-test",
 		Password:   "password",
 		Hosts:      []string{"localhost:8091"},
-		Dcp: config.ConfigDCP{
-			Group: config.ConfigDCPGroup{
+		Dcp: config.DCP{
+			Group: config.DCPGroup{
 				Name: "groupName",
-				Membership: config.ConfigDCPGroupMembership{
+				Membership: config.DCPGroupMembership{
 					RebalanceDelay: time.Second * 5,
 				},
 			},

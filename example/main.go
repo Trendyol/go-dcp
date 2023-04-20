@@ -35,8 +35,8 @@ func main() {
 		Username:   "user",
 		Password:   "password",
 		BucketName: "dcp-test",
-		Dcp: config.ConfigDCP{
-			Group: config.ConfigDCPGroup{
+		Dcp: config.DCP{
+			Group: config.DCPGroup{
 				Name: "groupName",
 			},
 		},

@@ -3,12 +3,12 @@ package godcpclient
 import (
 	"context"
 	"fmt"
+	"github.com/Trendyol/go-dcp-client/config"
 	"math"
+	"os"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -20,6 +20,17 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+var configStr = `hosts:
+  - localhost:8091
+username: user
+password: password
+bucketName: dcp-test
+dcp:
+  group:
+    name: groupName
+    membership:
+      rebalanceDelay: 5s`
 
 func setupContainer(ctx context.Context, config *config.Dcp) (testcontainers.Container, error) {
 	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -112,22 +123,14 @@ func BenchmarkDcp(b *testing.B) {
 
 	ctx := context.Background()
 
-	config := &config.Dcp{
-		Username:   "user",
-		BucketName: "dcp-test",
-		Password:   "password",
-		Hosts:      []string{"localhost:8091"},
-		Dcp: config.DCP{
-			Group: config.DCPGroup{
-				Name: "groupName",
-				Membership: config.DCPGroupMembership{
-					RebalanceDelay: time.Second * 5,
-				},
-			},
-		},
+	configFile, err := helpers.CreateConfigFile(configStr)
+	if err != nil {
+		b.Error(err)
 	}
+	configPath := configFile.Name()
+	config, _ := newDcpConfig(configPath)
 
-	container, err := setupContainer(ctx, config)
+	container, err := setupContainer(ctx, &config)
 	if err != nil {
 		b.Error(err)
 	}
@@ -135,7 +138,7 @@ func BenchmarkDcp(b *testing.B) {
 	counter := 0
 	finish := make(chan struct{}, 1)
 
-	dcp, err := NewDcp(config, func(ctx *models.ListenerContext) {
+	dcp, err := NewDcp(configPath, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
 			if counter == 0 {
 				b.ResetTimer()
@@ -160,7 +163,7 @@ func BenchmarkDcp(b *testing.B) {
 
 	go func() {
 		<-dcp.WaitUntilReady()
-		insertDataToContainer(b, mockDataSize, config)
+		insertDataToContainer(b, mockDataSize, &config)
 	}()
 
 	go func() {
@@ -171,6 +174,16 @@ func BenchmarkDcp(b *testing.B) {
 	dcp.Start()
 
 	err = container.Terminate(ctx)
+	if err != nil {
+		b.Error(err)
+	}
+
+	err = configFile.Close()
+	if err != nil {
+		b.Error(err)
+	}
+
+	err = os.Remove(configPath)
 	if err != nil {
 		b.Error(err)
 	}

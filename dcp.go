@@ -2,7 +2,7 @@ package godcpclient
 
 import (
 	"errors"
-	jsoniter "github.com/json-iterator/go"
+	"gopkg.in/yaml.v3"
 	"os"
 	"os/signal"
 	"reflect"
@@ -248,16 +248,24 @@ func NewDcp(cfg any, listener models.Listener) (Dcp, error) {
 }
 
 func newDcpWithPath(path string, listener models.Listener) (Dcp, error) {
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var c config.Dcp
-	err = jsoniter.Unmarshal(file, &c)
+	c, err := newDcpConfig(path)
 	if err != nil {
 		return nil, err
 	}
 	return newDcp(&c, listener)
+}
+
+func newDcpConfig(path string) (config.Dcp, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return config.Dcp{}, err
+	}
+	var c config.Dcp
+	err = yaml.Unmarshal(file, &c)
+	if err != nil {
+		return config.Dcp{}, err
+	}
+	return c, nil
 }
 
 func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {

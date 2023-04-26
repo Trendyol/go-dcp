@@ -37,7 +37,7 @@ type DCPListener struct {
 	BufferSize uint `yaml:"bufferSize"`
 }
 
-type DCP struct {
+type ExternalDcp struct {
 	Group                DCPGroup      `yaml:"group"`
 	BufferSize           int           `yaml:"bufferSize"`
 	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
@@ -102,7 +102,7 @@ type Dcp struct {
 	Metric               Metric             `yaml:"metric"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
 	LeaderElection       LeaderElection     `yaml:"leaderElector"`
-	Dcp                  DCP                `yaml:"dcp"`
+	Dcp                  ExternalDcp        `yaml:"dcp"`
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	API                  API                `yaml:"api"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`

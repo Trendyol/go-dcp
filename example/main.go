@@ -35,7 +35,7 @@ func main() {
 		Username:   "user",
 		Password:   "password",
 		BucketName: "dcp-test",
-		Dcp: config.DCP{
+		Dcp: config.ExternalDcp{
 			Group: config.DCPGroup{
 				Name: "groupName",
 			},

@@ -100,7 +100,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `metadata.type`                       |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                     |
 | `metadata.readOnly`                   |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                              |
 | `metadata.config`                     | map[string]string |    no    |  *not set  | Set key-values of config. `bucket` for `couchbase` type.                                                            |
-| `api.enabled`                         |       bool        |    no    |    true    | Enable metric and debug pprof endpoints                                                                             |
+| `api.enabled`                         |       bool        |    no    |    true    | Enable metric endpoints                                                                                             |
 | `api.port`                            |        int        |    no    |    8080    | Set API port                                                                                                        |
 | `metric.path`                         |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                           |
 | `metric.averageWindowSec`             |      float64      |    no    |    10.0    | Set metric window range.                                                                                            |

@@ -3,20 +3,35 @@ package config
 import (
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestDefaultConfig(t *testing.T) {
 	config := Dcp{}
 	config.ApplyDefaults()
 
-	assert.Equal(t, "_default", config.ScopeName)
-	assert.Equal(t, 1, len(config.CollectionNames))
-	assert.Contains(t, config.CollectionNames, "_default")
-	assert.Equal(t, "auto", config.Checkpoint.Type)
-	assert.Equal(t, uint(1), config.Dcp.Listener.BufferSize)
-	assert.Equal(t, "couchbase", config.Dcp.Group.Membership.Type)
+	if config.ScopeName != "_default" {
+		t.Errorf("ScopeName is not set to default")
+	}
+
+	if len(config.CollectionNames) != 1 {
+		t.Errorf("CollectionNames length is not 1")
+	}
+
+	if config.CollectionNames[0] != "_default" {
+		t.Errorf("CollectionNames is not set to default")
+	}
+
+	if config.Checkpoint.Type != CheckpointTypeAuto {
+		t.Errorf("Checkpoint.Type is not set to auto")
+	}
+
+	if config.Dcp.Listener.BufferSize != 1 {
+		t.Errorf("Dcp.Listener.BufferSize is not set to 1")
+	}
+
+	if config.Dcp.Group.Membership.Type != MembershipTypeCouchbase {
+		t.Errorf("Dcp.Group.Membership.Type is not set to couchbase")
+	}
 }
 
 func TestGetCouchbaseMetadata(t *testing.T) {
@@ -38,11 +53,25 @@ func TestGetCouchbaseMetadata(t *testing.T) {
 	expectedConnectionBufferSize := uint(20971520)
 	expectedConnectionTimeout := 5 * time.Second
 
-	assert.Equal(t, expectedBucket, bucket)
-	assert.Equal(t, expectedScope, scope)
-	assert.Equal(t, expectedCollection, collection)
-	assert.Equal(t, expectedConnectionBufferSize, connectionBufferSize)
-	assert.Equal(t, expectedConnectionTimeout, connectionTimeout)
+	if bucket != expectedBucket {
+		t.Errorf("Bucket is not set to expected value")
+	}
+
+	if scope != expectedScope {
+		t.Errorf("Scope is not set to expected value")
+	}
+
+	if collection != expectedCollection {
+		t.Errorf("Collection is not set to expected value")
+	}
+
+	if connectionBufferSize != expectedConnectionBufferSize {
+		t.Errorf("ConnectionBufferSize is not set to expected value")
+	}
+
+	if connectionTimeout != expectedConnectionTimeout {
+		t.Errorf("ConnectionTimeout is not set to expected value")
+	}
 }
 
 func TestDcp_GetFileMetadata(t *testing.T) {
@@ -56,7 +85,9 @@ func TestDcp_GetFileMetadata(t *testing.T) {
 
 	metadata := dcp.GetFileMetadata()
 
-	assert.Equal(t, "testfile.json", metadata)
+	if metadata != "testfile.json" {
+		t.Errorf("Metadata is not set to expected value")
+	}
 }
 
 func TestApplyDefaultRollbackMitigation(t *testing.T) {
@@ -65,98 +96,168 @@ func TestApplyDefaultRollbackMitigation(t *testing.T) {
 	}
 	c.applyDefaultRollbackMitigation()
 
-	assert.Equal(t, 200*time.Millisecond, c.RollbackMitigation.Interval)
+	if c.RollbackMitigation.Interval != 200*time.Millisecond {
+		t.Errorf("RollbackMitigation.Interval is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultCheckpoint(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultCheckpoint()
 
-	assert.Equal(t, 20*time.Second, c.Checkpoint.Interval)
-	assert.Equal(t, 5*time.Second, c.Checkpoint.Timeout)
-	assert.Equal(t, "auto", c.Checkpoint.Type)
-	assert.Equal(t, "earliest", c.Checkpoint.AutoReset)
+	if c.Checkpoint.Interval != 20*time.Second {
+		t.Errorf("Checkpoint.Interval is not set to expected value")
+	}
+
+	if c.Checkpoint.Timeout != 5*time.Second {
+		t.Errorf("Checkpoint.Timeout is not set to expected value")
+	}
+
+	if c.Checkpoint.Type != CheckpointTypeAuto {
+		t.Errorf("Checkpoint.Type is not set to expected value")
+	}
+
+	if c.Checkpoint.AutoReset != "earliest" {
+		t.Errorf("Checkpoint.AutoReset is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultHealthCheck(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultHealthCheck()
 
-	assert.Equal(t, 20*time.Second, c.HealthCheck.Interval)
-	assert.Equal(t, 5*time.Second, c.HealthCheck.Timeout)
-	assert.True(t, !c.HealthCheck.Disabled)
+	if c.HealthCheck.Interval != 20*time.Second {
+		t.Errorf("HealthCheck.Interval is not set to expected value")
+	}
+
+	if c.HealthCheck.Timeout != 5*time.Second {
+		t.Errorf("HealthCheck.Timeout is not set to expected value")
+	}
+
+	if c.HealthCheck.Disabled {
+		t.Errorf("HealthCheck.Disabled is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultGroupMembership(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultGroupMembership()
 
-	assert.Equal(t, 20*time.Second, c.Dcp.Group.Membership.RebalanceDelay)
-	assert.Equal(t, 1, c.Dcp.Group.Membership.TotalMembers)
-	assert.Equal(t, 1, c.Dcp.Group.Membership.MemberNumber)
-	assert.Equal(t, "couchbase", c.Dcp.Group.Membership.Type)
+	if c.Dcp.Group.Membership.RebalanceDelay != 20*time.Second {
+		t.Errorf("Dcp.Group.Membership.RebalanceDelay is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.TotalMembers != 1 {
+		t.Errorf("Dcp.Group.Membership.TotalMembers is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.MemberNumber != 1 {
+		t.Errorf("Dcp.Group.Membership.MemberNumber is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.Type != "couchbase" {
+		t.Errorf("Dcp.Group.Membership.Type is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultConnectionTimeout(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultConnectionTimeout()
 
-	assert.Equal(t, 5*time.Second, c.Dcp.ConnectionTimeout)
-	assert.Equal(t, 5*time.Second, c.ConnectionTimeout)
+	if c.Dcp.ConnectionTimeout != 5*time.Second {
+		t.Errorf("Dcp.ConnectionTimeout is not set to expected value")
+	}
+
+	if c.ConnectionTimeout != 5*time.Second {
+		t.Errorf("ConnectionTimeout is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultCollections(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultCollections()
 
-	assert.Equal(t, []string{DefaultCollectionName}, c.CollectionNames)
+	if c.CollectionNames[0] != DefaultCollectionName {
+		t.Errorf("CollectionNames is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultScopeName(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultScopeName()
 
-	assert.Equal(t, DefaultScopeName, c.ScopeName)
+	if c.ScopeName != DefaultScopeName {
+		t.Errorf("ScopeName is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultConnectionBufferSize(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultConnectionBufferSize()
 
-	assert.Equal(t, uint(20971520), c.ConnectionBufferSize)
+	if c.ConnectionBufferSize != 20971520 {
+		t.Errorf("ConnectionBufferSize is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultMetrics(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultMetrics()
 
-	assert.Equal(t, "/metrics", c.Metric.Path)
-	assert.Equal(t, 10.0, c.Metric.AverageWindowSec)
+	if c.Metric.Path != "/metrics" {
+		t.Errorf("Metric.Path is not set to expected value")
+	}
+
+	if c.Metric.AverageWindowSec != 10.0 {
+		t.Errorf("Metric.AverageWindowSec is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultAPI(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultAPI()
 
-	assert.True(t, !c.API.Disabled)
-	assert.Equal(t, 8080, c.API.Port)
+	if c.API.Disabled {
+		t.Errorf("API.Disabled is not set to expected value")
+	}
+
+	if c.API.Port != 8080 {
+		t.Errorf("API.Port is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultLeaderElection(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultLeaderElection()
 
-	assert.Equal(t, "kubernetes", c.LeaderElection.Type)
-	assert.Equal(t, 8081, c.LeaderElection.RPC.Port)
+	if c.LeaderElection.Enabled {
+		t.Errorf("LeaderElection.Enabled is not set to expected value")
+	}
+
+	if c.LeaderElection.Type != "kubernetes" {
+		t.Errorf("LeaderElection.Type is not set to expected value")
+	}
+
+	if c.LeaderElection.RPC.Port != 8081 {
+		t.Errorf("LeaderElection.RPC.Port is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultDcp(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultDcp()
 
-	assert.Equal(t, 16777216, c.Dcp.BufferSize)
-	assert.Equal(t, uint(20971520), c.Dcp.ConnectionBufferSize)
-	assert.Equal(t, uint(1), c.Dcp.Listener.BufferSize)
+	if c.Dcp.BufferSize != 16777216 {
+		t.Errorf("Dcp.BufferSize is not set to expected value")
+	}
+
+	if c.Dcp.ConnectionBufferSize != 20971520 {
+		t.Errorf("Dcp.ConnectionBufferSize is not set to expected value")
+	}
+
+	if c.Dcp.Listener.BufferSize != 1 {
+		t.Errorf("Dcp.Listener.BufferSize is not set to expected value")
+	}
 }
 
 func TestApplyDefaultMetadata(t *testing.T) {
@@ -170,5 +271,7 @@ func TestApplyDefaultMetadata(t *testing.T) {
 	c.applyDefaultMetadata()
 
 	// Check if the default metadata values were applied correctly
-	assert.Equal(t, "couchbase", c.Metadata.Type)
+	if c.Metadata.Type != "couchbase" {
+		t.Errorf("Metadata.Type is not set to expected value")
+	}
 }

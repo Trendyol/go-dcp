@@ -2,8 +2,6 @@ package helpers
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestIsMetadata_ReturnsTrue_WhenStructHasKeyPrefix(t *testing.T) {
@@ -15,7 +13,9 @@ func TestIsMetadata_ReturnsTrue_WhenStructHasKeyPrefix(t *testing.T) {
 		Key: []byte(Prefix + "test"),
 	}
 
-	assert.True(t, IsMetadata(testData))
+	if !IsMetadata(testData) {
+		t.Errorf("IsMetadata() = %v, want %v", IsMetadata(testData), true)
+	}
 }
 
 func TestIsMetadata_ReturnsFalse_WhenStructHasNoKeyPrefix(t *testing.T) {
@@ -27,5 +27,7 @@ func TestIsMetadata_ReturnsFalse_WhenStructHasNoKeyPrefix(t *testing.T) {
 		X: []byte(Prefix + "test"),
 	}
 
-	assert.False(t, IsMetadata(testData))
+	if IsMetadata(testData) {
+		t.Errorf("IsMetadata() = %v, want %v", IsMetadata(testData), false)
+	}
 }

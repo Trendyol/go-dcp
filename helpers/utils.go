@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"time"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 )
@@ -52,6 +53,21 @@ func CreateConfigFile(content string) (*os.File, error) {
 	}
 
 	return tmpFile, nil
+}
+
+func Retry(f func() error, attempts int, sleep time.Duration) (err error) {
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			time.Sleep(sleep)
+		}
+
+		err = f()
+		if err == nil {
+			return nil
+		}
+	}
+
+	return err
 }
 
 func byteToMb(b uint64) uint64 {

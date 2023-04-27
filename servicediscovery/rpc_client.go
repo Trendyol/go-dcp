@@ -5,11 +5,11 @@ import (
 	"net/rpc"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/helpers"
+
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
-
-	"github.com/avast/retry-go/v4"
 )
 
 type Client interface {
@@ -30,7 +30,7 @@ type client struct {
 }
 
 func (c *client) connect() error {
-	return retry.Do(
+	return helpers.Retry(
 		func() error {
 			connectAddress := fmt.Sprintf("%s:%d", c.targetIdentity.IP, c.port)
 			client, err := rpc.Dial("tcp", connectAddress)
@@ -44,9 +44,8 @@ func (c *client) connect() error {
 
 			return nil
 		},
-		retry.Attempts(3),
-		retry.DelayType(retry.FixedDelay),
-		retry.Delay(1*time.Second),
+		3,
+		1*time.Second,
 	)
 }
 
@@ -74,33 +73,31 @@ func (c *client) Reconnect() error {
 }
 
 func (c *client) Ping() error {
-	return retry.Do(
+	return helpers.Retry(
 		func() error {
 			var reply Pong
 
 			return c.client.Call("Handler.Ping", Ping{From: c.myIdentity}, &reply)
 		},
-		retry.Attempts(3),
-		retry.DelayType(retry.FixedDelay),
-		retry.Delay(100*time.Millisecond),
+		3,
+		100*time.Millisecond,
 	)
 }
 
 func (c *client) Register() error {
-	return retry.Do(
+	return helpers.Retry(
 		func() error {
 			var reply bool
 
 			return c.client.Call("Handler.Register", Register{From: c.myIdentity, Identity: c.myIdentity}, &reply)
 		},
-		retry.Attempts(3),
-		retry.DelayType(retry.FixedDelay),
-		retry.Delay(100*time.Millisecond),
+		3,
+		100*time.Millisecond,
 	)
 }
 
 func (c *client) Rebalance(memberNumber int, totalMembers int) error {
-	return retry.Do(
+	return helpers.Retry(
 		func() error {
 			var reply bool
 
@@ -110,9 +107,8 @@ func (c *client) Rebalance(memberNumber int, totalMembers int) error {
 				&reply,
 			)
 		},
-		retry.Attempts(3),
-		retry.DelayType(retry.FixedDelay),
-		retry.Delay(100*time.Millisecond),
+		3,
+		100*time.Millisecond,
 	)
 }
 

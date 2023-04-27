@@ -20,6 +20,7 @@ const (
 	CouchbaseMetadataCollectionConfig           = "collection"
 	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
 	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
+	CheckpointTypeAuto                          = "auto"
 )
 
 type DCPGroupMembership struct {

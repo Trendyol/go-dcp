@@ -125,7 +125,7 @@ func (s *stream) listenEnd() {
 func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 
-	if s.config.RollbackMitigation.Enabled {
+	if !s.config.RollbackMitigation.Disabled {
 		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
 		s.rollbackMitigation.Start()
 	}
@@ -237,7 +237,7 @@ func (s *stream) wait() {
 }
 
 func (s *stream) Close() {
-	if s.config.RollbackMitigation.Enabled {
+	if !s.config.RollbackMitigation.Disabled {
 		s.rollbackMitigation.Stop()
 	}
 

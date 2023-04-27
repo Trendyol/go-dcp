@@ -108,7 +108,7 @@ func NewAPI(config *godcpclient.Dcp,
 		app.Get("/states/followers", api.followers)
 	}
 
-	if config.HealthCheck.Enabled {
+	if !config.HealthCheck.Disabled {
 		app.Get("/status", api.status)
 	}
 

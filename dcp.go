@@ -2,12 +2,15 @@ package godcpclient
 
 import (
 	"errors"
-	"gopkg.in/yaml.v3"
 	"os"
 	"os/signal"
 	"reflect"
 	"syscall"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/Trendyol/go-dcp-client/config"
 
@@ -131,7 +134,7 @@ func (s *dcp) Start() {
 
 	bus.Subscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
 
-	if s.config.API.Enabled {
+	if !s.config.API.Disabled {
 		go func() {
 			go func() {
 				<-s.apiShutdown
@@ -145,7 +148,7 @@ func (s *dcp) Start() {
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
-	if s.config.HealthCheck.Enabled {
+	if !s.config.HealthCheck.Disabled {
 		s.startHealthCheck()
 	}
 
@@ -169,7 +172,7 @@ func (s *dcp) WaitUntilReady() chan struct{} {
 }
 
 func (s *dcp) Close() {
-	if s.config.HealthCheck.Enabled {
+	if !s.config.HealthCheck.Disabled {
 		s.stopHealthCheck()
 	}
 	s.vBucketDiscovery.Close()
@@ -186,7 +189,7 @@ func (s *dcp) Close() {
 		s.serviceDiscovery.StopHeartbeat()
 	}
 
-	if s.api != nil && s.config.API.Enabled {
+	if s.api != nil && !s.config.API.Disabled {
 		s.apiShutdown <- struct{}{}
 	}
 
@@ -206,6 +209,9 @@ func (s *dcp) GetConfig() *config.Dcp {
 
 func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	config.ApplyDefaults()
+	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
+	logger.Log.Printf("using config: %v", string(configJSON))
+
 	client := couchbase.NewClient(config)
 
 	err := client.Connect()

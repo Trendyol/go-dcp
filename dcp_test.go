@@ -3,12 +3,12 @@ package godcpclient
 import (
 	"context"
 	"fmt"
-	"github.com/Trendyol/go-dcp-client/config"
 	"math"
-	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
@@ -21,27 +21,31 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var configStr = `hosts:
-  - localhost:8091
-username: user
-password: password
-bucketName: dcp-test
-dcp:
-  group:
-    name: groupName
-    membership:
-      rebalanceDelay: 5s`
+var c = &config.Dcp{
+	Hosts:      []string{"localhost:8091"},
+	Username:   "user",
+	Password:   "password",
+	BucketName: "dcp-test",
+	Dcp: config.ExternalDcp{
+		Group: config.DCPGroup{
+			Name: "groupName",
+			Membership: config.DCPGroupMembership{
+				RebalanceDelay: 5 * time.Second,
+			},
+		},
+	},
+}
 
-func setupContainer(ctx context.Context, config *config.Dcp) (testcontainers.Container, error) {
+func setupContainer(ctx context.Context) (testcontainers.Container, error) {
 	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
 			ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
 			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(20 * time.Second),
 			Env: map[string]string{
-				"USERNAME":       config.Username,
-				"PASSWORD":       config.Password,
-				"BUCKET_NAME":    config.BucketName,
+				"USERNAME":       c.Username,
+				"PASSWORD":       c.Password,
+				"BUCKET_NAME":    c.BucketName,
 				"BUCKET_RAMSIZE": "512",
 			},
 		},
@@ -49,10 +53,10 @@ func setupContainer(ctx context.Context, config *config.Dcp) (testcontainers.Con
 	})
 }
 
-func insertDataToContainer(b *testing.B, mockDataSize int, config *config.Dcp) {
+func insertDataToContainer(b *testing.B, mockDataSize int) {
 	logger.Log.Printf("mock data stream started with totalSize=%v", mockDataSize)
 
-	client := couchbase.NewClient(config)
+	client := couchbase.NewClient(c)
 
 	err := client.Connect()
 	if err != nil {
@@ -123,14 +127,7 @@ func BenchmarkDcp(b *testing.B) {
 
 	ctx := context.Background()
 
-	configFile, err := helpers.CreateConfigFile(configStr)
-	if err != nil {
-		b.Error(err)
-	}
-	configPath := configFile.Name()
-	config, _ := newDcpConfig(configPath)
-
-	container, err := setupContainer(ctx, &config)
+	container, err := setupContainer(ctx)
 	if err != nil {
 		b.Error(err)
 	}
@@ -138,7 +135,7 @@ func BenchmarkDcp(b *testing.B) {
 	counter := 0
 	finish := make(chan struct{}, 1)
 
-	dcp, err := NewDcp(configPath, func(ctx *models.ListenerContext) {
+	dcp, err := NewDcp(c, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
 			if counter == 0 {
 				b.ResetTimer()
@@ -163,7 +160,7 @@ func BenchmarkDcp(b *testing.B) {
 
 	go func() {
 		<-dcp.WaitUntilReady()
-		insertDataToContainer(b, mockDataSize, &config)
+		insertDataToContainer(b, mockDataSize)
 	}()
 
 	go func() {
@@ -174,16 +171,6 @@ func BenchmarkDcp(b *testing.B) {
 	dcp.Start()
 
 	err = container.Terminate(ctx)
-	if err != nil {
-		b.Error(err)
-	}
-
-	err = configFile.Close()
-	if err != nil {
-		b.Error(err)
-	}
-
-	err = os.Remove(configPath)
 	if err != nil {
 		b.Error(err)
 	}

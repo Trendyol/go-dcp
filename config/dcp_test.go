@@ -84,7 +84,7 @@ func TestDcpApplyDefaultHealthCheck(t *testing.T) {
 
 	assert.Equal(t, 20*time.Second, c.HealthCheck.Interval)
 	assert.Equal(t, 5*time.Second, c.HealthCheck.Timeout)
-	assert.True(t, c.HealthCheck.Enabled)
+	assert.True(t, !c.HealthCheck.Disabled)
 }
 
 func TestDcpApplyDefaultGroupMembership(t *testing.T) {
@@ -138,7 +138,7 @@ func TestDcpApplyDefaultAPI(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultAPI()
 
-	assert.True(t, c.API.Enabled)
+	assert.True(t, !c.API.Disabled)
 	assert.Equal(t, 8080, c.API.Port)
 }
 
@@ -156,9 +156,6 @@ func TestDcpApplyDefaultDcp(t *testing.T) {
 
 	assert.Equal(t, 16777216, c.Dcp.BufferSize)
 	assert.Equal(t, uint(20971520), c.Dcp.ConnectionBufferSize)
-	assert.Equal(t, 1, c.Dcp.Group.Membership.MemberNumber)
-	assert.Equal(t, 1, c.Dcp.Group.Membership.TotalMembers)
-	assert.Equal(t, "couchbase", c.Dcp.Group.Membership.Type)
 	assert.Equal(t, uint(1), c.Dcp.Listener.BufferSize)
 }
 
@@ -166,10 +163,7 @@ func TestApplyDefaultMetadata(t *testing.T) {
 	// Initialize a Dcp instance with no metadata
 	c := &Dcp{
 		BucketName: "my-bucket",
-		Metadata: Metadata{
-			Type:   "",
-			Config: map[string]string{},
-		},
+		Metadata:   Metadata{},
 	}
 
 	// Apply default metadata
@@ -177,5 +171,4 @@ func TestApplyDefaultMetadata(t *testing.T) {
 
 	// Check if the default metadata values were applied correctly
 	assert.Equal(t, "couchbase", c.Metadata.Type)
-	assert.Equal(t, map[string]string{"bucketName": "my-bucket"}, c.Metadata.Config)
 }

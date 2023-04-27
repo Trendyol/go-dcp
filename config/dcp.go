@@ -14,6 +14,7 @@ const (
 	FileMetadataFileNameConfig                  = "fileName"
 	MetadataTypeCouchbase                       = "couchbase"
 	MetadataTypeFile                            = "file"
+	MembershipTypeCouchbase                     = "couchbase"
 	CouchbaseMetadataBucketConfig               = "bucket"
 	CouchbaseMetadataScopeConfig                = "scope"
 	CouchbaseMetadataCollectionConfig           = "collection"
@@ -46,8 +47,8 @@ type ExternalDcp struct {
 }
 
 type API struct {
-	Port    int  `yaml:"port"`
-	Enabled bool `yaml:"enabled"`
+	Disabled bool `yaml:"disabled"`
+	Port     int  `yaml:"port"`
 }
 
 type Metric struct {
@@ -74,13 +75,13 @@ type Checkpoint struct {
 }
 
 type HealthCheck struct {
-	Enabled  bool          `yaml:"enabled"`
+	Disabled bool          `yaml:"disabled"`
 	Interval time.Duration `yaml:"interval"`
 	Timeout  time.Duration `yaml:"timeout"`
 }
 
 type RollbackMitigation struct {
-	Enabled  bool          `yaml:"enabled"`
+	Disabled bool          `yaml:"disabled"`
 	Interval time.Duration `yaml:"interval"`
 }
 
@@ -145,10 +146,14 @@ func (c *Dcp) GetFileMetadata() string {
 }
 
 func (c *Dcp) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
-	return c.getBucket(), c.getScope(), c.getCollection(), c.getConnectionBufferSize(), c.getConnectionTimeout()
+	return c.getMetadataBucket(),
+		c.getMetadataScope(),
+		c.getMetadataCollection(),
+		c.getMetadataConnectionBufferSize(),
+		c.getMetadataConnectionTimeout()
 }
 
-func (c *Dcp) getBucket() string {
+func (c *Dcp) getMetadataBucket() string {
 	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
 		return bucket
 	}
@@ -156,7 +161,7 @@ func (c *Dcp) getBucket() string {
 	return c.BucketName
 }
 
-func (c *Dcp) getScope() string {
+func (c *Dcp) getMetadataScope() string {
 	if scope, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
 		return scope
 	}
@@ -164,7 +169,7 @@ func (c *Dcp) getScope() string {
 	return DefaultScopeName
 }
 
-func (c *Dcp) getCollection() string {
+func (c *Dcp) getMetadataCollection() string {
 	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
 		return collection
 	}
@@ -172,7 +177,7 @@ func (c *Dcp) getCollection() string {
 	return DefaultCollectionName
 }
 
-func (c *Dcp) getConnectionBufferSize() uint {
+func (c *Dcp) getMetadataConnectionBufferSize() uint {
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
 		parsedConnectionBufferSize, err := strconv.ParseUint(connectionBufferSize, 10, 32)
 		if err != nil {
@@ -186,7 +191,7 @@ func (c *Dcp) getConnectionBufferSize() uint {
 	return 20971520
 }
 
-func (c *Dcp) getConnectionTimeout() time.Duration {
+func (c *Dcp) getMetadataConnectionTimeout() time.Duration {
 	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
 		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
 		if err != nil {
@@ -248,10 +253,6 @@ func (c *Dcp) applyDefaultHealthCheck() {
 	if c.HealthCheck.Timeout == 0 {
 		c.HealthCheck.Timeout = 5 * time.Second
 	}
-
-	if !c.HealthCheck.Enabled {
-		c.HealthCheck.Enabled = true
-	}
 }
 
 func (c *Dcp) applyDefaultGroupMembership() {
@@ -268,7 +269,7 @@ func (c *Dcp) applyDefaultGroupMembership() {
 	}
 
 	if c.Dcp.Group.Membership.Type == "" {
-		c.Dcp.Group.Membership.Type = "couchbase"
+		c.Dcp.Group.Membership.Type = MembershipTypeCouchbase
 	}
 }
 
@@ -311,10 +312,6 @@ func (c *Dcp) applyDefaultMetrics() {
 }
 
 func (c *Dcp) applyDefaultAPI() {
-	if !c.API.Enabled {
-		c.API.Enabled = true
-	}
-
 	if c.API.Port == 0 {
 		c.API.Port = 8080
 	}
@@ -339,18 +336,6 @@ func (c *Dcp) applyDefaultDcp() {
 		c.Dcp.ConnectionBufferSize = 20971520
 	}
 
-	if c.Dcp.Group.Membership.TotalMembers == 0 {
-		c.Dcp.Group.Membership.TotalMembers = 1
-	}
-
-	if c.Dcp.Group.Membership.MemberNumber == 0 {
-		c.Dcp.Group.Membership.MemberNumber = 1
-	}
-
-	if c.Dcp.Group.Membership.Type == "" {
-		c.Dcp.Group.Membership.Type = "couchbase"
-	}
-
 	if c.Dcp.Listener.BufferSize == 0 {
 		c.Dcp.Listener.BufferSize = 1
 	}
@@ -358,12 +343,6 @@ func (c *Dcp) applyDefaultDcp() {
 
 func (c *Dcp) applyDefaultMetadata() {
 	if c.Metadata.Type == "" {
-		c.Metadata.Type = "couchbase"
-	}
-
-	if len(c.Metadata.Config) == 0 {
-		c.Metadata.Config = map[string]string{
-			"bucketName": c.BucketName,
-		}
+		c.Metadata.Type = MetadataTypeCouchbase
 	}
 }

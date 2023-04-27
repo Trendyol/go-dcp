@@ -132,7 +132,7 @@ func (so *observer) waitRollbackMitigation(vbID uint16, seqNo uint64) {
 }
 
 func (so *observer) canForward(vbID uint16, seqNo uint64) bool {
-	if so.config.RollbackMitigation.Enabled {
+	if !so.config.RollbackMitigation.Disabled {
 		so.waitRollbackMitigation(vbID, seqNo)
 	}
 

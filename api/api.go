@@ -3,12 +3,13 @@ package api
 import (
 	"fmt"
 
+	godcpclient "github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/servicediscovery"
 	"github.com/Trendyol/go-dcp-client/stream"
@@ -26,7 +27,7 @@ type api struct {
 	stream           stream.Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
-	config           *helpers.Config
+	config           *godcpclient.Dcp
 }
 
 func (s *api) Listen() {
@@ -76,7 +77,7 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func NewAPI(config *helpers.Config,
+func NewAPI(config *godcpclient.Dcp,
 	client couchbase.Client,
 	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
@@ -107,7 +108,7 @@ func NewAPI(config *helpers.Config,
 		app.Get("/states/followers", api.followers)
 	}
 
-	if config.HealthCheck.Enabled {
+	if !config.HealthCheck.Disabled {
 		app.Get("/status", api.status)
 	}
 

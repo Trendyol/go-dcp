@@ -3,6 +3,8 @@ package api
 import (
 	"strconv"
 
+	godcpclient "github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/couchbase"
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
@@ -336,7 +338,7 @@ func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 }
 
 func NewMetricMiddleware(app *fiber.App,
-	config *helpers.Config,
+	config *godcpclient.Dcp,
 	stream stream.Stream,
 	client couchbase.Client,
 	vBucketDiscovery stream.VBucketDiscovery,

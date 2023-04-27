@@ -6,7 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"
 )
@@ -42,7 +43,7 @@ func getPodOrdinalFromHostname() (int, error) {
 	return podOrdinal, nil
 }
 
-func NewStatefulSetMembership(config *helpers.Config) membership.Membership {
+func NewStatefulSetMembership(config *config.Dcp) membership.Membership {
 	podOrdinal, err := getPodOrdinalFromHostname()
 	if err != nil {
 		logger.ErrorLog.Printf("error while get pod ordinal from hostname: %v", err)

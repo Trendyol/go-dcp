@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/VividCortex/ewma"
 
 	"github.com/Trendyol/go-dcp-client/metadata"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 )
 
@@ -42,7 +43,7 @@ type checkpoint struct {
 	client     couchbase.Client
 	metadata   metadata.Metadata
 	schedule   *time.Ticker
-	config     *helpers.Config
+	config     *config.Dcp
 	saveLock   *sync.Mutex
 	loadLock   *sync.Mutex
 	metric     *CheckpointMetric
@@ -214,7 +215,7 @@ func NewCheckpoint(
 	vbIds []uint16,
 	client couchbase.Client,
 	metadata metadata.Metadata,
-	config *helpers.Config,
+	config *config.Dcp,
 ) Checkpoint {
 	return &checkpoint{
 		client:     client,

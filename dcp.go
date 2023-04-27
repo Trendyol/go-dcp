@@ -8,6 +8,12 @@ import (
 	"syscall"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Trendyol/go-dcp-client/api"
@@ -30,7 +36,7 @@ type Dcp interface {
 	Start()
 	Close()
 	Commit()
-	GetConfig() *helpers.Config
+	GetConfig() *config.Dcp
 	SetMetadata(metadata metadata.Metadata)
 	SetMetricCollectors(collectors ...prometheus.Collector)
 }
@@ -47,7 +53,7 @@ type dcp struct {
 	apiShutdown       chan struct{}
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
-	config            *helpers.Config
+	config            *config.Dcp
 	healthCheckTicker *time.Ticker
 	listener          models.Listener
 	readyCh           chan struct{}
@@ -128,7 +134,7 @@ func (s *dcp) Start() {
 
 	bus.Subscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
 
-	if s.config.API.Enabled {
+	if !s.config.API.Disabled {
 		go func() {
 			go func() {
 				<-s.apiShutdown
@@ -142,7 +148,7 @@ func (s *dcp) Start() {
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
-	if s.config.HealthCheck.Enabled {
+	if !s.config.HealthCheck.Disabled {
 		s.startHealthCheck()
 	}
 
@@ -166,7 +172,7 @@ func (s *dcp) WaitUntilReady() chan struct{} {
 }
 
 func (s *dcp) Close() {
-	if s.config.HealthCheck.Enabled {
+	if !s.config.HealthCheck.Disabled {
 		s.stopHealthCheck()
 	}
 	s.vBucketDiscovery.Close()
@@ -183,7 +189,7 @@ func (s *dcp) Close() {
 		s.serviceDiscovery.StopHeartbeat()
 	}
 
-	if s.api != nil && s.config.API.Enabled {
+	if s.api != nil && !s.config.API.Disabled {
 		s.apiShutdown <- struct{}{}
 	}
 
@@ -197,11 +203,15 @@ func (s *dcp) Commit() {
 	s.stream.Save()
 }
 
-func (s *dcp) GetConfig() *helpers.Config {
+func (s *dcp) GetConfig() *config.Dcp {
 	return s.config
 }
 
-func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
+func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
+	config.ApplyDefaults()
+	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
+	logger.Log.Printf("using config: %v", string(configJSON))
+
 	client := couchbase.NewClient(config)
 
 	err := client.Connect()
@@ -228,18 +238,45 @@ func newDcp(config *helpers.Config, listener models.Listener) (Dcp, error) {
 	}, nil
 }
 
-// NewDcp creates a new DCP client
+// NewDcp creates a new Dcp client
 //
 // config: path to a configuration file or a configuration struct
 // listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(configPath string, listener models.Listener) (Dcp, error) {
-	config := helpers.NewConfig(helpers.Name, configPath)
-	return newDcp(config, listener)
+func NewDcp(cfg any, listener models.Listener) (Dcp, error) {
+	switch v := cfg.(type) {
+	case *config.Dcp:
+		return newDcp(v, listener)
+	case string:
+		return newDcpWithPath(v, listener)
+	default:
+		return nil, errors.New("invalid config")
+	}
 }
 
-func NewDcpWithLoggers(configPath string, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
+func newDcpWithPath(path string, listener models.Listener) (Dcp, error) {
+	c, err := newDcpConfig(path)
+	if err != nil {
+		return nil, err
+	}
+	return newDcp(&c, listener)
+}
+
+func newDcpConfig(path string) (config.Dcp, error) {
+	file, err := os.ReadFile(path)
+	if err != nil {
+		return config.Dcp{}, err
+	}
+	var c config.Dcp
+	err = yaml.Unmarshal(file, &c)
+	if err != nil {
+		return config.Dcp{}, err
+	}
+	return c, nil
+}
+
+func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
 	logger.SetLogger(infoLogger)
 	logger.SetErrorLogger(errorLogger)
 
-	return NewDcp(configPath, listener)
+	return NewDcp(cfg, listener)
 }

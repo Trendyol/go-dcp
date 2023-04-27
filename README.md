@@ -23,26 +23,47 @@ package main
 
 import (
 	"github.com/Trendyol/go-dcp-client"
+	"github.com/Trendyol/go-dcp-client/config"
 	"github.com/Trendyol/go-dcp-client/logger"
-
 	"github.com/Trendyol/go-dcp-client/models"
 )
 
 func listener(ctx *models.ListenerContext) {
 	switch event := ctx.Event.(type) {
 	case models.DcpMutation:
-		logger.Log.Printf("mutated(vb=%v) | id: %v, value: %v | isCreated: %v", event.VbID, string(event.Key), string(event.Value), event.IsCreated())
+		logger.Log.Printf(
+			"mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
+			event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
+		)
 	case models.DcpDeletion:
-		logger.Log.Printf("deleted(vb=%v) | id: %v", event.VbID, string(event.Key))
+		logger.Log.Printf(
+			"deleted(vb=%v,eventTime=%v) | id: %v",
+			event.VbID, event.EventTime, string(event.Key),
+		)
 	case models.DcpExpiration:
-		logger.Log.Printf("expired(vb=%v) | id: %v", event.VbID, string(event.Key))
+		logger.Log.Printf(
+			"expired(vb=%v,eventTime=%v) | id: %v",
+			event.VbID, event.EventTime, string(event.Key),
+		)
 	}
 
 	ctx.Ack()
 }
 
 func main() {
-	dcp, err := godcpclient.NewDcp("config.yml", listener)
+	c := &config.Dcp{
+		Hosts:      []string{"localhost:8091"},
+		Username:   "user",
+		Password:   "password",
+		BucketName: "dcp-test",
+		Dcp: config.ExternalDcp{
+			Group: config.DCPGroup{
+				Name: "groupName",
+			},
+		},
+	}
+
+	dcp, err := godcpclient.NewDcp(c, listener)
 	if err != nil {
 		panic(err)
 	}
@@ -68,6 +89,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `username`                            |      string       |   yes    |     -      | Couchbase username.                                                                                                 |
 | `password`                            |      string       |   yes    |     -      | Couchbase password.                                                                                                 |
 | `bucketName`                          |      string       |   yes    |     -      | Couchbase DCP bucket.                                                                                               |
+| `dcp.group.name`                      |      string       |   yes    |            | DCP group name for vbuckets.                                                                                        |
 | `scopeName`                           |      string       |    no    |  _default  | Couchbase scope name.                                                                                               |
 | `collectionNames`                     |     []string      |    no    |  _default  | Couchbase collection names.                                                                                         |
 | `connectionBufferSize`                |       uint        |    no    |  20971520  | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed. |
@@ -79,8 +101,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `dcp.connectionBufferSize`            |       uint        |    no    |  20971520  | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed. |
 | `dcp.connectionTimeout`               |   time.Duration   |    no    |     5s     | DCP connection timeout.                                                                                             |
 | `dcp.listener.bufferSize`             |       uint        |    no    |     1      | Go DCP listener buffered channel size.                                                                              |
-| `dcp.group.name`                      |      string       |   yes    |            | DCP group name for vbuckets.                                                                                        |
-| `dcp.group.membership.type`           |      string       |    no    | couchbase  | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details. |
+| `dcp.group.membership.type`           |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details. |
 | `dcp.group.membership.memberNumber`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
 | `dcp.group.membership.totalMembers`   |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                           |
 | `dcp.group.membership.rebalanceDelay` |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                          |
@@ -100,7 +121,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `metadata.type`                       |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                     |
 | `metadata.readOnly`                   |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                              |
 | `metadata.config`                     | map[string]string |    no    |  *not set  | Set key-values of config. `bucket` for `couchbase` type.                                                            |
-| `api.enabled`                         |       bool        |    no    |    true    | Enable metric and debug pprof endpoints                                                                             |
+| `api.enabled`                         |       bool        |    no    |    true    | Enable metric endpoints                                                                                             |
 | `api.port`                            |        int        |    no    |    8080    | Set API port                                                                                                        |
 | `metric.path`                         |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                           |
 | `metric.averageWindowSec`             |      float64      |    no    |    10.0    | Set metric window range.                                                                                            |

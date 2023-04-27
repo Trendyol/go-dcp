@@ -4,13 +4,13 @@ import (
 	"errors"
 	"os"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/models"
 
 	"github.com/Trendyol/go-dcp-client/logger"
 
 	"github.com/json-iterator/go"
-
-	"github.com/Trendyol/go-dcp-client/helpers"
 )
 
 type fileMetadata struct { //nolint:unused
@@ -51,16 +51,14 @@ func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 	return nil
 }
 
-func NewFSMetadata(config *helpers.Config) Metadata { //nolint:unused
+func NewFSMetadata(config *config.Dcp) Metadata { //nolint:unused
 	if !config.IsFileMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize file metadata: %s", err)
 		panic(err)
 	}
 
-	fileName := config.GetFileMetadata()
-
 	return &fileMetadata{
-		fileName: fileName,
+		fileName: config.GetFileMetadata(),
 	}
 }

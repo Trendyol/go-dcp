@@ -8,11 +8,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/google/uuid"
 
 	"github.com/json-iterator/go"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -42,7 +43,7 @@ type client struct {
 	agent     *gocbcore.Agent
 	metaAgent *gocbcore.Agent
 	dcpAgent  *gocbcore.DCPAgent
-	config    *helpers.Config
+	config    *config.Dcp
 }
 
 func (s *client) Ping() error {
@@ -208,7 +209,6 @@ func (s *client) Connect() error {
 
 	if s.config.IsCouchbaseMetadata() {
 		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
-
 		if metadataBucketName == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
@@ -604,7 +604,7 @@ func (s *client) CreateDocument(ctx context.Context,
 	return <-ch
 }
 
-func NewClient(config *helpers.Config) Client {
+func NewClient(config *config.Dcp) Client {
 	return &client{
 		agent:    nil,
 		dcpAgent: nil,

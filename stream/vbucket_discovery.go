@@ -3,6 +3,8 @@ package stream
 import (
 	"errors"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/kubernetes"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
@@ -71,7 +73,7 @@ func (s *vBucketDiscovery) GetMetric() *VBucketDiscoveryMetric {
 }
 
 func NewVBucketDiscovery(client couchbase.Client,
-	config *helpers.Config,
+	config *config.Dcp,
 	vBucketNumber int,
 	bus helpers.Bus,
 ) VBucketDiscovery {

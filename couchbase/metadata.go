@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/metadata"
@@ -19,7 +21,7 @@ import (
 
 type cbMetadata struct {
 	client         Client
-	config         *helpers.Config
+	config         *config.Dcp
 	scopeName      string
 	collectionName string
 }
@@ -248,7 +250,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	return nil
 }
 
-func NewCBMetadata(client Client, config *helpers.Config) metadata.Metadata {
+func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.ErrorLog.Printf("cannot initialize couchbase metadata: %v", err)

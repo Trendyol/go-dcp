@@ -1,7 +1,7 @@
 package membership
 
 import (
-	"github.com/Trendyol/go-dcp-client/helpers"
+	"github.com/Trendyol/go-dcp-client/config"
 )
 
 type staticMembership struct {
@@ -15,7 +15,7 @@ func (s *staticMembership) GetInfo() *Model {
 func (s *staticMembership) Close() {
 }
 
-func NewStaticMembership(config *helpers.Config) Membership {
+func NewStaticMembership(config *config.Dcp) Membership {
 	return &staticMembership{
 		info: &Model{
 			MemberNumber: config.Dcp.Group.Membership.MemberNumber,

@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/metadata"
 
 	"github.com/VividCortex/ewma"
@@ -51,7 +53,7 @@ type stream struct {
 	stopCh                     chan struct{}
 	dirtyOffsets               map[uint16]bool
 	listener                   models.Listener
-	config                     *helpers.Config
+	config                     *config.Dcp
 	metric                     *Metric
 	streamsLock                *sync.Mutex
 	offsetsLock                *sync.Mutex
@@ -123,7 +125,7 @@ func (s *stream) listenEnd() {
 func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 
-	if s.config.RollbackMitigation.Enabled {
+	if !s.config.RollbackMitigation.Disabled {
 		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
 		s.rollbackMitigation.Start()
 	}
@@ -235,7 +237,7 @@ func (s *stream) wait() {
 }
 
 func (s *stream) Close() {
-	if s.config.RollbackMitigation.Enabled {
+	if !s.config.RollbackMitigation.Disabled {
 		s.rollbackMitigation.Stop()
 	}
 
@@ -290,7 +292,7 @@ func (s *stream) UnmarkDirtyOffsets() {
 
 func NewStream(client couchbase.Client,
 	metadata metadata.Metadata,
-	config *helpers.Config,
+	config *config.Dcp,
 	vBucketDiscovery VBucketDiscovery,
 	listener models.Listener,
 	collectionIDs map[uint32]string,

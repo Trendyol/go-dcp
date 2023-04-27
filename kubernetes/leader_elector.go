@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/membership"
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -90,7 +92,7 @@ func (le *leaderElector) membershipChangedListener(event interface{}) {
 
 func NewLeaderElector(
 	client Client,
-	config *helpers.Config,
+	config *config.Dcp,
 	myIdentity *models.Identity,
 	handler leaderelector.Handler,
 	bus helpers.Bus,

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/Trendyol/go-dcp-client/config"
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/membership"
 )
@@ -31,7 +32,7 @@ func (h *haMembership) membershipChangedListener(event interface{}) {
 	}()
 }
 
-func NewHaMembership(_ *helpers.Config, bus helpers.Bus) membership.Membership {
+func NewHaMembership(_ *config.Dcp, bus helpers.Bus) membership.Membership {
 	ham := &haMembership{
 		infoChan: make(chan *membership.Model),
 	}

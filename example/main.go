@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/Trendyol/go-dcp-client"
 	"github.com/Trendyol/go-dcp-client/logger"
-
 	"github.com/Trendyol/go-dcp-client/models"
 )
 

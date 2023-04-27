@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/config"
+
 	"github.com/Trendyol/go-dcp-client/membership"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -38,7 +40,7 @@ type serviceDiscovery struct {
 	monitorTicker   *time.Ticker
 	info            *membership.Model
 	servicesLock    *sync.RWMutex
-	config          *helpers.Config
+	config          *config.Dcp
 	amILeader       bool
 }
 
@@ -201,7 +203,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 	}
 }
 
-func NewServiceDiscovery(config *helpers.Config, bus helpers.Bus) ServiceDiscovery {
+func NewServiceDiscovery(config *config.Dcp, bus helpers.Bus) ServiceDiscovery {
 	return &serviceDiscovery{
 		services:     make(map[string]*Service),
 		bus:          bus,

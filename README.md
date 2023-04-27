@@ -113,15 +113,15 @@ $ go get github.com/Trendyol/go-dcp-client
 | `checkpoint.autoReset`                |      string       |    no    |  earliest  | Set checkpoint start point to `earliest` or `latest`.                                                               |
 | `checkpoint.interval`                 |   time.Duration   |    no    |    20s     | Checkpoint checking interval.                                                                                       |
 | `checkpoint.timeout`                  |   time.Duration   |    no    |     5s     | Checkpoint checking timeout.                                                                                        |
-| `healthCheck.enabled`                 |       bool        |    no    |    true    | Enable Couchbase connection health check.                                                                           |
+| `healthCheck.disabled`                |       bool        |    no    |   false    | Disable Couchbase connection health check.                                                                          |
 | `healthCheck.interval`                |   time.Duration   |    no    |    20s     | Couchbase connection health checking interval duration.                                                             |
 | `healthCheck.timeout`                 |   time.Duration   |    no    |     5s     | Couchbase connection health checking timeout duration.                                                              |
-| `rollbackMitigation.enabled`          |       bool        |    no    |    true    | Enable reprocessing for roll-backed Vbucket offsets.                                                                |
+| `rollbackMitigation.disabled`         |       bool        |    no    |   false    | Disable reprocessing for roll-backed Vbucket offsets.                                                               |
 | `rollbackMitigation.interval`         |   time.Duration   |    no    |   200ms    | Persisted sequence numbers polling interval.                                                                        |
 | `metadata.type`                       |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                     |
 | `metadata.readOnly`                   |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                              |
 | `metadata.config`                     | map[string]string |    no    |  *not set  | Set key-values of config. `bucket` for `couchbase` type.                                                            |
-| `api.enabled`                         |       bool        |    no    |    true    | Enable metric endpoints                                                                                             |
+| `api.disabled`                        |       bool        |    no    |   false    | Disable metric endpoints                                                                                            |
 | `api.port`                            |        int        |    no    |    8080    | Set API port                                                                                                        |
 | `metric.path`                         |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                           |
 | `metric.averageWindowSec`             |      float64      |    no    |    10.0    | Set metric window range.                                                                                            |

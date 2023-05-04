@@ -34,6 +34,7 @@ type rollbackMitigation struct {
 	vbIds            []uint16
 	activeGroupID    int
 	closed           bool
+	observeClosed    bool
 }
 
 func (r *rollbackMitigation) getRevEpochAndID(snapshot *gocbcore.ConfigSnapshot) (int64, int64) {
@@ -157,7 +158,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 func (r *rollbackMitigation) reconfigure() {
 	r.activeGroupID++
 	groupID := r.activeGroupID
-
+	r.observeClosed = false
 	r.reset()
 
 	logger.Log.Printf("new cluster config received, groupId = %v", groupID)
@@ -166,7 +167,7 @@ func (r *rollbackMitigation) reconfigure() {
 	if err != nil {
 		panic(err)
 	}
-
+	observeTimer := time.NewTicker(r.config.RollbackMitigation.Interval / 10)
 	for vbID := range r.persistedSeqNos {
 		go func(innerVbId uint16) {
 			failoverLogs, err := r.client.GetFailoverLogs(innerVbId)
@@ -174,14 +175,14 @@ func (r *rollbackMitigation) reconfigure() {
 				panic(err)
 			}
 
-			observeTimer := time.NewTicker(r.config.RollbackMitigation.Interval)
 			for range observeTimer.C {
-				if stop := r.observe(innerVbId, failoverLogs[0].VbUUID, groupID); stop {
+				if r.observe(innerVbId, failoverLogs[0].VbUUID, groupID) {
 					break
 				}
 			}
 		}(vbID)
 	}
+	r.observeClosed = true
 }
 
 func (r *rollbackMitigation) observe(vbID uint16, vbUUID gocbcore.VbUUID, groupID int) bool {
@@ -266,11 +267,13 @@ func (r *rollbackMitigation) Start() {
 
 	r.reconfigure()
 
-	r.configWatchTimer = time.NewTicker(time.Second * 2)
+	r.configWatchTimer = time.NewTicker(r.config.RollbackMitigation.Interval)
 
 	go func() {
 		for range r.configWatchTimer.C {
-			r.configWatch()
+			if r.observeClosed {
+				r.configWatch()
+			}
 		}
 	}()
 }

@@ -3,19 +3,17 @@ package godcpclient
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/Trendyol/go-dcp-client/config"
-
 	"github.com/Trendyol/go-dcp-client/logger"
+
+	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
 	"github.com/Trendyol/go-dcp-client/models"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -46,15 +44,15 @@ func setupContainer(ctx context.Context) (testcontainers.Container, error) {
 				"USERNAME":       c.Username,
 				"PASSWORD":       c.Password,
 				"BUCKET_NAME":    c.BucketName,
-				"BUCKET_RAMSIZE": "512",
+				"BUCKET_RAMSIZE": "1024",
 			},
 		},
 		Started: true,
 	})
 }
 
-func insertDataToContainer(b *testing.B, mockDataSize int) {
-	logger.Log.Printf("mock data stream started with totalSize=%v", mockDataSize)
+func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize int) {
+	logger.Log.Printf("mock data stream started with iteration=%v", iteration)
 
 	client := couchbase.NewClient(c)
 
@@ -63,31 +61,22 @@ func insertDataToContainer(b *testing.B, mockDataSize int) {
 		b.Error(err)
 	}
 
-	ids := make([]int, mockDataSize)
-	for i := range ids {
-		ids[i] = i
-	}
+	var iter int
 
-	// 2048 is the default value for the max queue size of the client, so we need to make sure that we don't exceed that
-	chunks := helpers.ChunkSlice[int](ids, int(math.Ceil(float64(mockDataSize)/float64(2048))))
-
-	// Concurrency is limited to 24 to avoid server overload
-	iterations := helpers.ChunkSlice(chunks, int(math.Ceil(float64(len(chunks))/float64(8))))
-
-	for _, iteration := range iterations {
-		for _, chunk := range iteration {
+	for iteration > iter {
+		for chunk := 0; chunk < chunkSize; chunk++ {
 			wg := &sync.WaitGroup{}
-			wg.Add(len(chunk))
+			wg.Add(bulkSize)
 
-			for _, id := range chunk {
-				go func(i int) {
+			for id := 0; id < 2048; id++ {
+				go func(id int, chunk int) {
 					ch := make(chan error)
 
 					opm := couchbase.NewAsyncOp(context.Background())
 
 					op, err := client.GetAgent().Set(gocbcore.SetOptions{
-						Key:   []byte(fmt.Sprintf("%v", i)),
-						Value: []byte(fmt.Sprintf("%v", i)),
+						Key:   []byte(fmt.Sprintf("%v_%v_%v", iter, chunk, id)),
+						Value: []byte(fmt.Sprintf("%v_%v_%v", iter, chunk, id)),
 					}, func(result *gocbcore.StoreResult, err error) {
 						opm.Resolve()
 
@@ -107,21 +96,26 @@ func insertDataToContainer(b *testing.B, mockDataSize int) {
 					}
 
 					wg.Done()
-				}(id)
+				}(id, chunk)
 			}
 
 			wg.Wait()
 		}
+
+		iter++
 	}
 
 	client.Close()
 
-	logger.Log.Printf("mock data stream finished with totalSize=%v", mockDataSize)
+	logger.Log.Printf("mock data stream finished with totalSize=%v", iteration)
 }
 
 //nolint:funlen
 func BenchmarkDcp(b *testing.B) {
-	mockDataSize := 1280000
+	chunkSize := 8
+	bulkSize := 2048
+	iteration := 72
+	mockDataSize := iteration * bulkSize * chunkSize
 	totalNotify := 10
 	notifySize := mockDataSize / totalNotify
 
@@ -160,7 +154,7 @@ func BenchmarkDcp(b *testing.B) {
 
 	go func() {
 		<-dcp.WaitUntilReady()
-		insertDataToContainer(b, mockDataSize)
+		insertDataToContainer(b, iteration, chunkSize, bulkSize)
 	}()
 
 	go func() {

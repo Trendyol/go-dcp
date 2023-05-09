@@ -397,7 +397,6 @@ func (h *cbMembership) startMonitor() {
 }
 
 func (h *cbMembership) Close() {
-	close(h.infoChan)
 	h.monitorTicker.Stop()
 	h.heartbeatTicker.Stop()
 }

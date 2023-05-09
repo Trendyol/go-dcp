@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/logger"
+
 	godcpclient "github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -53,11 +55,10 @@ type observer struct {
 	catchup                map[uint16]uint64
 	metricsLock            *sync.Mutex
 	currentSnapshots       map[uint16]*models.SnapshotMarker
-	currentSnapshotsLock   *sync.Mutex
+	eventLock              *sync.Mutex
 	listenerCh             models.ListenerCh
 	persistSeqNo           map[uint16]gocbcore.SeqNo
 	catchupLock            *sync.Mutex
-	failoverLogsLock       *sync.Mutex
 	persistSeqNoLock       *sync.Mutex
 	failoverLogs           map[uint16][]gocbcore.FailoverEntry
 	config                 *godcpclient.Dcp
@@ -74,16 +75,13 @@ func (so *observer) AddCatchup(vbID uint16, seqNo gocbcore.SeqNo) {
 }
 
 func (so *observer) persistSeqNoChangedListener(event interface{}) {
-	tuple := event.([]interface{})
+	persistSeqNo := event.(models.PersistSeqNo)
 
-	vbID := tuple[0].(uint16)
-	seqNo := tuple[1].(gocbcore.SeqNo)
-
-	if seqNo != 0 {
+	if persistSeqNo.SeqNo != 0 {
 		so.persistSeqNoLock.Lock()
 
-		if so.persistSeqNo[vbID] != seqNo {
-			so.persistSeqNo[vbID] = seqNo
+		if persistSeqNo.SeqNo > so.persistSeqNo[persistSeqNo.VbID] {
+			so.persistSeqNo[persistSeqNo.VbID] = persistSeqNo.SeqNo
 		}
 
 		so.persistSeqNoLock.Unlock()
@@ -111,6 +109,8 @@ func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
 			delete(so.catchup, vbID)
 			so.catchupNeededVbIDCount--
 
+			logger.Log.Printf("catchup completed for vbID: %d", vbID)
+
 			return seqNo == catchupSeqNo
 		}
 	} else {
@@ -122,7 +122,7 @@ func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
 
 func (so *observer) waitRollbackMitigation(vbID uint16, seqNo uint64) {
 	if !so.checkPersistSeqNo(vbID, seqNo) {
-		ticker := time.NewTicker(50 * time.Millisecond)
+		ticker := time.NewTicker(so.config.RollbackMitigation.Interval / 10)
 		for range ticker.C {
 			if so.checkPersistSeqNo(vbID, seqNo) {
 				break
@@ -159,14 +159,14 @@ func (so *observer) sendOrSkip(args models.ListenerArgs) {
 }
 
 func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
-	so.currentSnapshotsLock.Lock()
+	so.eventLock.Lock()
 
 	so.currentSnapshots[event.VbID] = &models.SnapshotMarker{
 		StartSeqNo: event.StartSeqNo,
 		EndSeqNo:   event.EndSeqNo,
 	}
 
-	so.currentSnapshotsLock.Unlock()
+	so.eventLock.Unlock()
 
 	so.sendOrSkip(models.ListenerArgs{
 		Event: event,
@@ -178,7 +178,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 		return
 	}
 
-	so.currentSnapshotsLock.Lock()
+	so.eventLock.Lock()
 
 	if currentSnapshot, ok := so.currentSnapshots[mutation.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
@@ -195,7 +195,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 		})
 	}
 
-	so.currentSnapshotsLock.Unlock()
+	so.eventLock.Unlock()
 
 	so.LockMetrics()
 	defer so.UnlockMetrics()
@@ -214,7 +214,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 		return
 	}
 
-	so.currentSnapshotsLock.Lock()
+	so.eventLock.Lock()
 
 	if currentSnapshot, ok := so.currentSnapshots[deletion.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
@@ -231,7 +231,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 		})
 	}
 
-	so.currentSnapshotsLock.Unlock()
+	so.eventLock.Unlock()
 
 	so.LockMetrics()
 	defer so.UnlockMetrics()
@@ -250,7 +250,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 		return
 	}
 
-	so.currentSnapshotsLock.Lock()
+	so.eventLock.Lock()
 
 	if currentSnapshot, ok := so.currentSnapshots[expiration.VbID]; ok && currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
@@ -267,7 +267,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 		})
 	}
 
-	so.currentSnapshotsLock.Unlock()
+	so.eventLock.Unlock()
 
 	so.LockMetrics()
 	defer so.UnlockMetrics()
@@ -368,7 +368,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 		EndSeqNo:   advanced.SeqNo,
 	}
 
-	so.currentSnapshotsLock.Lock()
+	so.eventLock.Lock()
 
 	so.currentSnapshots[advanced.VbID] = snapshot
 
@@ -383,7 +383,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 		},
 	})
 
-	so.currentSnapshotsLock.Unlock()
+	so.eventLock.Unlock()
 }
 
 func (so *observer) GetMetrics() map[uint16]*ObserverMetric {
@@ -423,8 +423,8 @@ func (so *observer) SetFailoverLogs(vbID uint16, logs []gocbcore.FailoverEntry) 
 		return
 	}
 
-	so.failoverLogsLock.Lock()
-	defer so.failoverLogsLock.Unlock()
+	so.eventLock.Lock()
+	defer so.eventLock.Unlock()
 
 	so.failoverLogs[vbID] = logs
 }
@@ -446,11 +446,10 @@ func NewObserver(
 	bus helpers.Bus,
 ) Observer {
 	observer := &observer{
-		currentSnapshots:     map[uint16]*models.SnapshotMarker{},
-		currentSnapshotsLock: &sync.Mutex{},
+		currentSnapshots: map[uint16]*models.SnapshotMarker{},
+		eventLock:        &sync.Mutex{},
 
-		failoverLogs:     map[uint16][]gocbcore.FailoverEntry{},
-		failoverLogsLock: &sync.Mutex{},
+		failoverLogs: map[uint16][]gocbcore.FailoverEntry{},
 
 		metrics:     map[uint16]*ObserverMetric{},
 		metricsLock: &sync.Mutex{},

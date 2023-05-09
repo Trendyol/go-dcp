@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/models"
+
 	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/helpers"
@@ -25,15 +27,18 @@ type vbUUIDAndSeqNo struct {
 }
 
 type rollbackMitigation struct {
-	client           Client
-	config           *config.Dcp
-	bus              helpers.Bus
-	configSnapshot   *gocbcore.ConfigSnapshot
-	persistedSeqNos  map[uint16][]*vbUUIDAndSeqNo
-	configWatchTimer *time.Ticker
-	vbIds            []uint16
-	activeGroupID    int
-	closed           bool
+	client             Client
+	config             *config.Dcp
+	bus                helpers.Bus
+	configSnapshot     *gocbcore.ConfigSnapshot
+	persistedSeqNos    map[uint16][]*vbUUIDAndSeqNo
+	configWatchTimer   *time.Ticker
+	observeTimer       *time.Ticker
+	observeCloseCh     chan struct{}
+	observeCloseDoneCh chan struct{}
+	vbIds              []uint16
+	activeGroupID      int
+	closed             bool
 }
 
 func (r *rollbackMitigation) getRevEpochAndID(snapshot *gocbcore.ConfigSnapshot) (int64, int64) {
@@ -72,29 +77,18 @@ func (r *rollbackMitigation) isConfigSnapshotNewerThan(newConfigSnapshot *gocbco
 	return true
 }
 
-func (r *rollbackMitigation) observeVbID(vbID uint16, vbUUID gocbcore.VbUUID) (*gocbcore.ObserveVbResult, error) { //nolint:unused
-	opm := NewAsyncOp(context.Background())
-	ch := make(chan error)
-
-	var response *gocbcore.ObserveVbResult
-
-	op, err := r.client.GetAgent().ObserveVb(gocbcore.ObserveVbOptions{
+func (r *rollbackMitigation) observeVbID(
+	vbID uint16,
+	vbUUID gocbcore.VbUUID,
+	callback func(*gocbcore.ObserveVbResult, error),
+) { //nolint:unused
+	_, err := r.client.GetAgent().ObserveVb(gocbcore.ObserveVbOptions{
 		VbID:   vbID,
 		VbUUID: vbUUID,
-	}, func(result *gocbcore.ObserveVbResult, err error) {
-		opm.Resolve()
-
-		response = result
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
+	}, callback)
 	if err != nil {
-		return nil, err
+		callback(nil, err)
 	}
-
-	return response, <-ch
 }
 
 func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:unused
@@ -154,64 +148,74 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 	return nil
 }
 
+func (r *rollbackMitigation) startObserve(groupID int) {
+	r.observeTimer = time.NewTicker(r.config.RollbackMitigation.Interval)
+	for {
+		select {
+		case <-r.observeTimer.C:
+			for vbID := range r.persistedSeqNos {
+				if r.closed || r.activeGroupID != groupID {
+					break
+				}
+
+				failoverLogs, err := r.client.GetFailoverLogs(vbID)
+				if err != nil {
+					panic(err)
+				}
+
+				r.observe(vbID, failoverLogs[0].VbUUID)
+			}
+		case <-r.observeCloseCh:
+			r.observeCloseDoneCh <- struct{}{}
+			return
+		}
+	}
+}
+
 func (r *rollbackMitigation) reconfigure() {
+	if r.observeTimer != nil {
+		r.observeTimer.Stop()
+		r.observeCloseCh <- struct{}{}
+		<-r.observeCloseDoneCh
+	}
+
 	r.activeGroupID++
-	groupID := r.activeGroupID
+	logger.Log.Printf("new cluster config received, groupId = %v", r.activeGroupID)
 
 	r.reset()
-
-	logger.Log.Printf("new cluster config received, groupId = %v", groupID)
-
 	err := r.markAbsentInstances()
 	if err != nil {
 		panic(err)
 	}
 
-	for vbID := range r.persistedSeqNos {
-		go func(innerVbId uint16) {
-			failoverLogs, err := r.client.GetFailoverLogs(innerVbId)
-			if err != nil {
-				panic(err)
-			}
-
-			observeTimer := time.NewTicker(r.config.RollbackMitigation.Interval)
-			for range observeTimer.C {
-				if stop := r.observe(innerVbId, failoverLogs[0].VbUUID, groupID); stop {
-					break
-				}
-			}
-		}(vbID)
-	}
+	go r.startObserve(r.activeGroupID)
 }
 
-func (r *rollbackMitigation) observe(vbID uint16, vbUUID gocbcore.VbUUID, groupID int) bool {
-	if r.activeGroupID != groupID || r.closed {
-		return true
-	}
-
-	result, err := r.observeVbID(vbID, vbUUID)
-	if err != nil {
+func (r *rollbackMitigation) observe(vbID uint16, vbUUID gocbcore.VbUUID) {
+	r.observeVbID(vbID, vbUUID, func(result *gocbcore.ObserveVbResult, err error) {
 		if r.closed {
-			return true
+			return
 		}
 
-		if errors.Is(err, gocbcore.ErrTemporaryFailure) {
-			return false
-		} else {
-			panic(err)
+		if err != nil {
+			if errors.Is(err, gocbcore.ErrTemporaryFailure) {
+				// skip
+				return
+			} else {
+				panic(err)
+			}
 		}
-	}
 
-	for _, replica := range r.persistedSeqNos[vbID] {
-		replica.seqNo = result.PersistSeqNo
-		replica.vbUUID = result.VbUUID
-	}
+		for _, replica := range r.persistedSeqNos[vbID] {
+			replica.seqNo = result.PersistSeqNo
+			replica.vbUUID = result.VbUUID
+		}
 
-	seqNo := r.getMinSeqNo(vbID)
-
-	r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, []interface{}{vbID, seqNo})
-
-	return false
+		r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
+			VbID:  vbID,
+			SeqNo: r.getMinSeqNo(vbID),
+		})
+	})
 }
 
 func (r *rollbackMitigation) reset() {
@@ -266,9 +270,8 @@ func (r *rollbackMitigation) Start() {
 
 	r.reconfigure()
 
-	r.configWatchTimer = time.NewTicker(time.Second * 2)
-
 	go func() {
+		r.configWatchTimer = time.NewTicker(time.Second * 2)
 		for range r.configWatchTimer.C {
 			r.configWatch()
 		}
@@ -284,9 +287,11 @@ func (r *rollbackMitigation) Stop() {
 
 func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bus helpers.Bus) RollbackMitigation {
 	return &rollbackMitigation{
-		client: client,
-		config: config,
-		vbIds:  vbIds,
-		bus:    bus,
+		client:             client,
+		config:             config,
+		vbIds:              vbIds,
+		bus:                bus,
+		observeCloseCh:     make(chan struct{}, 1),
+		observeCloseDoneCh: make(chan struct{}, 1),
 	}
 }

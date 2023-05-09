@@ -20,7 +20,6 @@ func (h *haMembership) GetInfo() *membership.Model {
 }
 
 func (h *haMembership) Close() {
-	close(h.infoChan)
 }
 
 func (h *haMembership) membershipChangedListener(event interface{}) {

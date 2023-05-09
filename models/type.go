@@ -12,6 +12,11 @@ type Offset struct {
 	SeqNo  uint64
 }
 
+type PersistSeqNo struct {
+	VbID  uint16
+	SeqNo gocbcore.SeqNo
+}
+
 type SnapshotMarker struct {
 	StartSeqNo uint64
 	EndSeqNo   uint64

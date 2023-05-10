@@ -35,27 +35,28 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 	eg, _ := errgroup.WithContext(ctx)
 
 	for vbID := range state {
-		virtualBucketID := vbID
-		checkpointDocument := state[virtualBucketID]
-		if !dirtyOffsets[virtualBucketID] {
-			continue
+		if dirtyOffsets[vbID] {
+			eg.Go(s.saveVBucketCheckpoint(ctx, vbID, state[vbID]))
 		}
-		eg.Go(func() error {
-			id := getCheckpointID(virtualBucketID, s.config.Dcp.Group.Name)
-			err := s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
-
-			var kvErr *gocbcore.KeyValueError
-			if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-				err = s.client.CreateDocument(ctx, s.scopeName, s.collectionName, id, []byte{}, 0)
-
-				if err == nil {
-					err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
-				}
-			}
-			return err
-		})
 	}
 	return eg.Wait()
+}
+
+func (s *cbMetadata) saveVBucketCheckpoint(ctx context.Context, vbID uint16, checkpointDocument *models.CheckpointDocument) func() error {
+	return func() error {
+		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
+		err := s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+
+		var kvErr *gocbcore.KeyValueError
+		if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+			err = s.client.CreateDocument(ctx, s.scopeName, s.collectionName, id, []byte{}, 0)
+
+			if err == nil {
+				err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+			}
+		}
+		return err
+	}
 }
 
 func (s *cbMetadata) getXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error) {

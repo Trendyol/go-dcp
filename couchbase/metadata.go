@@ -3,9 +3,10 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"golang.org/x/sync/errgroup"
 	"strconv"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/Trendyol/go-dcp-client/config"
 
@@ -33,12 +34,14 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 
 	eg, _ := errgroup.WithContext(ctx)
 
-	for vbID, checkpointDocument := range state {
-		if !dirtyOffsets[vbID] {
+	for vbID := range state {
+		virtualBucketID := vbID
+		checkpointDocument := state[virtualBucketID]
+		if !dirtyOffsets[virtualBucketID] {
 			continue
 		}
 		eg.Go(func() error {
-			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
+			id := getCheckpointID(virtualBucketID, s.config.Dcp.Group.Name)
 			err := s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
 
 			var kvErr *gocbcore.KeyValueError

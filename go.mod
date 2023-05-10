@@ -11,6 +11,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/prometheus/client_golang v1.15.0
 	github.com/testcontainers/testcontainers-go v0.19.0
+	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.27.1
 	k8s.io/client-go v0.27.1

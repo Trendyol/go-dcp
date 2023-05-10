@@ -77,13 +77,9 @@ func (so *observer) AddCatchup(vbID uint16, seqNo gocbcore.SeqNo) {
 func (so *observer) persistSeqNoChangedListener(event interface{}) {
 	persistSeqNo := event.(models.PersistSeqNo)
 
-	if persistSeqNo.SeqNo != 0 {
+	if persistSeqNo.SeqNo != 0 && persistSeqNo.SeqNo > so.persistSeqNo[persistSeqNo.VbID] {
 		so.persistSeqNoLock.Lock()
-
-		if persistSeqNo.SeqNo > so.persistSeqNo[persistSeqNo.VbID] {
-			so.persistSeqNo[persistSeqNo.VbID] = persistSeqNo.SeqNo
-		}
-
+		so.persistSeqNo[persistSeqNo.VbID] = persistSeqNo.SeqNo
 		so.persistSeqNoLock.Unlock()
 	}
 }
@@ -121,13 +117,12 @@ func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
 }
 
 func (so *observer) waitRollbackMitigation(vbID uint16, seqNo uint64) {
-	if !so.checkPersistSeqNo(vbID, seqNo) {
-		ticker := time.NewTicker(so.config.RollbackMitigation.Interval / 10)
-		for range ticker.C {
-			if so.checkPersistSeqNo(vbID, seqNo) {
-				break
-			}
+	for {
+		if so.checkPersistSeqNo(vbID, seqNo) {
+			break
 		}
+
+		time.Sleep(so.config.RollbackMitigation.Interval / 5)
 	}
 }
 

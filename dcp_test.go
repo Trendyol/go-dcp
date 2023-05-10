@@ -28,10 +28,11 @@ var c = &config.Dcp{
 		Group: config.DCPGroup{
 			Name: "groupName",
 			Membership: config.DCPGroupMembership{
-				RebalanceDelay: 5 * time.Second,
+				RebalanceDelay: 3 * time.Second,
 			},
 		},
 	},
+	Debug: true,
 }
 
 func setupContainer(ctx context.Context) (testcontainers.Container, error) {

@@ -96,7 +96,7 @@ func TestApplyDefaultRollbackMitigation(t *testing.T) {
 	}
 	c.applyDefaultRollbackMitigation()
 
-	if c.RollbackMitigation.Interval != 200*time.Millisecond {
+	if c.RollbackMitigation.Interval != 500*time.Millisecond {
 		t.Errorf("RollbackMitigation.Interval is not set to expected value")
 	}
 }

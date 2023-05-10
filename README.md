@@ -117,7 +117,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `healthCheck.interval`                |   time.Duration   |    no    |    20s     | Couchbase connection health checking interval duration.                                                             |
 | `healthCheck.timeout`                 |   time.Duration   |    no    |     5s     | Couchbase connection health checking timeout duration.                                                              |
 | `rollbackMitigation.disabled`         |       bool        |    no    |   false    | Disable reprocessing for roll-backed Vbucket offsets.                                                               |
-| `rollbackMitigation.interval`         |   time.Duration   |    no    |   200ms    | Persisted sequence numbers polling interval.                                                                        |
+| `rollbackMitigation.interval`         |   time.Duration   |    no    |   500ms    | Persisted sequence numbers polling interval.                                                                        |
 | `metadata.type`                       |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                     |
 | `metadata.readOnly`                   |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                              |
 | `metadata.config`                     | map[string]string |    no    |  *not set  | Set key-values of config. `bucket` for `couchbase` type.                                                            |

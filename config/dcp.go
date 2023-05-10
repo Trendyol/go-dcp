@@ -224,7 +224,7 @@ func (c *Dcp) ApplyDefaults() {
 
 func (c *Dcp) applyDefaultRollbackMitigation() {
 	if c.RollbackMitigation.Interval == 0 {
-		c.RollbackMitigation.Interval = 200 * time.Millisecond
+		c.RollbackMitigation.Interval = 500 * time.Millisecond
 	}
 }
 

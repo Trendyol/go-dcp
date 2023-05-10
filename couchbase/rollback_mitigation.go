@@ -149,6 +149,17 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 }
 
 func (r *rollbackMitigation) startObserve(groupID int) {
+	uuIDMap := map[uint16]gocbcore.VbUUID{}
+
+	for vbID := range r.persistedSeqNos {
+		failoverLogs, err := r.client.GetFailoverLogs(vbID)
+		if err != nil {
+			panic(err)
+		}
+
+		uuIDMap[vbID] = failoverLogs[0].VbUUID
+	}
+
 	r.observeTimer = time.NewTicker(r.config.RollbackMitigation.Interval)
 	for {
 		select {
@@ -158,12 +169,7 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 					break
 				}
 
-				failoverLogs, err := r.client.GetFailoverLogs(vbID)
-				if err != nil {
-					panic(err)
-				}
-
-				r.observe(vbID, failoverLogs[0].VbUUID)
+				r.observe(vbID, uuIDMap[vbID])
 			}
 		case <-r.observeCloseCh:
 			r.observeCloseDoneCh <- struct{}{}

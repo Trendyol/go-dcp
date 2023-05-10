@@ -3,6 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"golang.org/x/sync/errgroup"
 	"strconv"
 	"sync"
 
@@ -30,18 +31,15 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
 
-	errCh := make(chan error, 1)
+	eg, _ := errgroup.WithContext(ctx)
 
-	go func(ctx context.Context) {
-		var err error
-
-		for vbID, checkpointDocument := range state {
-			if !dirtyOffsets[vbID] {
-				continue
-			}
-
+	for vbID, checkpointDocument := range state {
+		if !dirtyOffsets[vbID] {
+			continue
+		}
+		eg.Go(func() error {
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-			err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+			err := s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
 
 			var kvErr *gocbcore.KeyValueError
 			if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
@@ -51,21 +49,10 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 					err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
 				}
 			}
-
-			if err != nil {
-				break
-			}
-		}
-
-		errCh <- err
-	}(ctx)
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-errCh:
-		return err
+			return err
+		})
 	}
+	return eg.Wait()
 }
 
 func (s *cbMetadata) getXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error) {

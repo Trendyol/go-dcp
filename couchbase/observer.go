@@ -77,9 +77,13 @@ func (so *observer) AddCatchup(vbID uint16, seqNo gocbcore.SeqNo) {
 func (so *observer) persistSeqNoChangedListener(event interface{}) {
 	persistSeqNo := event.(models.PersistSeqNo)
 
-	if persistSeqNo.SeqNo != 0 && persistSeqNo.SeqNo > so.persistSeqNo[persistSeqNo.VbID] {
+	if persistSeqNo.SeqNo != 0 {
 		so.persistSeqNoLock.Lock()
-		so.persistSeqNo[persistSeqNo.VbID] = persistSeqNo.SeqNo
+
+		if persistSeqNo.SeqNo > so.persistSeqNo[persistSeqNo.VbID] {
+			so.persistSeqNo[persistSeqNo.VbID] = persistSeqNo.SeqNo
+		}
+
 		so.persistSeqNoLock.Unlock()
 	}
 }

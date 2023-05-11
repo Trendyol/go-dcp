@@ -189,7 +189,7 @@ func (c *Dcp) getMetadataConnectionBufferSize() uint {
 		return uint(parsedConnectionBufferSize)
 	}
 
-	return 20971520
+	return 5242880 // 5 MB
 }
 
 func (c *Dcp) getMetadataConnectionTimeout() time.Duration {

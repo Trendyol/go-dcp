@@ -82,8 +82,9 @@ type HealthCheck struct {
 }
 
 type RollbackMitigation struct {
-	Disabled bool          `yaml:"disabled"`
-	Interval time.Duration `yaml:"interval"`
+	Disabled            bool          `yaml:"disabled"`
+	Interval            time.Duration `yaml:"interval"`
+	ConfigWatchInterval time.Duration `yaml:"configWatchInterval"`
 }
 
 type Metadata struct {
@@ -225,6 +226,10 @@ func (c *Dcp) ApplyDefaults() {
 func (c *Dcp) applyDefaultRollbackMitigation() {
 	if c.RollbackMitigation.Interval == 0 {
 		c.RollbackMitigation.Interval = 500 * time.Millisecond
+	}
+
+	if c.RollbackMitigation.ConfigWatchInterval == 0 {
+		c.RollbackMitigation.ConfigWatchInterval = 2 * time.Second
 	}
 }
 

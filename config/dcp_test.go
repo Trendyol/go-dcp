@@ -99,6 +99,10 @@ func TestApplyDefaultRollbackMitigation(t *testing.T) {
 	if c.RollbackMitigation.Interval != 500*time.Millisecond {
 		t.Errorf("RollbackMitigation.Interval is not set to expected value")
 	}
+
+	if c.RollbackMitigation.ConfigWatchInterval != 2*time.Second {
+		t.Errorf("RollbackMitigation.ConfigWatchInterval is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultCheckpoint(t *testing.T) {

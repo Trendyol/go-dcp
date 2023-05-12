@@ -2,12 +2,8 @@ package helpers
 
 import (
 	"bytes"
-	"os"
 	"reflect"
-	"runtime"
 	"time"
-
-	"github.com/Trendyol/go-dcp-client/logger"
 )
 
 func IsMetadata(data interface{}) bool {
@@ -42,19 +38,6 @@ func ChunkSlice[T any](slice []T, chunks int) [][]T {
 	return result
 }
 
-func CreateConfigFile(content string) (*os.File, error) {
-	tmpFile, err := os.CreateTemp("", "*.yml")
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err = tmpFile.WriteString(content); err != nil {
-		return nil, err
-	}
-
-	return tmpFile, nil
-}
-
 func Retry(f func() error, attempts int, sleep time.Duration) (err error) {
 	for i := 0; i < attempts; i++ {
 		if i > 0 {
@@ -68,20 +51,4 @@ func Retry(f func() error, attempts int, sleep time.Duration) (err error) {
 	}
 
 	return err
-}
-
-func byteToMb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
-
-func LogMemUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	logger.Log.Printf(
-		"memory usage: alloc = %vmb, totalAlloc = %vmb, sys = %vmb",
-		byteToMb(m.Alloc),
-		byteToMb(m.TotalAlloc),
-		byteToMb(m.Sys),
-	)
 }

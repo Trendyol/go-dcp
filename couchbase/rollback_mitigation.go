@@ -79,12 +79,14 @@ func (r *rollbackMitigation) isConfigSnapshotNewerThan(newConfigSnapshot *gocbco
 
 func (r *rollbackMitigation) observeVbID(
 	vbID uint16,
+	replica int,
 	vbUUID gocbcore.VbUUID,
 	callback func(*gocbcore.ObserveVbResult, error),
 ) { //nolint:unused
 	_, err := r.client.GetAgent().ObserveVb(gocbcore.ObserveVbOptions{
-		VbID:   vbID,
-		VbUUID: vbUUID,
+		VbID:       vbID,
+		ReplicaIdx: replica,
+		VbUUID:     vbUUID,
 	}, callback)
 	if err != nil {
 		callback(nil, err)
@@ -164,12 +166,19 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 	for {
 		select {
 		case <-r.observeTimer.C:
+		out:
 			for vbID := range r.persistedSeqNos {
-				if r.closed || r.activeGroupID != groupID {
-					break
-				}
+				for idx, replica := range r.persistedSeqNos[vbID] {
+					if replica.absent {
+						continue
+					}
 
-				r.observe(vbID, uuIDMap[vbID])
+					if r.closed || r.activeGroupID != groupID {
+						break out
+					}
+
+					r.observe(vbID, idx, groupID, uuIDMap[vbID])
+				}
 			}
 		case <-r.observeCloseCh:
 			r.observeCloseDoneCh <- struct{}{}
@@ -197,9 +206,9 @@ func (r *rollbackMitigation) reconfigure() {
 	go r.startObserve(r.activeGroupID)
 }
 
-func (r *rollbackMitigation) observe(vbID uint16, vbUUID gocbcore.VbUUID) {
-	r.observeVbID(vbID, vbUUID, func(result *gocbcore.ObserveVbResult, err error) {
-		if r.closed {
+func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUUID gocbcore.VbUUID) {
+	r.observeVbID(vbID, replica, vbUUID, func(result *gocbcore.ObserveVbResult, err error) {
+		if r.closed || r.activeGroupID != groupID {
 			return
 		}
 
@@ -212,15 +221,15 @@ func (r *rollbackMitigation) observe(vbID uint16, vbUUID gocbcore.VbUUID) {
 			}
 		}
 
-		for _, replica := range r.persistedSeqNos[vbID] {
-			replica.seqNo = result.PersistSeqNo
-			replica.vbUUID = result.VbUUID
-		}
+		if len(r.persistedSeqNos[vbID]) > replica {
+			r.persistedSeqNos[vbID][replica].seqNo = result.PersistSeqNo
+			r.persistedSeqNos[vbID][replica].vbUUID = result.VbUUID
 
-		r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
-			VbID:  vbID,
-			SeqNo: r.getMinSeqNo(vbID),
-		})
+			r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
+				VbID:  vbID,
+				SeqNo: r.getMinSeqNo(vbID),
+			})
+		}
 	})
 }
 
@@ -277,7 +286,7 @@ func (r *rollbackMitigation) Start() {
 	r.reconfigure()
 
 	go func() {
-		r.configWatchTimer = time.NewTicker(time.Second * 2)
+		r.configWatchTimer = time.NewTicker(r.config.RollbackMitigation.ConfigWatchInterval)
 		for range r.configWatchTimer.C {
 			r.configWatch()
 		}

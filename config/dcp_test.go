@@ -50,7 +50,7 @@ func TestGetCouchbaseMetadata(t *testing.T) {
 	expectedBucket := "mybucket"
 	expectedScope := "myscope"
 	expectedCollection := DefaultCollectionName
-	expectedConnectionBufferSize := uint(20971520)
+	expectedConnectionBufferSize := uint(5242880)
 	expectedConnectionTimeout := 5 * time.Second
 
 	if bucket != expectedBucket {

@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/couchbase/gocbcore/v10"
+
 	"github.com/Trendyol/go-dcp-client/wrapper"
 
 	"github.com/Trendyol/go-dcp-client/models"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/Trendyol/go-dcp-client/helpers"
 	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/couchbase/gocbcore/v10"
 )
 
 type RollbackMitigation interface {
@@ -26,6 +27,22 @@ type vbUUIDAndSeqNo struct {
 	vbUUID gocbcore.VbUUID
 	seqNo  gocbcore.SeqNo
 	absent bool
+}
+
+func (v *vbUUIDAndSeqNo) SetAbsent() {
+	v.absent = true
+}
+
+func (v *vbUUIDAndSeqNo) IsAbsent() bool {
+	return v.absent
+}
+
+func (v *vbUUIDAndSeqNo) SetSeqNo(seqNo gocbcore.SeqNo) {
+	v.seqNo = seqNo
+}
+
+func (v *vbUUIDAndSeqNo) SetVbUUID(vbUUID gocbcore.VbUUID) {
+	v.vbUUID = vbUUID
 }
 
 type rollbackMitigation struct {
@@ -100,7 +117,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 	replicas, _ := r.persistedSeqNos.Load(vbID)
 
 	for idx, replica := range replicas {
-		if !replica.absent {
+		if !replica.IsAbsent() {
 			startIndex = idx
 			break
 		}
@@ -115,7 +132,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 
 	for idx := startIndex + 1; idx < len(replicas); idx++ {
 		replica := replicas[idx]
-		if replica.absent {
+		if replica.IsAbsent() {
 			continue
 		}
 
@@ -139,14 +156,14 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 			serverIndex, err := r.configSnapshot.VbucketToServer(vbID, uint32(idx))
 			if err != nil {
 				if errors.Is(err, gocbcore.ErrInvalidReplica) {
-					replica.absent = true
+					replica.SetAbsent()
 				} else {
 					outerError = err
 					return false
 				}
 			} else {
 				if serverIndex < 0 {
-					replica.absent = true
+					replica.SetAbsent()
 				}
 			}
 		}
@@ -177,7 +194,7 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 		case <-r.observeTimer.C:
 			r.persistedSeqNos.Range(func(vbID uint16, replicas []*vbUUIDAndSeqNo) bool {
 				for idx, replica := range replicas {
-					if replica.absent {
+					if replica.IsAbsent() {
 						continue
 					}
 
@@ -234,8 +251,8 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 		replicas, _ := r.persistedSeqNos.Load(vbID)
 
 		if len(replicas) > replica {
-			replicas[replica].seqNo = result.PersistSeqNo
-			replicas[replica].vbUUID = result.VbUUID
+			replicas[replica].SetSeqNo(result.PersistSeqNo)
+			replicas[replica].SetVbUUID(result.VbUUID)
 
 			r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
 				VbID:  vbID,

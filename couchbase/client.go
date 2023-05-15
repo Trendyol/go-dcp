@@ -122,7 +122,7 @@ func (s *client) tlsRootCaProvider() *x509.CertPool {
 }
 
 func (s *client) getSecurityConfig() gocbcore.SecurityConfig {
-	config := gocbcore.SecurityConfig{
+	securityConfig := gocbcore.SecurityConfig{
 		Auth: gocbcore.PasswordAuthProvider{
 			Username: s.config.Username,
 			Password: s.config.Password,
@@ -130,11 +130,11 @@ func (s *client) getSecurityConfig() gocbcore.SecurityConfig {
 	}
 
 	if s.config.SecureConnection {
-		config.UseTLS = true
-		config.TLSRootCAProvider = s.tlsRootCaProvider
+		securityConfig.UseTLS = true
+		securityConfig.TLSRootCAProvider = s.tlsRootCaProvider
 	}
 
-	return config
+	return securityConfig
 }
 
 func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
@@ -338,7 +338,10 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 			return nil, err
 		}
 
-		_ = opm.Wait(op, err)
+		err = opm.Wait(op, err)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return seqNos, nil
@@ -414,10 +417,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		observer,
 		openStreamOptions,
 		func(failoverLogs []gocbcore.FailoverEntry, err error) {
-			if len(failoverLogs) > 0 {
-				observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
-			}
-
+			observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
 			observer.AddCatchup(vbID, failedSeqNo)
 
 			opm.Resolve()
@@ -469,9 +469,7 @@ func (s *client) OpenStream(
 		observer,
 		openStreamOptions,
 		func(failoverLogs []gocbcore.FailoverEntry, err error) {
-			if len(failoverLogs) > 0 {
-				observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
-			}
+			observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
 
 			opm.Resolve()
 
@@ -521,19 +519,14 @@ func (s *client) CloseStream(vbID uint16) error {
 }
 
 func (s *client) getCollectionID(scopeName string, collectionName string) (uint32, error) {
-	ctx := context.Background()
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
+	opm := NewAsyncOp(context.Background())
 
 	ch := make(chan error)
 	var collectionID uint32
 	op, err := s.agent.GetCollectionID(
 		scopeName,
 		collectionName,
-		gocbcore.GetCollectionIDOptions{
-			Deadline: deadline,
-		},
+		gocbcore.GetCollectionIDOptions{},
 		func(result *gocbcore.GetCollectionIDResult, err error) {
 			if err == nil {
 				collectionID = result.CollectionID
@@ -545,7 +538,6 @@ func (s *client) getCollectionID(scopeName string, collectionName string) (uint3
 		},
 	)
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return collectionID, err
 	}

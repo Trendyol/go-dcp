@@ -46,6 +46,18 @@ type ObserverMetric struct {
 	TotalExpirations float64
 }
 
+func (om *ObserverMetric) AddMutation() {
+	om.TotalMutations++
+}
+
+func (om *ObserverMetric) AddDeletion() {
+	om.TotalDeletions++
+}
+
+func (om *ObserverMetric) AddExpiration() {
+	om.TotalExpirations++
+}
+
 type observer struct {
 	bus                    helpers.Bus
 	metrics                *wrapper.SyncMap[uint16, *ObserverMetric]
@@ -176,7 +188,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 	}
 
 	if metric, ok := so.metrics.Load(mutation.VbID); ok {
-		metric.TotalMutations++
+		metric.AddMutation()
 	} else {
 		so.metrics.Store(mutation.VbID, &ObserverMetric{
 			TotalMutations: 1,
@@ -207,7 +219,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 	}
 
 	if metric, ok := so.metrics.Load(deletion.VbID); ok {
-		metric.TotalDeletions++
+		metric.AddDeletion()
 	} else {
 		so.metrics.Store(deletion.VbID, &ObserverMetric{
 			TotalDeletions: 1,
@@ -238,7 +250,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 	}
 
 	if metric, ok := so.metrics.Load(expiration.VbID); ok {
-		metric.TotalExpirations++
+		metric.AddExpiration()
 	} else {
 		so.metrics.Store(expiration.VbID, &ObserverMetric{
 			TotalExpirations: 1,

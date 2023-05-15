@@ -3,8 +3,9 @@ package servicediscovery
 import (
 	"fmt"
 	"sort"
-	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/wrapper"
 
 	"github.com/Trendyol/go-dcp-client/config"
 
@@ -35,31 +36,32 @@ type ServiceDiscovery interface {
 type serviceDiscovery struct {
 	bus             helpers.Bus
 	leaderService   *Service
-	services        map[string]*Service
+	services        *wrapper.SyncMap[string, *Service]
 	heartbeatTicker *time.Ticker
 	monitorTicker   *time.Ticker
 	info            *membership.Model
-	servicesLock    *sync.RWMutex
 	config          *config.Dcp
 	amILeader       bool
 }
 
 func (s *serviceDiscovery) Add(service *Service) {
-	s.services[service.Name] = service
+	s.services.Store(service.Name, service)
 }
 
 func (s *serviceDiscovery) Remove(name string) {
-	if _, ok := s.services[name]; ok {
-		_ = s.services[name].Client.Close()
+	if service, ok := s.services.Load(name); ok {
+		_ = service.Client.Close()
 
-		delete(s.services, name)
+		s.services.Delete(name)
 	}
 }
 
 func (s *serviceDiscovery) RemoveAll() {
-	for name := range s.services {
-		s.Remove(name)
-	}
+	s.services.Range(func(name string, _ *Service) bool {
+		s.services.Delete(name)
+
+		return true
+	})
 }
 
 func (s *serviceDiscovery) BeLeader() {
@@ -103,8 +105,6 @@ func (s *serviceDiscovery) StartHeartbeat() {
 
 	go func() {
 		for range s.heartbeatTicker.C {
-			s.servicesLock.Lock()
-
 			if s.leaderService != nil {
 				err := s.leaderService.Client.Ping()
 				if err != nil {
@@ -122,16 +122,16 @@ func (s *serviceDiscovery) StartHeartbeat() {
 				}
 			}
 
-			for name, service := range s.services {
+			s.services.Range(func(name string, service *Service) bool {
 				err := service.Client.Ping()
 				if err != nil {
 					s.Remove(name)
 
 					logger.Log.Printf("client %s disconnected", name)
 				}
-			}
 
-			s.servicesLock.Unlock()
+				return true
+			})
 		}
 	}()
 }
@@ -152,22 +152,18 @@ func (s *serviceDiscovery) StartMonitor() {
 				continue
 			}
 
-			s.servicesLock.RLock()
-
 			names := s.GetAll()
 			totalMembers := len(names) + 1
 
 			s.SetInfo(1, totalMembers)
 
 			for index, name := range names {
-				if service, ok := s.services[name]; ok {
+				if service, ok := s.services.Load(name); ok {
 					if err := service.Client.Rebalance(index+2, totalMembers); err != nil {
 						logger.ErrorLog.Printf("rebalance failed for %s", name)
 					}
 				}
 			}
-
-			s.servicesLock.RUnlock()
 		}
 	}()
 }
@@ -177,11 +173,13 @@ func (s *serviceDiscovery) StopMonitor() {
 }
 
 func (s *serviceDiscovery) GetAll() []string {
-	names := make([]string, 0, len(s.services))
+	var names []string
 
-	for name := range s.services {
+	s.services.Range(func(name string, _ *Service) bool {
 		names = append(names, name)
-	}
+
+		return true
+	})
 
 	sort.Strings(names)
 
@@ -205,9 +203,8 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 
 func NewServiceDiscovery(config *config.Dcp, bus helpers.Bus) ServiceDiscovery {
 	return &serviceDiscovery{
-		services:     make(map[string]*Service),
-		bus:          bus,
-		servicesLock: &sync.RWMutex{},
-		config:       config,
+		services: &wrapper.SyncMap[string, *Service]{},
+		bus:      bus,
+		config:   config,
 	}
 }

@@ -3,6 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"github.com/Trendyol/go-dcp-client/sync"
 	"reflect"
 	"time"
 
@@ -31,7 +32,7 @@ type rollbackMitigation struct {
 	config             *config.Dcp
 	bus                helpers.Bus
 	configSnapshot     *gocbcore.ConfigSnapshot
-	persistedSeqNos    map[uint16][]*vbUUIDAndSeqNo
+	persistedSeqNos    *sync.Map[uint16, []*vbUUIDAndSeqNo]
 	configWatchTimer   *time.Ticker
 	observeTimer       *time.Ticker
 	observeCloseCh     chan struct{}
@@ -95,7 +96,7 @@ func (r *rollbackMitigation) observeVbID(
 
 func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:unused
 	startIndex := -1
-	replicas := r.persistedSeqNos[vbID]
+	replicas, _ := r.persistedSeqNos.Load(vbID)
 
 	for idx, replica := range replicas {
 		if !replica.absent {
@@ -130,14 +131,17 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 }
 
 func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
-	for vbID, replicas := range r.persistedSeqNos {
+	var outerError error
+
+	r.persistedSeqNos.Range(func(vbID uint16, replicas []*vbUUIDAndSeqNo) bool {
 		for idx, replica := range replicas {
 			serverIndex, err := r.configSnapshot.VbucketToServer(vbID, uint32(idx))
 			if err != nil {
 				if errors.Is(err, gocbcore.ErrInvalidReplica) {
 					replica.absent = true
 				} else {
-					return err
+					outerError = err
+					return false
 				}
 			} else {
 				if serverIndex < 0 {
@@ -145,41 +149,46 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 				}
 			}
 		}
-	}
 
-	return nil
+		return true
+	})
+
+	return outerError
 }
 
 func (r *rollbackMitigation) startObserve(groupID int) {
 	uuIDMap := map[uint16]gocbcore.VbUUID{}
 
-	for vbID := range r.persistedSeqNos {
+	r.persistedSeqNos.Range(func(vbID uint16, _ []*vbUUIDAndSeqNo) bool {
 		failoverLogs, err := r.client.GetFailoverLogs(vbID)
 		if err != nil {
 			panic(err)
 		}
 
 		uuIDMap[vbID] = failoverLogs[0].VbUUID
-	}
+
+		return true
+	})
 
 	r.observeTimer = time.NewTicker(r.config.RollbackMitigation.Interval)
 	for {
 		select {
 		case <-r.observeTimer.C:
-		out:
-			for vbID := range r.persistedSeqNos {
-				for idx, replica := range r.persistedSeqNos[vbID] {
+			r.persistedSeqNos.Range(func(vbID uint16, replicas []*vbUUIDAndSeqNo) bool {
+				for idx, replica := range replicas {
 					if replica.absent {
 						continue
 					}
 
 					if r.closed || r.activeGroupID != groupID {
-						break out
+						return false
 					}
 
 					r.observe(vbID, idx, groupID, uuIDMap[vbID])
 				}
-			}
+
+				return true
+			})
 		case <-r.observeCloseCh:
 			r.observeCloseDoneCh <- struct{}{}
 			return
@@ -221,9 +230,11 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 			}
 		}
 
-		if len(r.persistedSeqNos[vbID]) > replica {
-			r.persistedSeqNos[vbID][replica].seqNo = result.PersistSeqNo
-			r.persistedSeqNos[vbID][replica].vbUUID = result.VbUUID
+		replicas, _ := r.persistedSeqNos.Load(vbID)
+
+		if len(replicas) > replica {
+			replicas[replica].seqNo = result.PersistSeqNo
+			replicas[replica].vbUUID = result.VbUUID
 
 			r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
 				VbID:  vbID,
@@ -239,12 +250,13 @@ func (r *rollbackMitigation) reset() {
 		panic(err)
 	}
 
-	r.persistedSeqNos = map[uint16][]*vbUUIDAndSeqNo{}
+	r.persistedSeqNos = &sync.Map[uint16, []*vbUUIDAndSeqNo]{}
 
 	for _, vbID := range r.vbIds {
-		r.persistedSeqNos[vbID] = make([]*vbUUIDAndSeqNo, replicas+1)
+		r.persistedSeqNos.Store(vbID, make([]*vbUUIDAndSeqNo, replicas+1))
 		for j := 0; j <= replicas; j++ {
-			r.persistedSeqNos[vbID][j] = &vbUUIDAndSeqNo{}
+			replicaArr, _ := r.persistedSeqNos.Load(vbID)
+			replicaArr[j] = &vbUUIDAndSeqNo{}
 		}
 	}
 }

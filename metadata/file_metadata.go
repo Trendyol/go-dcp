@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 
+	"github.com/Trendyol/go-dcp-client/wrapper"
+
 	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/models"
@@ -23,10 +25,10 @@ func (s *fileMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[u
 	return nil
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*models.CheckpointDocument, bool, error) { //nolint:unused
+func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[uint16, *models.CheckpointDocument], bool, error) { //nolint:lll,unused
 	file, err := os.ReadFile(s.fileName)
 
-	state := map[uint16]*models.CheckpointDocument{}
+	state := &wrapper.SyncMap[uint16, *models.CheckpointDocument]{}
 	exist := true
 
 	if err != nil {
@@ -34,13 +36,13 @@ func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*mode
 			exist = false
 
 			for _, vbID := range vbIds {
-				state[vbID] = models.NewEmptyCheckpointDocument(bucketUUID)
+				state.Store(vbID, models.NewEmptyCheckpointDocument(bucketUUID))
 			}
 		} else {
 			return nil, exist, err
 		}
 	} else {
-		_ = jsoniter.Unmarshal(file, &state)
+		_ = state.UnmarshalJSON(file)
 	}
 
 	return state, exist, nil

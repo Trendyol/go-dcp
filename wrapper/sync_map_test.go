@@ -1,9 +1,9 @@
-package sync
+package wrapper
 
 import "testing"
 
 func TestSyncMapWrapper(t *testing.T) {
-	p := &Map[string, string]{}
+	p := &SyncMap[string, string]{}
 	p.Store("key", "value")
 
 	if value, ok := p.Load("key"); ok {

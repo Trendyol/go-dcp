@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/wrapper"
+
 	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/VividCortex/ewma"
@@ -26,7 +28,7 @@ const (
 
 type Checkpoint interface {
 	Save()
-	Load() (map[uint16]*models.Offset, map[uint16]bool, bool)
+	Load() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool)
 	Clear()
 	StartSchedule()
 	StopSchedule()
@@ -52,9 +54,6 @@ type checkpoint struct {
 }
 
 func (s *checkpoint) Save() {
-	s.stream.LockOffsets()
-	defer s.stream.UnlockOffsets()
-
 	offsets, dirtyOffsets, anyDirtyOffset := s.stream.GetOffsets()
 
 	if !anyDirtyOffset {
@@ -65,10 +64,10 @@ func (s *checkpoint) Save() {
 	s.saveLock.Lock()
 	defer s.saveLock.Unlock()
 
-	dump := map[uint16]*models.CheckpointDocument{}
+	checkpointDump := map[uint16]*models.CheckpointDocument{}
 
-	for vbID, offset := range offsets {
-		dump[vbID] = &models.CheckpointDocument{
+	offsets.Range(func(vbID uint16, offset *models.Offset) bool {
+		checkpointDump[vbID] = &models.CheckpointDocument{
 			Checkpoint: &models.CheckpointDocumentCheckpoint{
 				VbUUID: uint64(offset.VbUUID),
 				SeqNo:  offset.SeqNo,
@@ -79,20 +78,28 @@ func (s *checkpoint) Save() {
 			},
 			BucketUUID: s.bucketUUID,
 		}
-	}
 
+		return true
+	})
+
+	dirtyOffsetsDump := map[uint16]bool{}
 	var dirtyOffsetCount int
-	for _, dirt := range dirtyOffsets {
+
+	dirtyOffsets.Range(func(vbID uint16, dirt bool) bool {
 		if dirt {
 			dirtyOffsetCount++
 		}
-	}
+
+		dirtyOffsetsDump[vbID] = dirt
+
+		return true
+	})
 
 	s.metric.OffsetWrite.Add(float64(dirtyOffsetCount))
 
 	start := time.Now()
 
-	err := s.metadata.Save(dump, dirtyOffsets, s.bucketUUID)
+	err := s.metadata.Save(checkpointDump, dirtyOffsetsDump, s.bucketUUID)
 
 	s.metric.OffsetWriteLatency.Add(float64(time.Since(start).Milliseconds()))
 
@@ -104,7 +111,7 @@ func (s *checkpoint) Save() {
 	}
 }
 
-func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
+func (s *checkpoint) Load() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool) {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
@@ -116,8 +123,8 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 		panic(err)
 	}
 
-	offsets := map[uint16]*models.Offset{}
-	dirtyOffsets := map[uint16]bool{}
+	offsets := &wrapper.SyncMap[uint16, *models.Offset]{}
+	dirtyOffsets := &wrapper.SyncMap[uint16, bool]{}
 	anyDirtyOffset := false
 
 	if !exist && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
@@ -129,37 +136,41 @@ func (s *checkpoint) Load() (map[uint16]*models.Offset, map[uint16]bool, bool) {
 			panic(err)
 		}
 
-		for vbID, doc := range dump {
+		dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
 			currentSeqNo := seqNoMap[vbID]
 
 			if currentSeqNo != 0 {
-				dirtyOffsets[vbID] = true
+				dirtyOffsets.Store(vbID, true)
 				anyDirtyOffset = true
 			}
 
-			offsets[vbID] = &models.Offset{
+			offsets.Store(vbID, &models.Offset{
 				SnapshotMarker: &models.SnapshotMarker{
 					StartSeqNo: currentSeqNo,
 					EndSeqNo:   currentSeqNo,
 				},
 				VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
 				SeqNo:  currentSeqNo,
-			}
-		}
+			})
+
+			return true
+		})
 
 		return offsets, dirtyOffsets, anyDirtyOffset
 	}
 
-	for vbID, doc := range dump {
-		offsets[vbID] = &models.Offset{
+	dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
+		offsets.Store(vbID, &models.Offset{
 			SnapshotMarker: &models.SnapshotMarker{
 				StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
 				EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
 			},
 			VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
 			SeqNo:  doc.Checkpoint.SeqNo,
-		}
-	}
+		})
+
+		return true
+	})
 
 	return offsets, dirtyOffsets, anyDirtyOffset
 }

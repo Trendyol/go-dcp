@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Trendyol/go-dcp-client/wrapper"
+
 	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/metadata"
@@ -24,9 +26,7 @@ type Stream interface {
 	Rebalance()
 	Save()
 	Close()
-	LockOffsets()
-	UnlockOffsets()
-	GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool)
+	GetOffsets() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool)
 	GetObserver() couchbase.Observer
 	GetMetric() *Metric
 	UnmarkDirtyOffsets()
@@ -47,16 +47,14 @@ type stream struct {
 	observer                   couchbase.Observer
 	vBucketDiscovery           VBucketDiscovery
 	bus                        helpers.Bus
-	offsets                    map[uint16]*models.Offset
+	offsets                    *wrapper.SyncMap[uint16, *models.Offset]
 	rebalanceTimer             *time.Timer
 	finishStreamWithEndEventCh chan struct{}
 	stopCh                     chan struct{}
-	dirtyOffsets               map[uint16]bool
+	dirtyOffsets               *wrapper.SyncMap[uint16, bool]
 	listener                   models.Listener
 	config                     *config.Dcp
 	metric                     *Metric
-	streamsLock                *sync.Mutex
-	offsetsLock                *sync.Mutex
 	finishStreamWithCloseCh    chan struct{}
 	collectionIDs              map[uint32]string
 	activeStreams              int
@@ -65,10 +63,8 @@ type stream struct {
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
-	s.LockOffsets()
-	defer s.UnlockOffsets()
-	s.offsets[vbID] = offset
-	s.dirtyOffsets[vbID] = dirty
+	s.offsets.Store(vbID, offset)
+	s.dirtyOffsets.Store(vbID, dirty)
 }
 
 func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID uint16, eventTime time.Time) {
@@ -183,14 +179,12 @@ func (s *stream) openAllStreams(vbIds []uint16) {
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
-			err := s.client.OpenStream(innerVbId, s.collectionIDs, s.offsets[innerVbId], s.observer)
+			offset, _ := s.offsets.Load(innerVbId)
+			err := s.client.OpenStream(innerVbId, s.collectionIDs, offset, s.observer)
 			if err != nil {
 				logger.ErrorLog.Printf("cannot open stream, vbID: %d, err: %v", innerVbId, err)
 				panic(err)
 			}
-
-			s.streamsLock.Lock()
-			defer s.streamsLock.Unlock()
 
 			openWg.Done()
 		}(vbID)
@@ -208,11 +202,11 @@ func (s *stream) closeAllStreams() error {
 	go func() {
 		var err error
 
-		s.LockOffsets()
-		for vbID := range s.offsets {
+		s.offsets.Range(func(vbID uint16, _ *models.Offset) bool {
 			err = s.client.CloseStream(vbID)
-		}
-		s.UnlockOffsets()
+
+			return true
+		})
 
 		errCh <- err
 	}()
@@ -255,21 +249,13 @@ func (s *stream) Close() {
 	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
 	s.observer = nil
-	s.offsets = map[uint16]*models.Offset{}
-	s.dirtyOffsets = map[uint16]bool{}
+	s.offsets = &wrapper.SyncMap[uint16, *models.Offset]{}
+	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
 
 	logger.Log.Printf("stream stopped")
 }
 
-func (s *stream) LockOffsets() {
-	s.offsetsLock.Lock()
-}
-
-func (s *stream) UnlockOffsets() {
-	s.offsetsLock.Unlock()
-}
-
-func (s *stream) GetOffsets() (map[uint16]*models.Offset, map[uint16]bool, bool) {
+func (s *stream) GetOffsets() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool) {
 	return s.offsets, s.dirtyOffsets, s.anyDirtyOffset
 }
 
@@ -287,7 +273,7 @@ func (s *stream) GetCheckpointMetric() *CheckpointMetric {
 
 func (s *stream) UnmarkDirtyOffsets() {
 	s.anyDirtyOffset = false
-	s.dirtyOffsets = map[uint16]bool{}
+	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
 }
 
 func NewStream(client couchbase.Client,
@@ -305,8 +291,6 @@ func NewStream(client couchbase.Client,
 		listener:                   listener,
 		config:                     config,
 		vBucketDiscovery:           vBucketDiscovery,
-		offsetsLock:                &sync.Mutex{},
-		streamsLock:                &sync.Mutex{},
 		collectionIDs:              collectionIDs,
 		finishStreamWithCloseCh:    make(chan struct{}, 1),
 		finishStreamWithEndEventCh: make(chan struct{}, 1),

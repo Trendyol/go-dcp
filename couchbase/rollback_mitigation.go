@@ -3,9 +3,10 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"github.com/Trendyol/go-dcp-client/sync"
 	"reflect"
 	"time"
+
+	"github.com/Trendyol/go-dcp-client/wrapper"
 
 	"github.com/Trendyol/go-dcp-client/models"
 
@@ -32,7 +33,7 @@ type rollbackMitigation struct {
 	config             *config.Dcp
 	bus                helpers.Bus
 	configSnapshot     *gocbcore.ConfigSnapshot
-	persistedSeqNos    *sync.Map[uint16, []*vbUUIDAndSeqNo]
+	persistedSeqNos    *wrapper.SyncMap[uint16, []*vbUUIDAndSeqNo]
 	configWatchTimer   *time.Ticker
 	observeTimer       *time.Ticker
 	observeCloseCh     chan struct{}
@@ -250,14 +251,15 @@ func (r *rollbackMitigation) reset() {
 		panic(err)
 	}
 
-	r.persistedSeqNos = &sync.Map[uint16, []*vbUUIDAndSeqNo]{}
+	r.persistedSeqNos = &wrapper.SyncMap[uint16, []*vbUUIDAndSeqNo]{}
 
 	for _, vbID := range r.vbIds {
-		r.persistedSeqNos.Store(vbID, make([]*vbUUIDAndSeqNo, replicas+1))
+		replicaArr := make([]*vbUUIDAndSeqNo, replicas+1)
 		for j := 0; j <= replicas; j++ {
-			replicaArr, _ := r.persistedSeqNos.Load(vbID)
 			replicaArr[j] = &vbUUIDAndSeqNo{}
 		}
+
+		r.persistedSeqNos.Store(vbID, replicaArr)
 	}
 }
 

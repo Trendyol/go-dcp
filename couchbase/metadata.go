@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/Trendyol/go-dcp-client/wrapper"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Trendyol/go-dcp-client/config"
@@ -100,9 +102,8 @@ func (s *cbMetadata) getXattrs(scopeName string, collectionName string, id []byt
 	return document, err
 }
 
-func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*models.CheckpointDocument, bool, error) {
-	state := map[uint16]*models.CheckpointDocument{}
-	stateLock := &sync.Mutex{}
+func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[uint16, *models.CheckpointDocument], bool, error) {
+	state := &wrapper.SyncMap[uint16, *models.CheckpointDocument]{}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(vbIds))
@@ -133,9 +134,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (map[uint16]*models
 
 			var kvErr *gocbcore.KeyValueError
 			if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-				stateLock.Lock()
-				state[vbID] = doc
-				stateLock.Unlock()
+				state.Store(vbID, doc)
 			} else {
 				logger.ErrorLog.Printf("cannot load checkpoint, vbID: %d, err: %v", vbID, err)
 				panic(err)

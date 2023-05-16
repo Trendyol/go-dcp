@@ -113,9 +113,9 @@ func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize 
 
 //nolint:funlen
 func BenchmarkDcp(b *testing.B) {
-	chunkSize := 8
-	bulkSize := 2048
-	iteration := 72
+	chunkSize := 4
+	bulkSize := 1024
+	iteration := 24
 	mockDataSize := iteration * bulkSize * chunkSize
 	totalNotify := 10
 	notifySize := mockDataSize / totalNotify

@@ -3,6 +3,8 @@ package api
 import (
 	"strconv"
 
+	"github.com/Trendyol/go-dcp-client/models"
+
 	godcpclient "github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/Trendyol/go-dcp-client/couchbase"
@@ -59,9 +61,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 	seqNoMap, err := s.client.GetVBucketSeqNos()
 
-	observer.LockMetrics()
-
-	for vbID, metric := range observer.GetMetrics() {
+	observer.GetMetrics().Range(func(vbID uint16, metric *couchbase.ObserverMetric) bool {
 		ch <- prometheus.MustNewConstMetric(
 			s.mutation,
 			prometheus.CounterValue,
@@ -82,15 +82,13 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			metric.TotalExpirations,
 			strconv.Itoa(int(vbID)),
 		)
-	}
 
-	observer.UnlockMetrics()
-
-	s.stream.LockOffsets()
+		return true
+	})
 
 	offsets, _, _ := s.stream.GetOffsets()
 
-	for vbID, offset := range offsets {
+	offsets.Range(func(vbID uint16, offset *models.Offset) bool {
 		ch <- prometheus.MustNewConstMetric(
 			s.currentSeqNo,
 			prometheus.GaugeValue,
@@ -131,9 +129,9 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 				strconv.Itoa(int(vbID)),
 			)
 		}
-	}
 
-	s.stream.UnlockOffsets()
+		return true
+	})
 
 	streamMetric := s.stream.GetMetric()
 

@@ -26,10 +26,9 @@ func (m *asyncOp) Wait(op gocbcore.PendingOp, err error) error {
 	}
 
 	select {
-	case <-m.signal:
 	case <-m.ctx.Done():
 		op.Cancel()
-		<-m.signal
+	case <-m.signal:
 	}
 
 	return m.ctx.Err()

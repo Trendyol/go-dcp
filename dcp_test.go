@@ -69,7 +69,7 @@ func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize 
 			wg := &sync.WaitGroup{}
 			wg.Add(bulkSize)
 
-			for id := 0; id < 2048; id++ {
+			for id := 0; id < bulkSize; id++ {
 				go func(id int, chunk int) {
 					ch := make(chan error)
 

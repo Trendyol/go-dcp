@@ -25,8 +25,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Checkpoint.Type is not set to auto")
 	}
 
-	if config.Dcp.Listener.BufferSize != 1 {
-		t.Errorf("Dcp.Listener.BufferSize is not set to 1")
+	if config.Dcp.Listener.BufferSize != 1000 {
+		t.Errorf("Dcp.Listener.BufferSize is not set to 1000")
 	}
 
 	if config.Dcp.Group.Membership.Type != MembershipTypeCouchbase {

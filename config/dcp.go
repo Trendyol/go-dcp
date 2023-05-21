@@ -343,7 +343,7 @@ func (c *Dcp) applyDefaultDcp() {
 	}
 
 	if c.Dcp.Listener.BufferSize == 0 {
-		c.Dcp.Listener.BufferSize = 1
+		c.Dcp.Listener.BufferSize = 1000
 	}
 }
 

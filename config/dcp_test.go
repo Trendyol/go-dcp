@@ -259,7 +259,7 @@ func TestDcpApplyDefaultDcp(t *testing.T) {
 		t.Errorf("Dcp.ConnectionBufferSize is not set to expected value")
 	}
 
-	if c.Dcp.Listener.BufferSize != 1 {
+	if c.Dcp.Listener.BufferSize != 1000 {
 		t.Errorf("Dcp.Listener.BufferSize is not set to expected value")
 	}
 }

@@ -417,8 +417,10 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		observer,
 		openStreamOptions,
 		func(failoverLogs []gocbcore.FailoverEntry, err error) {
-			observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
-			observer.AddCatchup(vbID, failedSeqNo)
+			if err == nil {
+				observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
+				observer.AddCatchup(vbID, failedSeqNo)
+			}
 
 			opm.Resolve()
 
@@ -469,7 +471,9 @@ func (s *client) OpenStream(
 		observer,
 		openStreamOptions,
 		func(failoverLogs []gocbcore.FailoverEntry, err error) {
-			observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
+			if err == nil {
+				observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
+			}
 
 			opm.Resolve()
 

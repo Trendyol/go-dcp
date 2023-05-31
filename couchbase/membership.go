@@ -43,14 +43,7 @@ type Instance struct {
 	ClusterJoinTime int64   `json:"clusterJoinTime"`
 }
 
-const (
-	_type                  = "instance"
-	_expirySec             = 2
-	_heartbeatIntervalSec  = 1
-	_heartbeatToleranceSec = 2
-	_monitorIntervalMs     = 500
-	_timeoutSec            = 10
-)
+const _type = "instance"
 
 func (h *cbMembership) GetInfo() *membership.Model {
 	if h.info != nil {
@@ -142,7 +135,7 @@ func (h *cbMembership) createPath(ctx context.Context,
 }
 
 func (h *cbMembership) register() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), h.config.Dcp.Group.Membership.CoucbaseMembership.Timeout)
 	defer cancel()
 
 	now := time.Now().UnixNano()
@@ -161,14 +154,14 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
 
 		if err == nil {
-			err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+			err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
 		}
 	}
 
@@ -183,7 +176,7 @@ func (h *cbMembership) updateDocument(ctx context.Context,
 	collectionName string,
 	id []byte,
 	value interface{},
-	expiry uint32,
+	expiry time.Duration,
 ) error {
 	opm := NewAsyncOp(ctx)
 
@@ -201,7 +194,7 @@ func (h *cbMembership) updateDocument(ctx context.Context,
 				Value: payload,
 			},
 		},
-		Expiry:         expiry,
+		Expiry:         uint32(expiry),
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
@@ -252,7 +245,7 @@ func (h *cbMembership) isClusterChanged(currentActiveInstances []*Instance) bool
 }
 
 func (h *cbMembership) heartbeat() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), h.config.Dcp.Group.Membership.CoucbaseMembership.Timeout)
 	defer cancel()
 
 	instance := &Instance{
@@ -261,7 +254,7 @@ func (h *cbMembership) heartbeat() {
 		ClusterJoinTime: h.clusterJoinTime,
 	}
 
-	err := h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	err := h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
 	if err != nil {
 		logger.ErrorLog.Printf("error while heartbeat: %v", err)
 		return
@@ -269,11 +262,11 @@ func (h *cbMembership) heartbeat() {
 }
 
 func (h *cbMembership) isAlive(heartbeatTime int64) bool {
-	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+(_heartbeatToleranceSec*1000*1000*1000)
+	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+(h.config.Dcp.Group.Membership.CoucbaseMembership.HeartbeatInterval.Milliseconds()*1000*1000)
 }
 
 func (h *cbMembership) monitor() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), h.config.Dcp.Group.Membership.CoucbaseMembership.Timeout)
 	defer cancel()
 
 	data, err := h.get(ctx, h.scopeName, h.collectionName, h.instanceAll)
@@ -374,7 +367,7 @@ func (h *cbMembership) rebalance(instances []*Instance) {
 }
 
 func (h *cbMembership) startHeartbeat() {
-	h.heartbeatTicker = time.NewTicker(_heartbeatIntervalSec * time.Second)
+	h.heartbeatTicker = time.NewTicker(h.config.Dcp.Group.Membership.CoucbaseMembership.HeartbeatInterval)
 
 	go func() {
 		for range h.heartbeatTicker.C {
@@ -384,7 +377,7 @@ func (h *cbMembership) startHeartbeat() {
 }
 
 func (h *cbMembership) startMonitor() {
-	h.monitorTicker = time.NewTicker(_monitorIntervalMs * time.Millisecond)
+	h.monitorTicker = time.NewTicker(h.config.Dcp.Group.Membership.CoucbaseMembership.MonitorInterval)
 
 	go func() {
 		logger.Log.Printf("couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)

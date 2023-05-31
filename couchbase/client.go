@@ -35,7 +35,7 @@ type Client interface {
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
-	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
+	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry time.Duration) error
 	GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 }
 
@@ -572,7 +572,7 @@ func (s *client) CreateDocument(ctx context.Context,
 	collectionName string,
 	id []byte,
 	value interface{},
-	expiry uint32,
+	expiry time.Duration,
 ) error {
 	opm := NewAsyncOp(ctx)
 
@@ -587,7 +587,7 @@ func (s *client) CreateDocument(ctx context.Context,
 		Value:          payload,
 		Flags:          50333696,
 		Deadline:       deadline,
-		Expiry:         expiry,
+		Expiry:         uint32(expiry),
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
 	}, func(result *gocbcore.StoreResult, err error) {

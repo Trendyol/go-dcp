@@ -162,6 +162,30 @@ func TestDcpApplyDefaultGroupMembership(t *testing.T) {
 	if c.Dcp.Group.Membership.Type != "couchbase" {
 		t.Errorf("Dcp.Group.Membership.Type is not set to expected value")
 	}
+
+	if c.Dcp.Group.Membership.CoucbaseMembership == nil {
+		t.Errorf("Dcp.Group.Membership.CoucbaseMembership is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration != 2*time.Second {
+		t.Errorf("Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.CoucbaseMembership.HeartbeatInterval != 1*time.Second {
+		t.Errorf("Dcp.Group.Membership.CoucbaseMembership.HeartbeatInterval is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.CoucbaseMembership.HeartbeatToleranceDuration != 2*time.Second {
+		t.Errorf("Dcp.Group.Membership.CoucbaseMembership.HeartbeatToleranceDuration is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.CoucbaseMembership.MonitorInterval != 500*time.Millisecond {
+		t.Errorf("Dcp.Group.Membership.CoucbaseMembership.MonitorInterval is not set to expected value")
+	}
+
+	if c.Dcp.Group.Membership.CoucbaseMembership.Timeout != 10*time.Second {
+		t.Errorf("Dcp.Group.Membership.CoucbaseMembership.Timeout is not set to expected value")
+	}
 }
 
 func TestDcpApplyDefaultConnectionTimeout(t *testing.T) {

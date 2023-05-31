@@ -23,7 +23,7 @@ const (
 	CheckpointTypeAuto                          = "auto"
 )
 
-type CouchbaseMembershipConfig struct {
+type CouchbaseMembership struct {
 	ExpiryDuration             time.Duration `yaml:"expiryDuration"`
 	HeartbeatInterval          time.Duration `yaml:"heartbeatInterval"`
 	HeartbeatToleranceDuration time.Duration `yaml:"heartbeatToleranceDuration"`
@@ -32,11 +32,11 @@ type CouchbaseMembershipConfig struct {
 }
 
 type DCPGroupMembership struct {
-	Type               string                     `yaml:"type"`
-	MemberNumber       int                        `yaml:"memberNumber"`
-	TotalMembers       int                        `yaml:"totalMembers"`
-	RebalanceDelay     time.Duration              `yaml:"rebalanceDelay"`
-	CoucbaseMembership *CouchbaseMembershipConfig `yaml:"coucbaseMembershipConfig"`
+	Type               string               `yaml:"type"`
+	MemberNumber       int                  `yaml:"memberNumber"`
+	TotalMembers       int                  `yaml:"totalMembers"`
+	RebalanceDelay     time.Duration        `yaml:"rebalanceDelay"`
+	CoucbaseMembership *CouchbaseMembership `yaml:"coucbaseMembershipConfig"`
 }
 
 type DCPGroup struct {
@@ -288,7 +288,7 @@ func (c *Dcp) applyDefaultGroupMembership() {
 	}
 
 	if c.Dcp.Group.Membership.Type == MembershipTypeCouchbase {
-		c.Dcp.Group.Membership.CoucbaseMembership = &CouchbaseMembershipConfig{
+		c.Dcp.Group.Membership.CoucbaseMembership = &CouchbaseMembership{
 			ExpiryDuration:             2 * time.Second,
 			HeartbeatInterval:          1 * time.Second,
 			HeartbeatToleranceDuration: 2 * time.Second,

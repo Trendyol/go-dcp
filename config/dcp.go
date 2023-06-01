@@ -32,11 +32,11 @@ type CouchbaseMembership struct {
 }
 
 type DCPGroupMembership struct {
+	CoucbaseMembership *CouchbaseMembership `yaml:"coucbaseMembershipConfig"`
 	Type               string               `yaml:"type"`
 	MemberNumber       int                  `yaml:"memberNumber"`
 	TotalMembers       int                  `yaml:"totalMembers"`
 	RebalanceDelay     time.Duration        `yaml:"rebalanceDelay"`
-	CoucbaseMembership *CouchbaseMembership `yaml:"coucbaseMembershipConfig"`
 }
 
 type DCPGroup struct {
@@ -287,7 +287,7 @@ func (c *Dcp) applyDefaultGroupMembership() {
 		c.Dcp.Group.Membership.Type = MembershipTypeCouchbase
 	}
 
-	if c.Dcp.Group.Membership.Type == MembershipTypeCouchbase {
+	if c.Dcp.Group.Membership.Type == MembershipTypeCouchbase && c.Dcp.Group.Membership.CoucbaseMembership == nil {
 		c.Dcp.Group.Membership.CoucbaseMembership = &CouchbaseMembership{
 			ExpiryDuration:             2 * time.Second,
 			HeartbeatInterval:          1 * time.Second,

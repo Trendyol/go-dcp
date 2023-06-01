@@ -154,14 +154,27 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
+	err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance,
+		h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = h.client.CreateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
+		err = h.client.CreateDocument(
+			ctx,
+			h.scopeName,
+			h.collectionName,
+			h.id, instance,
+			h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration,
+		)
 
 		if err == nil {
-			err = h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
+			err = h.updateDocument(
+				ctx,
+				h.scopeName,
+				h.collectionName,
+				h.id, instance,
+				h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration,
+			)
 		}
 	}
 
@@ -254,7 +267,14 @@ func (h *cbMembership) heartbeat() {
 		ClusterJoinTime: h.clusterJoinTime,
 	}
 
-	err := h.updateDocument(ctx, h.scopeName, h.collectionName, h.id, instance, h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration)
+	err := h.updateDocument(
+		ctx,
+		h.scopeName,
+		h.collectionName,
+		h.id,
+		instance,
+		h.config.Dcp.Group.Membership.CoucbaseMembership.ExpiryDuration,
+	)
 	if err != nil {
 		logger.ErrorLog.Printf("error while heartbeat: %v", err)
 		return
@@ -262,7 +282,8 @@ func (h *cbMembership) heartbeat() {
 }
 
 func (h *cbMembership) isAlive(heartbeatTime int64) bool {
-	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+(h.config.Dcp.Group.Membership.CoucbaseMembership.HeartbeatInterval.Milliseconds()*1000*1000)
+	return (time.Now().UnixNano() - heartbeatTime) <
+		heartbeatTime+(h.config.Dcp.Group.Membership.CoucbaseMembership.HeartbeatInterval.Milliseconds()*1000*1000)
 }
 
 func (h *cbMembership) monitor() {

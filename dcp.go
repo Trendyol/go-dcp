@@ -242,6 +242,8 @@ func NewDcp(cfg any, listener models.Listener) (Dcp, error) {
 	switch v := cfg.(type) {
 	case *config.Dcp:
 		return newDcp(v, listener)
+	case config.Dcp:
+		return newDcp(&v, listener)
 	case string:
 		return newDcpWithPath(v, listener)
 	default:

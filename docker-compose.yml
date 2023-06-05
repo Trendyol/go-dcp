@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  couchbase:
+    build:
+      context: "test/couchbase"
+    ports:
+      - 8091:8091
+      - 11210:11210
+    environment:
+      - USERNAME=admin
+      - PASSWORD=password
+
+  test:
+    build:
+      context: "test"
+
+networks:
+  es-net:
+    driver: bridge

@@ -16,3 +16,6 @@ linter:
 
 test:
 	go test ./... -bench .
+
+compose:
+	docker compose up -d --build

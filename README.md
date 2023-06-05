@@ -112,7 +112,7 @@ $ go get github.com/Trendyol/go-dcp-client
 | `checkpoint.type`                        |      string       |    no    |    auto    | Set checkpoint type `auto` or `manual`.                                                                                 |
 | `checkpoint.autoReset`                   |      string       |    no    |  earliest  | Set checkpoint start point to `earliest` or `latest`.                                                                   |
 | `checkpoint.interval`                    |   time.Duration   |    no    |    20s     | Checkpoint checking interval.                                                                                           |
-| `checkpoint.timeout`                     |   time.Duration   |    no    |     5s     | Checkpoint checking timeout.                                                                                            |
+| `checkpoint.timeout`                     |   time.Duration   |    no    |    60s     | Checkpoint checking timeout.                                                                                            |
 | `healthCheck.disabled`                   |       bool        |    no    |   false    | Disable Couchbase connection health check.                                                                              |
 | `healthCheck.interval`                   |   time.Duration   |    no    |    20s     | Couchbase connection health checking interval duration.                                                                 |
 | `healthCheck.timeout`                    |   time.Duration   |    no    |     5s     | Couchbase connection health checking timeout duration.                                                                  |

@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
+	jsoniter "github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp-client/config"
 
@@ -12,11 +16,8 @@ import (
 	"github.com/Trendyol/go-dcp-client/logger"
 	"github.com/Trendyol/go-dcp-client/membership"
 
-	"github.com/json-iterator/go"
-
 	"github.com/google/uuid"
 
-	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 )
 
@@ -237,7 +238,7 @@ func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) e
 	return err
 }
 
-func (h *cbMembership) isClusterChanged(currentActiveInstances []*Instance) bool {
+func (h *cbMembership) isClusterChanged(currentActiveInstances []Instance) bool {
 	if len(h.lastActiveInstances) != len(currentActiveInstances) {
 		return true
 	}
@@ -272,6 +273,7 @@ func (h *cbMembership) isAlive(heartbeatTime int64) bool {
 	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+(_heartbeatToleranceSec*1000*1000*1000)
 }
 
+//nolint:funlen
 func (h *cbMembership) monitor() {
 	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
 	defer cancel()
@@ -301,35 +303,48 @@ func (h *cbMembership) monitor() {
 
 	var instances []*Instance
 
-	for _, id := range ids {
-		doc, err := h.get(ctx, h.scopeName, h.collectionName, []byte(id))
-		var kvErr *gocbcore.KeyValueError
-		if err != nil {
-			if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-				continue
-			} else {
-				logger.ErrorLog.Printf("error while monitor try to get instance: %v", err)
+	var wg sync.WaitGroup
+	for i, id := range ids {
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			doc, err := h.get(ctx, h.scopeName, h.collectionName, []byte(id))
+			var kvErr *gocbcore.KeyValueError
+			if err != nil {
+				if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+					return
+				} else {
+					logger.ErrorLog.Printf("error while monitor try to get instance: %v", err)
+					panic(err)
+				}
+			}
+
+			copyID := id
+			instance := &Instance{ID: &copyID}
+			err = jsoniter.Unmarshal(doc, instance)
+
+			if err != nil {
+				logger.ErrorLog.Printf("error while monitor try to unmarshal instance %v, err: %v", string(doc), err)
 				panic(err)
 			}
-		}
 
-		copyID := id
-		instance := &Instance{ID: &copyID}
-		err = jsoniter.Unmarshal(doc, instance)
+			if h.isAlive(instance.HeartbeatTime) {
+				instances[i] = instance
+			} else {
+				logger.Log.Printf("instance %v is not alive", instance.ID)
+			}
+		}(i, id)
+	}
+	wg.Wait()
 
-		if err != nil {
-			logger.ErrorLog.Printf("error while monitor try to unmarshal instance %v, err: %v", string(doc), err)
-			panic(err)
-		}
-
-		if h.isAlive(instance.HeartbeatTime) {
-			instances = append(instances, instance)
-		} else {
-			logger.Log.Printf("instance %v is not alive", instance.ID)
+	var filteredInstances []Instance
+	for _, instance := range instances {
+		if instance != nil {
+			filteredInstances = append(filteredInstances, *instance)
 		}
 	}
 
-	if h.isClusterChanged(instances) {
+	if h.isClusterChanged(filteredInstances) {
 		h.rebalance(instances)
 		h.updateIndex(ctx)
 	}

@@ -31,7 +31,7 @@ type cbMembership struct {
 	monitorTicker       *time.Ticker
 	scopeName           string
 	collectionName      string
-	lastActiveInstances []*Instance
+	lastActiveInstances []Instance
 	instanceAll         []byte
 	id                  []byte
 	clusterJoinTime     int64
@@ -345,7 +345,7 @@ func (h *cbMembership) monitor() {
 	}
 
 	if h.isClusterChanged(filteredInstances) {
-		h.rebalance(instances)
+		h.rebalance(filteredInstances)
 		h.updateIndex(ctx)
 	}
 }
@@ -364,11 +364,11 @@ func (h *cbMembership) updateIndex(ctx context.Context) {
 	}
 }
 
-func (h *cbMembership) rebalance(instances []*Instance) {
+func (h *cbMembership) rebalance(instances []Instance) {
 	selfOrder := 0
 
 	for index, instance := range instances {
-		if *instance.ID == string(h.id) {
+		if *(instance.ID) == string(h.id) {
 			selfOrder = index + 1
 			break
 		}

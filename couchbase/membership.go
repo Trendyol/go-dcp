@@ -301,7 +301,7 @@ func (h *cbMembership) monitor() {
 		return all[ids[i]] < all[ids[j]]
 	})
 
-	var instances []*Instance
+	instances := make([]*Instance, len(ids))
 
 	var wg sync.WaitGroup
 	for i, id := range ids {

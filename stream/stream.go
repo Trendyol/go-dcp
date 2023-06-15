@@ -300,6 +300,7 @@ func NewStream(client couchbase.Client,
 		collectionIDs:              collectionIDs,
 		finishStreamWithCloseCh:    make(chan struct{}, 1),
 		finishStreamWithEndEventCh: make(chan struct{}, 1),
+		finishListenerBuffer:       make(chan struct{}),
 		stopCh:                     stopCh,
 		bus:                        bus,
 		metric: &Metric{

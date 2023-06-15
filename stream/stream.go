@@ -53,6 +53,7 @@ type stream struct {
 	stopCh                     chan struct{}
 	dirtyOffsets               *wrapper.SyncMap[uint16, bool]
 	listener                   models.Listener
+	finishListenerBuffer       chan struct{}
 	config                     *config.Dcp
 	metric                     *Metric
 	finishStreamWithCloseCh    chan struct{}
@@ -108,6 +109,7 @@ func (s *stream) listen() {
 		default:
 		}
 	}
+	close(s.finishListenerBuffer)
 }
 
 func (s *stream) listenEnd() {
@@ -238,15 +240,16 @@ func (s *stream) Close() {
 		s.rollbackMitigation.Stop()
 	}
 
-	s.observer.Close()
-
-	if s.checkpoint != nil {
-		s.checkpoint.StopSchedule()
-	}
-
 	err := s.closeAllStreams()
 	if err != nil {
 		logger.ErrorLog.Printf("cannot close all streams: %v", err)
+	}
+
+	s.observer.Close()
+	<-s.finishListenerBuffer
+
+	if s.checkpoint != nil {
+		s.checkpoint.StopSchedule()
 	}
 
 	s.finishStreamWithCloseCh <- struct{}{}

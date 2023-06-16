@@ -6,13 +6,14 @@ services:
     ports:
       - 8091:8091
       - 11210:11210
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://admin:password@localhost:8091/pools/default/buckets/default" ]
+      interval: 2s
+      timeout: 3s
+      retries: 60
     environment:
       - USERNAME=admin
       - PASSWORD=password
-
-  test:
-    build:
-      context: "test"
 
 networks:
   es-net:

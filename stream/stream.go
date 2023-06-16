@@ -109,7 +109,7 @@ func (s *stream) listen() {
 		default:
 		}
 	}
-	close(s.finishListenerBuffer)
+	s.finishListenerBuffer <- struct{}{}
 }
 
 func (s *stream) listenEnd() {

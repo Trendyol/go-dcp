@@ -23,6 +23,7 @@ import (
 
 const (
 	CheckpointTypeAuto            = "auto"
+	CheckpointTypeManual          = "manual"
 	CheckpointAutoResetTypeLatest = "latest"
 )
 

@@ -248,6 +248,19 @@ func (s *stream) Close() {
 	s.observer.Close()
 	<-s.finishListenerBuffer
 
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	for s.anyDirtyOffset && s.config.Checkpoint.Type == CheckpointTypeManual {
+		select {
+		case <-ctx.Done():
+			logger.ErrorLog.Printf("there are dirty offsets while closing the stream")
+			break // avoid infinite loop
+		default:
+			continue
+		}
+	}
+
 	if s.checkpoint != nil {
 		s.checkpoint.StopSchedule()
 	}

@@ -164,6 +164,7 @@ func (s *stream) Rebalance() {
 
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, func() {
 		defer s.rebalanceLock.Unlock()
+		s.ResetStream()
 		s.Open()
 
 		s.balancing = false
@@ -172,6 +173,12 @@ func (s *stream) Rebalance() {
 
 		s.metric.Rebalance++
 	})
+}
+
+func (s *stream) ResetStream() {
+	s.finishStreamWithCloseCh = make(chan struct{}, 1)
+	s.finishStreamWithEndEventCh = make(chan struct{}, 1)
+	s.finishListenerBuffer = make(chan struct{})
 }
 
 func (s *stream) Save() {

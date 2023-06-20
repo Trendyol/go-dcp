@@ -45,8 +45,8 @@ type Instance struct {
 
 const (
 	_type                  = "instance"
-	_expirySec             = 2
-	_heartbeatIntervalSec  = 1
+	_expirySec             = 10
+	_heartbeatIntervalSec  = 5
 	_heartbeatToleranceSec = 2
 	_monitorIntervalMs     = 500
 	_timeoutSec            = 10

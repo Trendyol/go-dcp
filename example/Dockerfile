@@ -4,7 +4,7 @@ WORKDIR /project
 
 COPY go.mod go.sum ./
 COPY main.go ./
-COPY config_k8s_leader_election.yml ./config.yml
+COPY config_k8s_default.yml ./config.yml
 
 RUN go mod download
 RUN CGO_ENABLED=0 go build -a -o godcpclient main.go

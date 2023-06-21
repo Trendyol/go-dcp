@@ -239,7 +239,7 @@ func (c *Dcp) applyDefaultCheckpoint() {
 	}
 
 	if c.Checkpoint.Timeout == 0 {
-		c.Checkpoint.Timeout = 5 * time.Second
+		c.Checkpoint.Timeout = 60 * time.Second
 	}
 
 	if c.Checkpoint.Type == "" {

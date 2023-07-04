@@ -5,9 +5,10 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/couchbase/gocbcore/v10/connstr"
 	"os"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10/connstr"
 
 	"github.com/Trendyol/go-dcp-client/config"
 

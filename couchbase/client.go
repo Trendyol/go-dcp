@@ -270,7 +270,7 @@ func (s *client) DcpConnect() error {
 	agentConfig := &gocbcore.DCPAgentConfig{
 		BucketName: s.config.BucketName,
 		SeedConfig: gocbcore.SeedConfig{
-			HTTPAddrs: s.config.Hosts,
+			HTTPAddrs: resolveHostsAsHTTP(s.config.Hosts),
 		},
 		SecurityConfig: s.getSecurityConfig(),
 		CompressionConfig: gocbcore.CompressionConfig{

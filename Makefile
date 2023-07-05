@@ -18,4 +18,4 @@ test:
 	go test ./... -bench .
 
 compose:
-	docker compose up -d --build
+	docker compose up --wait --build --force-recreate --remove-orphans

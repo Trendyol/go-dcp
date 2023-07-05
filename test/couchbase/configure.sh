@@ -29,11 +29,6 @@ until [[ $(check_db) = 0 ]]; do
   sleep 1
 done
 
-# Setup index and memory quota
-log "$(date +"%T") Init cluster ........."
-couchbase-cli cluster-init -c 127.0.0.1:8091 --cluster-username $USERNAME --cluster-password $PASSWORD \
-  --cluster-name $CLUSTER_NAME --cluster-ramsize 1024 --cluster-index-ramsize 512 --services data,index,query,fts
-
 echo "cbloader"
 cbdocloader -c couchbase://127.0.0.1 -u $USERNAME -p $PASSWORD -m 1024 -b dcp-test -d /opt/couchbase/samples/travel-sample.zip
 

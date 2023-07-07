@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/couchbase/gocbcore/v10/connstr"
+
 	"github.com/Trendyol/go-dcp-client/config"
 
 	"github.com/google/uuid"
@@ -142,7 +144,7 @@ func (s *client) connect(bucketName string, connectionBufferSize uint, connectio
 		&gocbcore.AgentConfig{
 			BucketName: bucketName,
 			SeedConfig: gocbcore.SeedConfig{
-				HTTPAddrs: s.config.Hosts,
+				HTTPAddrs: resolveHostsAsHTTP(s.config.Hosts),
 			},
 			SecurityConfig: s.getSecurityConfig(),
 			CompressionConfig: gocbcore.CompressionConfig{
@@ -181,6 +183,29 @@ func (s *client) connect(bucketName string, connectionBufferSize uint, connectio
 	}
 
 	return client, nil
+}
+
+func resolveHostsAsHTTP(hosts []string) []string {
+	if len(hosts) == 1 {
+		parsedConnStr, err := connstr.Parse(hosts[0])
+		if err != nil {
+			panic("error parsing connection string " + hosts[0] + " " + err.Error())
+		}
+
+		out, err := connstr.Resolve(parsedConnStr)
+		if err != nil {
+			panic("error resolving connection string " + parsedConnStr.String() + " " + err.Error())
+		}
+
+		var httpHosts []string
+		for _, specHost := range out.HttpHosts {
+			httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
+		}
+
+		return httpHosts
+	}
+
+	return hosts
 }
 
 func (s *client) Connect() error {
@@ -245,7 +270,7 @@ func (s *client) DcpConnect() error {
 	agentConfig := &gocbcore.DCPAgentConfig{
 		BucketName: s.config.BucketName,
 		SeedConfig: gocbcore.SeedConfig{
-			HTTPAddrs: s.config.Hosts,
+			HTTPAddrs: resolveHostsAsHTTP(s.config.Hosts),
 		},
 		SecurityConfig: s.getSecurityConfig(),
 		CompressionConfig: gocbcore.CompressionConfig{

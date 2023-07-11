@@ -115,7 +115,10 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	for _, vbID := range vbIds {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-		DeleteDocument(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id)
+		err := DeleteDocument(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

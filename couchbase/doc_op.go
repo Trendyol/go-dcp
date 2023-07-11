@@ -94,7 +94,7 @@ func UpdateDocument(ctx context.Context,
 	return err
 }
 
-func DeleteDocument(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectionName string, id []byte) {
+func DeleteDocument(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectionName string, id []byte) error {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
@@ -115,14 +115,10 @@ func DeleteDocument(ctx context.Context, agent *gocbcore.Agent, scopeName string
 	err = opm.Wait(op, err)
 
 	if err != nil {
-		return
+		return err
 	}
 
-	err = <-ch
-
-	if err != nil {
-		return
-	}
+	return <-ch
 }
 
 func UpsertXattrs(ctx context.Context,

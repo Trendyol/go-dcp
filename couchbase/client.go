@@ -107,8 +107,8 @@ func (s *client) GetMetaAgent() *gocbcore.Agent {
 	return s.metaAgent
 }
 
-func (s *client) tlsRootCaProvider() *x509.CertPool {
-	cert, err := os.ReadFile(os.ExpandEnv(s.config.RootCAPath))
+func CreateTLSRootCaProvider(rootCAPath string) func() *x509.CertPool {
+	cert, err := os.ReadFile(os.ExpandEnv(rootCAPath))
 	if err != nil {
 		logger.ErrorLog.Printf("error while reading cert file: %v", err)
 		panic(err)
@@ -117,33 +117,38 @@ func (s *client) tlsRootCaProvider() *x509.CertPool {
 	certPool := x509.NewCertPool()
 	certPool.AppendCertsFromPEM(cert)
 
-	return nil
+	return func() *x509.CertPool {
+		return certPool
+	}
 }
 
-func (s *client) getSecurityConfig() gocbcore.SecurityConfig {
+func CreateSecurityConfig(username string, password string, secureConnection bool, rootCAPath string) gocbcore.SecurityConfig {
 	securityConfig := gocbcore.SecurityConfig{
 		Auth: gocbcore.PasswordAuthProvider{
-			Username: s.config.Username,
-			Password: s.config.Password,
+			Username: username,
+			Password: password,
 		},
 	}
 
-	if s.config.SecureConnection {
+	if secureConnection {
 		securityConfig.UseTLS = true
-		securityConfig.TLSRootCAProvider = s.tlsRootCaProvider
+		securityConfig.TLSRootCAProvider = CreateTLSRootCaProvider(rootCAPath)
 	}
 
 	return securityConfig
 }
 
-func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
-	client, err := gocbcore.CreateAgent(
+func CreateAgent(httpAddresses []string, bucketName string,
+	username string, password string, secureConnection bool, rootCAPath string,
+	connectionBufferSize uint, connectionTimeout time.Duration,
+) (*gocbcore.Agent, error) {
+	agent, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
 			BucketName: bucketName,
 			SeedConfig: gocbcore.SeedConfig{
-				HTTPAddrs: resolveHostsAsHTTP(s.config.Hosts),
+				HTTPAddrs: resolveHostsAsHTTP(httpAddresses),
 			},
-			SecurityConfig: s.getSecurityConfig(),
+			SecurityConfig: CreateSecurityConfig(username, password, secureConnection, rootCAPath),
 			CompressionConfig: gocbcore.CompressionConfig{
 				Enabled: true,
 			},
@@ -161,7 +166,7 @@ func (s *client) connect(bucketName string, connectionBufferSize uint, connectio
 
 	ch := make(chan error)
 
-	_, err = client.WaitUntilReady(
+	_, err = agent.WaitUntilReady(
 		time.Now().Add(connectionTimeout),
 		gocbcore.WaitUntilReadyOptions{
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
@@ -179,7 +184,11 @@ func (s *client) connect(bucketName string, connectionBufferSize uint, connectio
 		return nil, err
 	}
 
-	return client, nil
+	return agent, nil
+}
+
+func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
+	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, connectionBufferSize, connectionTimeout) //nolint:lll
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {
@@ -269,7 +278,7 @@ func (s *client) DcpConnect() error {
 		SeedConfig: gocbcore.SeedConfig{
 			HTTPAddrs: resolveHostsAsHTTP(s.config.Hosts),
 		},
-		SecurityConfig: s.getSecurityConfig(),
+		SecurityConfig: CreateSecurityConfig(s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath),
 		CompressionConfig: gocbcore.CompressionConfig{
 			Enabled: true,
 		},

@@ -2,9 +2,9 @@ module example
 
 go 1.19
 
-replace github.com/Trendyol/go-dcp-client => ../.
+replace github.com/Trendyol/go-dcp => ../.
 
-require github.com/Trendyol/go-dcp-client v0.0.0
+require github.com/Trendyol/go-dcp v0.0.0
 
 require (
 	github.com/VividCortex/ewma v1.2.0 // indirect

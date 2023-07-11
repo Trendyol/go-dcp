@@ -5,7 +5,7 @@ import (
 
 	"github.com/json-iterator/go"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 )
 
 type Identity struct {

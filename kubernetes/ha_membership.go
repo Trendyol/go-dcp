@@ -1,9 +1,9 @@
 package kubernetes
 
 import (
-	"github.com/Trendyol/go-dcp-client/config"
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/membership"
+	"github.com/Trendyol/go-dcp/config"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/membership"
 )
 
 type haMembership struct {

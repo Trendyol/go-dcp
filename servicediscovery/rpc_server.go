@@ -5,9 +5,9 @@ import (
 	"net"
 	"net/rpc"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 )
 
 type Server interface {

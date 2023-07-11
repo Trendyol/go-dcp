@@ -10,14 +10,12 @@ import (
 
 	"github.com/couchbase/gocbcore/v10/connstr"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/google/uuid"
 
-	"github.com/json-iterator/go"
-
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
@@ -37,7 +35,6 @@ type Client interface {
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
-	CreateDocument(ctx context.Context, scopeName string, collectionName string, id []byte, value interface{}, expiry uint32) error
 	GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 }
 
@@ -590,44 +587,6 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) ma
 	}
 
 	return collectionIDs
-}
-
-func (s *client) CreateDocument(ctx context.Context,
-	scopeName string,
-	collectionName string,
-	id []byte,
-	value interface{},
-	expiry uint32,
-) error {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(value)
-
-	ch := make(chan error)
-
-	op, err := s.metaAgent.Set(gocbcore.SetOptions{
-		Key:            id,
-		Value:          payload,
-		Flags:          50333696,
-		Deadline:       deadline,
-		Expiry:         expiry,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.StoreResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return err
-	}
-
-	return <-ch
 }
 
 func NewClient(config *config.Dcp) Client {

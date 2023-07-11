@@ -1,4 +1,4 @@
-package godcpclient
+package dcp
 
 import (
 	"errors"
@@ -12,23 +12,23 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/Trendyol/go-dcp-client/api"
+	"github.com/Trendyol/go-dcp/api"
 
-	"github.com/Trendyol/go-dcp-client/metadata"
+	"github.com/Trendyol/go-dcp/metadata"
 
-	"github.com/Trendyol/go-dcp-client/stream"
+	"github.com/Trendyol/go-dcp/stream"
 
-	"github.com/Trendyol/go-dcp-client/couchbase"
+	"github.com/Trendyol/go-dcp/couchbase"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/servicediscovery"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/servicediscovery"
 )
 
 type Dcp interface {

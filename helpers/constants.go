@@ -3,8 +3,10 @@ package helpers
 const Name = "cbgo"
 
 const (
-	Prefix = "_connector:" + Name + ":"
+	Prefix string = "_connector:" + Name + ":"
 
-	MembershipChangedBusEventName   = "membershipChanged"
-	PersistSeqNoChangedBusEventName = "persistSeqNoChanged"
+	MembershipChangedBusEventName   string = "membershipChanged"
+	PersistSeqNoChangedBusEventName string = "persistSeqNoChanged"
+
+	JSONFlags uint32 = 50333696
 )

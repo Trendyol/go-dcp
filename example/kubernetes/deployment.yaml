@@ -2,24 +2,24 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: godcpclient
-  name: godcpclient
+    app: dcp
+  name: dcp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: godcpclient
+      app: dcp
   template:
     metadata:
       labels:
-        app: godcpclient
+        app: dcp
     spec:
       automountServiceAccountToken: true  # need for kubernetes leader election type
-      serviceAccount: godcpclient-sa
+      serviceAccount: dcp-sa
       containers:
-        - image: docker.io/trendyoltech/godcpclient:latest # change this to your image
+        - image: docker.io/trendyoltech/dcp:latest # change this to your image
           imagePullPolicy: Never
-          name: godcpclient
+          name: dcp
           ports:
             - containerPort: 8081 # need for kubernetes leader election type
               name: rpc

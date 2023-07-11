@@ -1,7 +1,7 @@
 package membership
 
 import (
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 )
 
 type staticMembership struct {

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 )
 
 const (

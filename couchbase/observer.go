@@ -3,14 +3,14 @@ package couchbase
 import (
 	"time"
 
-	"github.com/Trendyol/go-dcp-client/wrapper"
+	"github.com/Trendyol/go-dcp/wrapper"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 
-	godcpclient "github.com/Trendyol/go-dcp-client/config"
+	dcp "github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/couchbase/gocbcore/v10"
 )
@@ -68,7 +68,7 @@ type observer struct {
 	listenerCh             models.ListenerCh
 	persistSeqNo           *wrapper.SyncMap[uint16, gocbcore.SeqNo]
 	uuIDMap                *wrapper.SyncMap[uint16, gocbcore.VbUUID]
-	config                 *godcpclient.Dcp
+	config                 *dcp.Dcp
 	catchupNeededVbIDCount int
 	closed                 bool
 }
@@ -401,7 +401,7 @@ func (so *observer) CloseEnd() {
 }
 
 func NewObserver(
-	config *godcpclient.Dcp,
+	config *dcp.Dcp,
 	collectionIDs map[uint32]string,
 	bus helpers.Bus,
 ) Observer {

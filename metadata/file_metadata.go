@@ -4,13 +4,13 @@ import (
 	"errors"
 	"os"
 
-	"github.com/Trendyol/go-dcp-client/wrapper"
+	"github.com/Trendyol/go-dcp/wrapper"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 
 	"github.com/json-iterator/go"
 )

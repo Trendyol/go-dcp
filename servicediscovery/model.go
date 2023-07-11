@@ -1,7 +1,7 @@
 package servicediscovery
 
 import (
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 )
 
 type Register struct {

@@ -1,8 +1,8 @@
-project_name: go-dcp-client
+project_name: go-dcp
 
 release:
   github:
-    name: go-dcp-client
+    name: go-dcp
     owner: Trendyol
 
 before:

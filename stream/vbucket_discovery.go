@@ -3,15 +3,15 @@ package stream
 import (
 	"errors"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/kubernetes"
+	"github.com/Trendyol/go-dcp/kubernetes"
 
-	"github.com/Trendyol/go-dcp-client/couchbase"
+	"github.com/Trendyol/go-dcp/couchbase"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/membership"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/membership"
 )
 
 type VBucketDiscovery interface {

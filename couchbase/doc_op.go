@@ -6,7 +6,6 @@ import (
 	"github.com/couchbase/gocbcore/v10/memd"
 
 	"github.com/couchbase/gocbcore/v10"
-	jsoniter "github.com/json-iterator/go"
 )
 
 func CreateDocument(ctx context.Context,
@@ -14,7 +13,7 @@ func CreateDocument(ctx context.Context,
 	scopeName string,
 	collectionName string,
 	id []byte,
-	value interface{},
+	value []byte,
 	flags uint32,
 	expiry uint32,
 ) error {
@@ -22,13 +21,11 @@ func CreateDocument(ctx context.Context,
 
 	deadline, _ := ctx.Deadline()
 
-	payload, _ := jsoniter.Marshal(value)
-
 	ch := make(chan error)
 
 	op, err := agent.Set(gocbcore.SetOptions{
 		Key:            id,
-		Value:          payload,
+		Value:          value,
 		Flags:          flags,
 		Deadline:       deadline,
 		Expiry:         expiry,
@@ -54,14 +51,12 @@ func UpdateDocument(ctx context.Context,
 	scopeName string,
 	collectionName string,
 	id []byte,
-	value interface{},
+	value []byte,
 	expiry uint32,
 ) error {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(value)
 
 	ch := make(chan error)
 
@@ -70,7 +65,7 @@ func UpdateDocument(ctx context.Context,
 		Ops: []gocbcore.SubDocOp{
 			{
 				Op:    memd.SubDocOpSetDoc,
-				Value: payload,
+				Value: value,
 			},
 		},
 		Expiry:         expiry,
@@ -127,14 +122,12 @@ func UpsertXattrs(ctx context.Context,
 	collectionName string,
 	id []byte,
 	path string,
-	xattrs interface{},
+	value []byte,
 	expiry uint32,
 ) error {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(xattrs)
 
 	ch := make(chan error)
 
@@ -145,7 +138,7 @@ func UpsertXattrs(ctx context.Context,
 				Op:    memd.SubDocOpDictSet,
 				Flags: memd.SubdocFlagXattrPath,
 				Path:  path,
-				Value: payload,
+				Value: value,
 			},
 		},
 		Expiry:         expiry,
@@ -253,13 +246,11 @@ func CreatePath(ctx context.Context,
 	collectionName string,
 	id []byte,
 	path []byte,
-	value interface{},
+	value []byte,
 ) error {
 	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(value)
 
 	ch := make(chan error)
 
@@ -268,7 +259,7 @@ func CreatePath(ctx context.Context,
 		Ops: []gocbcore.SubDocOp{
 			{
 				Op:    memd.SubDocOpDictSet,
-				Value: payload,
+				Value: value,
 				Path:  string(path),
 			},
 		},

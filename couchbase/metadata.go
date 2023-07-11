@@ -47,14 +47,15 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 func (s *cbMetadata) saveVBucketCheckpoint(ctx context.Context, vbID uint16, checkpointDocument *models.CheckpointDocument) func() error {
 	return func() error {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-		err := UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+		payload, _ := jsoniter.Marshal(checkpointDocument)
+		err := UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, payload, 0)
 
 		var kvErr *gocbcore.KeyValueError
 		if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 			err = CreateDocument(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, []byte{}, helpers.JSONFlags, 0)
 
 			if err == nil {
-				err = UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+				err = UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, payload, 0)
 			}
 		}
 		return err

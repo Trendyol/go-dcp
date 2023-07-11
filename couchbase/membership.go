@@ -81,14 +81,16 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	payload, _ := jsoniter.Marshal(instance)
+
+	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, _expirySec)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = CreateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, instance, helpers.JSONFlags, _expirySec)
+		err = CreateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, helpers.JSONFlags, _expirySec)
 
 		if err == nil {
-			err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, instance, _expirySec)
+			err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, _expirySec)
 		}
 	}
 
@@ -99,14 +101,16 @@ func (h *cbMembership) register() {
 }
 
 func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
-	err := CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
+	payload, _ := jsoniter.Marshal(clusterJoinTime)
+
+	err := CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = CreateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, struct{}{}, helpers.JSONFlags, 0)
+		err = CreateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, []byte{123, 125} /* empty json */, helpers.JSONFlags, 0) //nolint:lll
 
 		if err == nil {
-			err = CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, clusterJoinTime)
+			err = CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload)
 		}
 	}
 
@@ -137,7 +141,9 @@ func (h *cbMembership) heartbeat() {
 		ClusterJoinTime: h.clusterJoinTime,
 	}
 
-	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, instance, _expirySec)
+	payload, _ := jsoniter.Marshal(instance)
+
+	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, _expirySec)
 	if err != nil {
 		logger.ErrorLog.Printf("error while heartbeat: %v", err)
 		return
@@ -232,7 +238,9 @@ func (h *cbMembership) updateIndex(ctx context.Context) {
 		all[*instance.ID] = instance.ClusterJoinTime
 	}
 
-	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, all, 0)
+	payload, _ := jsoniter.Marshal(all)
+
+	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, payload, 0)
 	if err != nil {
 		logger.ErrorLog.Printf("error while update instances: %v", err)
 		return

@@ -103,18 +103,7 @@ func (h *cbMembership) register() {
 func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
 	payload, _ := jsoniter.Marshal(clusterJoinTime)
 
-	err := CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload)
-
-	var kvErr *gocbcore.KeyValueError
-	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = CreateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, []byte{123, 125} /* empty json */, helpers.JSONFlags, 0) //nolint:lll
-
-		if err == nil {
-			err = CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload)
-		}
-	}
-
-	return err
+	return CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload, memd.SubdocDocFlagMkDoc)
 }
 
 func (h *cbMembership) isClusterChanged(currentActiveInstances []Instance) bool {

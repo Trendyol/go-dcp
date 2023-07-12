@@ -247,6 +247,7 @@ func CreatePath(ctx context.Context,
 	id []byte,
 	path []byte,
 	value []byte,
+	flags memd.SubdocDocFlag,
 ) error {
 	opm := NewAsyncOp(ctx)
 
@@ -255,7 +256,8 @@ func CreatePath(ctx context.Context,
 	ch := make(chan error)
 
 	op, err := agent.MutateIn(gocbcore.MutateInOptions{
-		Key: id,
+		Key:   id,
+		Flags: flags,
 		Ops: []gocbcore.SubDocOp{
 			{
 				Op:    memd.SubDocOpDictSet,

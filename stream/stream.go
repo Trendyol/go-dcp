@@ -252,6 +252,8 @@ func (s *stream) Close() {
 	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
 	s.observer = nil
+	s.offsets = &wrapper.SyncMap[uint16, *models.Offset]{}
+	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
 
 	logger.Log.Printf("stream stopped")
 }

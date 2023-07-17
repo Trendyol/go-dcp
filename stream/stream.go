@@ -60,6 +60,7 @@ type stream struct {
 	activeStreams              int
 	anyDirtyOffset             bool
 	balancing                  bool
+	rebalanceLock              sync.Mutex
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -144,29 +145,31 @@ func (s *stream) Open() {
 	go s.wait()
 }
 
-func (s *stream) rebalance() {
-	s.balancing = true
-
-	s.Save()
-	s.Close()
-	s.Open()
-
-	s.balancing = false
-
-	logger.Log.Printf("rebalance is finished")
-
-	s.metric.Rebalance++
-}
-
 func (s *stream) Rebalance() {
-	if s.rebalanceTimer != nil {
-		s.rebalanceTimer.Stop()
-		logger.Log.Printf("latest rebalance is canceled")
+	if s.balancing && s.rebalanceTimer != nil {
+		s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
+		logger.Log.Printf("latest rebalance time is resetted")
+		return
+	}
+	s.rebalanceLock.Lock()
+	if !s.balancing {
+		s.balancing = true
+		s.Save()
+		s.Close()
 	}
 
-	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
-
 	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+
+	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, func() {
+		defer s.rebalanceLock.Unlock()
+		s.Open()
+
+		s.balancing = false
+
+		logger.Log.Printf("rebalance is finished")
+
+		s.metric.Rebalance++
+	})
 }
 
 func (s *stream) Save() {
@@ -249,8 +252,6 @@ func (s *stream) Close() {
 	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
 	s.observer = nil
-	s.offsets = &wrapper.SyncMap[uint16, *models.Offset]{}
-	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
 
 	logger.Log.Printf("stream stopped")
 }

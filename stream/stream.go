@@ -47,20 +47,21 @@ type stream struct {
 	observer                   couchbase.Observer
 	vBucketDiscovery           VBucketDiscovery
 	bus                        helpers.Bus
-	offsets                    *wrapper.SyncMap[uint16, *models.Offset]
-	rebalanceTimer             *time.Timer
-	finishStreamWithEndEventCh chan struct{}
+	eventHandler               models.EventHandler
 	stopCh                     chan struct{}
+	finishStreamWithCloseCh    chan struct{}
+	rebalanceTimer             *time.Timer
 	dirtyOffsets               *wrapper.SyncMap[uint16, bool]
 	listener                   models.Listener
 	config                     *config.Dcp
 	metric                     *Metric
-	finishStreamWithCloseCh    chan struct{}
+	finishStreamWithEndEventCh chan struct{}
 	collectionIDs              map[uint32]string
+	offsets                    *wrapper.SyncMap[uint16, *models.Offset]
 	activeStreams              int
+	rebalanceLock              sync.Mutex
 	anyDirtyOffset             bool
 	balancing                  bool
-	rebalanceLock              sync.Mutex
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -120,6 +121,8 @@ func (s *stream) listenEnd() {
 }
 
 func (s *stream) Open() {
+	s.eventHandler.BeforeStreamStart()
+
 	vbIds := s.vBucketDiscovery.Get()
 
 	if !s.config.RollbackMitigation.Disabled {
@@ -139,6 +142,7 @@ func (s *stream) Open() {
 	go s.listen()
 
 	logger.Log.Printf("stream started")
+	s.eventHandler.AfterStreamStart()
 
 	s.checkpoint.StartSchedule()
 
@@ -152,6 +156,9 @@ func (s *stream) Rebalance() {
 		return
 	}
 	s.rebalanceLock.Lock()
+
+	s.eventHandler.BeforeRebalanceStart()
+
 	if !s.balancing {
 		s.balancing = true
 		s.Save()
@@ -160,15 +167,19 @@ func (s *stream) Rebalance() {
 
 	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 
+	s.eventHandler.AfterRebalanceStart()
+
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, func() {
 		defer s.rebalanceLock.Unlock()
-		s.Open()
 
+		s.eventHandler.BeforeRebalanceEnd()
+
+		s.Open()
 		s.balancing = false
+		s.metric.Rebalance++
 
 		logger.Log.Printf("rebalance is finished")
-
-		s.metric.Rebalance++
+		s.eventHandler.AfterRebalanceEnd()
 	})
 }
 
@@ -234,6 +245,8 @@ func (s *stream) wait() {
 }
 
 func (s *stream) Close() {
+	s.eventHandler.BeforeStreamStop()
+
 	if !s.config.RollbackMitigation.Disabled {
 		s.rollbackMitigation.Stop()
 	}
@@ -256,6 +269,7 @@ func (s *stream) Close() {
 	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
 
 	logger.Log.Printf("stream stopped")
+	s.eventHandler.AfterStreamStop()
 }
 
 func (s *stream) GetOffsets() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool) {
@@ -287,6 +301,7 @@ func NewStream(client couchbase.Client,
 	collectionIDs map[uint32]string,
 	stopCh chan struct{},
 	bus helpers.Bus,
+	eventHandler models.EventHandler,
 ) Stream {
 	return &stream{
 		client:                     client,
@@ -299,6 +314,7 @@ func NewStream(client couchbase.Client,
 		finishStreamWithEndEventCh: make(chan struct{}, 1),
 		stopCh:                     stopCh,
 		bus:                        bus,
+		eventHandler:               eventHandler,
 		metric: &Metric{
 			ProcessLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
 		},

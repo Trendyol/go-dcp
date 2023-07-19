@@ -13,8 +13,8 @@ func TestCouchbase(t *testing.T) {
 
 	cbClient := couchbase.NewClient(&config.Dcp{
 		Hosts:             []string{"localhost:8091"},
-		Username:          "admin",
-		Password:          "password",
+		Username:          "user",
+		Password:          "123456",
 		BucketName:        "dcp-test",
 		ConnectionTimeout: time.Second * 5,
 	})

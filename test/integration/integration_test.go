@@ -8,9 +8,6 @@ import (
 )
 
 func TestCouchbase(t *testing.T) {
-	// Given
-	time.Sleep(10 * time.Second)
-
 	cbClient := couchbase.NewClient(&config.Dcp{
 		Hosts:             []string{"localhost:8091"},
 		Username:          "user",

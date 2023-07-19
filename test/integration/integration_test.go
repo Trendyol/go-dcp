@@ -1,8 +1,8 @@
 package integration
 
 import (
-	"github.com/Trendyol/go-dcp-client/config"
-	"github.com/Trendyol/go-dcp-client/couchbase"
+	"github.com/Trendyol/go-dcp/config"
+	"github.com/Trendyol/go-dcp/couchbase"
 	"testing"
 	"time"
 )

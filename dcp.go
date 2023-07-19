@@ -1,4 +1,4 @@
-package godcpclient
+package dcp
 
 import (
 	"errors"
@@ -12,23 +12,23 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/Trendyol/go-dcp-client/api"
+	"github.com/Trendyol/go-dcp/api"
 
-	"github.com/Trendyol/go-dcp-client/metadata"
+	"github.com/Trendyol/go-dcp/metadata"
 
-	"github.com/Trendyol/go-dcp-client/stream"
+	"github.com/Trendyol/go-dcp/stream"
 
-	"github.com/Trendyol/go-dcp-client/couchbase"
+	"github.com/Trendyol/go-dcp/couchbase"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/servicediscovery"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/servicediscovery"
 )
 
 type Dcp interface {
@@ -39,6 +39,7 @@ type Dcp interface {
 	GetConfig() *config.Dcp
 	SetMetadata(metadata metadata.Metadata)
 	SetMetricCollectors(collectors ...prometheus.Collector)
+	SetEventHandler(handler models.EventHandler)
 }
 
 type dcp struct {
@@ -49,7 +50,7 @@ type dcp struct {
 	vBucketDiscovery  stream.VBucketDiscovery
 	serviceDiscovery  servicediscovery.ServiceDiscovery
 	metadata          metadata.Metadata
-	cancelCh          chan os.Signal
+	eventHandler      models.EventHandler
 	apiShutdown       chan struct{}
 	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
@@ -57,6 +58,7 @@ type dcp struct {
 	healthCheckTicker *time.Ticker
 	listener          models.Listener
 	readyCh           chan struct{}
+	cancelCh          chan os.Signal
 	metricCollectors  []prometheus.Collector
 }
 
@@ -85,6 +87,10 @@ func (s *dcp) SetMetadata(metadata metadata.Metadata) {
 
 func (s *dcp) SetMetricCollectors(metricCollectors ...prometheus.Collector) {
 	s.metricCollectors = metricCollectors
+}
+
+func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
+	s.eventHandler = eventHandler
 }
 
 func (s *dcp) membershipChangedListener(_ interface{}) {
@@ -118,7 +124,7 @@ func (s *dcp) Start() {
 
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.vBucketDiscovery,
-		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, bus,
+		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, bus, s.eventHandler,
 	)
 
 	if s.config.LeaderElection.Enabled {
@@ -231,6 +237,7 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 		healCheckFailedCh: make(chan struct{}, 1),
 		readyCh:           make(chan struct{}, 1),
 		metricCollectors:  []prometheus.Collector{},
+		eventHandler:      models.DefaultEventHandler,
 	}, nil
 }
 

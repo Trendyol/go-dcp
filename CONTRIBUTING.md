@@ -1,6 +1,6 @@
 ## Contribution Guidelines
 
-Thank you for your interest in go-dcp-client!
+Thank you for your interest in go-dcp!
 
 This project welcomes contributions and suggestions. Most contributions require you to signoff on your commits. Please
 follow the instructions provided below.
@@ -36,7 +36,7 @@ If you find your issue already exists, make relevant comments and add your react
 2. For bugs
    Check it's not an environment issue. For example, if your configurations correct or network connections is alive.
 
-### Contributing to go-dcp-client
+### Contributing to go-dcp
 
 Pull Requests
 All contributions come through pull requests. To submit a proposed change, we recommend following this workflow:

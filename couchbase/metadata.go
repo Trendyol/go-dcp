@@ -6,16 +6,16 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Trendyol/go-dcp-client/wrapper"
+	"github.com/Trendyol/go-dcp/wrapper"
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/metadata"
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/metadata"
+	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/json-iterator/go"
 
@@ -47,59 +47,19 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 func (s *cbMetadata) saveVBucketCheckpoint(ctx context.Context, vbID uint16, checkpointDocument *models.CheckpointDocument) func() error {
 	return func() error {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-		err := s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+		payload, _ := jsoniter.Marshal(checkpointDocument)
+		err := UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, payload, 0)
 
 		var kvErr *gocbcore.KeyValueError
 		if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-			err = s.client.CreateDocument(ctx, s.scopeName, s.collectionName, id, []byte{}, 0)
+			err = CreateDocument(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, []byte{}, helpers.JSONFlags, 0)
 
 			if err == nil {
-				err = s.upsertXattrs(ctx, s.scopeName, s.collectionName, id, helpers.Name, checkpointDocument, 0)
+				err = UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, payload, 0)
 			}
 		}
 		return err
 	}
-}
-
-func (s *cbMetadata) getXattrs(scopeName string, collectionName string, id []byte, path string) ([]byte, error) {
-	opm := NewAsyncOp(context.Background())
-
-	errorCh := make(chan error)
-	documentCh := make(chan []byte)
-
-	op, err := s.client.GetMetaAgent().LookupIn(gocbcore.LookupInOptions{
-		Key: id,
-		Ops: []gocbcore.SubDocOp{
-			{
-				Op:    memd.SubDocOpGet,
-				Flags: memd.SubdocFlagXattrPath,
-				Path:  path,
-			},
-		},
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.LookupInResult, err error) {
-		opm.Resolve()
-
-		if err == nil {
-			documentCh <- result.Ops[0].Value
-		} else {
-			documentCh <- nil
-		}
-
-		errorCh <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return nil, err
-	}
-
-	document := <-documentCh
-	err = <-errorCh
-
-	return document, err
 }
 
 func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[uint16, *models.CheckpointDocument], bool, error) {
@@ -116,7 +76,7 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[u
 
 			id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-			data, err := s.getXattrs(s.scopeName, s.collectionName, id, helpers.Name)
+			data, err := GetXattrs(context.Background(), s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name)
 
 			var doc *models.CheckpointDocument
 
@@ -149,84 +109,6 @@ func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[u
 	return state, exist, nil
 }
 
-func (s *cbMetadata) upsertXattrs(ctx context.Context,
-	scopeName string,
-	collectionName string,
-	id []byte,
-	path string,
-	xattrs interface{},
-	expiry uint32,
-) error {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	payload, _ := jsoniter.Marshal(xattrs)
-
-	ch := make(chan error)
-
-	op, err := s.client.GetMetaAgent().MutateIn(gocbcore.MutateInOptions{
-		Key: id,
-		Ops: []gocbcore.SubDocOp{
-			{
-				Op:    memd.SubDocOpDictSet,
-				Flags: memd.SubdocFlagXattrPath,
-				Path:  path,
-				Value: payload,
-			},
-		},
-		Expiry:         expiry,
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.MutateInResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return err
-	}
-
-	err = <-ch
-
-	return err
-}
-
-func (s *cbMetadata) deleteDocument(ctx context.Context, scopeName string, collectionName string, id []byte) {
-	opm := NewAsyncOp(ctx)
-
-	deadline, _ := ctx.Deadline()
-
-	ch := make(chan error)
-
-	op, err := s.client.GetMetaAgent().Delete(gocbcore.DeleteOptions{
-		Key:            id,
-		Deadline:       deadline,
-		ScopeName:      scopeName,
-		CollectionName: collectionName,
-	}, func(result *gocbcore.DeleteResult, err error) {
-		opm.Resolve()
-
-		ch <- err
-	})
-
-	err = opm.Wait(op, err)
-
-	if err != nil {
-		return
-	}
-
-	err = <-ch
-
-	if err != nil {
-		return
-	}
-}
-
 func (s *cbMetadata) Clear(vbIds []uint16) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
@@ -234,7 +116,10 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 	for _, vbID := range vbIds {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
 
-		s.deleteDocument(ctx, s.scopeName, s.collectionName, id)
+		err := DeleteDocument(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

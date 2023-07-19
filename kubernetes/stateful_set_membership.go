@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/membership"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/membership"
 )
 
 type statefulSetMembership struct {

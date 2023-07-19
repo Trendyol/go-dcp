@@ -1,8 +1,8 @@
 package metadata
 
 import (
-	"github.com/Trendyol/go-dcp-client/models"
-	"github.com/Trendyol/go-dcp-client/wrapper"
+	"github.com/Trendyol/go-dcp/models"
+	"github.com/Trendyol/go-dcp/wrapper"
 )
 
 type Metadata interface {

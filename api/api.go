@@ -3,16 +3,16 @@ package api
 import (
 	"fmt"
 
-	godcpclient "github.com/Trendyol/go-dcp-client/config"
+	dcp "github.com/Trendyol/go-dcp/config"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 
-	"github.com/Trendyol/go-dcp-client/couchbase"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/servicediscovery"
-	"github.com/Trendyol/go-dcp-client/stream"
+	"github.com/Trendyol/go-dcp/couchbase"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/servicediscovery"
+	"github.com/Trendyol/go-dcp/stream"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,7 +27,7 @@ type api struct {
 	stream           stream.Stream
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
-	config           *godcpclient.Dcp
+	config           *dcp.Dcp
 }
 
 func (s *api) Listen() {
@@ -77,7 +77,7 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func NewAPI(config *godcpclient.Dcp,
+func NewAPI(config *dcp.Dcp,
 	client couchbase.Client,
 	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,

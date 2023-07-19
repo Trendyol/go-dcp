@@ -1,4 +1,4 @@
-# Go Dcp Client [![Go Reference](https://pkg.go.dev/badge/github.com/Trendyol/go-dcp-client.svg)](https://pkg.go.dev/github.com/Trendyol/go-dcp-client) [![Go Report Card](https://goreportcard.com/badge/github.com/Trendyol/go-dcp-client)](https://goreportcard.com/report/github.com/Trendyol/go-dcp-client)
+# Go Dcp [![Go Reference](https://pkg.go.dev/badge/github.com/Trendyol/go-dcp.svg)](https://pkg.go.dev/github.com/Trendyol/go-dcp) [![Go Report Card](https://goreportcard.com/badge/github.com/Trendyol/go-dcp)](https://goreportcard.com/report/github.com/Trendyol/go-dcp)
 
 This repository contains go implementation of a Couchbase Database Change Protocol (DCP) client.
 
@@ -13,8 +13,9 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 
 + Our main goal is to build a dcp client for faster and stateful systems. We're already using this repository in below
   implementations:
-    + [Elastic Connector](https://github.com/Trendyol/go-elasticsearch-connect-couchbase)
-    + [Kafka Connector](https://github.com/Trendyol/go-kafka-connect-couchbase)
+    + [Elastic Connector](https://github.com/Trendyol/go-dcp-elasticsearch)
+    + [Kafka Connector](https://github.com/Trendyol/go-dcp-kafka)
+    + [Couchbase Connector](https://github.com/Trendyol/go-dcp-couchbase)
 
 ### Example
 
@@ -22,62 +23,49 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 package main
 
 import (
-	"github.com/Trendyol/go-dcp-client"
-	"github.com/Trendyol/go-dcp-client/config"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/models"
+  "github.com/Trendyol/go-dcp"
+  "github.com/Trendyol/go-dcp/logger"
+  "github.com/Trendyol/go-dcp/models"
 )
 
 func listener(ctx *models.ListenerContext) {
-	switch event := ctx.Event.(type) {
-	case models.DcpMutation:
-		logger.Log.Printf(
-			"mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
-			event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
-		)
-	case models.DcpDeletion:
-		logger.Log.Printf(
-			"deleted(vb=%v,eventTime=%v) | id: %v",
-			event.VbID, event.EventTime, string(event.Key),
-		)
-	case models.DcpExpiration:
-		logger.Log.Printf(
-			"expired(vb=%v,eventTime=%v) | id: %v",
-			event.VbID, event.EventTime, string(event.Key),
-		)
-	}
+  switch event := ctx.Event.(type) {
+  case models.DcpMutation:
+    logger.Log.Printf(
+      "mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
+      event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
+    )
+  case models.DcpDeletion:
+    logger.Log.Printf(
+      "deleted(vb=%v,eventTime=%v) | id: %v",
+      event.VbID, event.EventTime, string(event.Key),
+    )
+  case models.DcpExpiration:
+    logger.Log.Printf(
+      "expired(vb=%v,eventTime=%v) | id: %v",
+      event.VbID, event.EventTime, string(event.Key),
+    )
+  }
 
-	ctx.Ack()
+  ctx.Ack()
 }
 
 func main() {
-	c := &config.Dcp{
-		Hosts:      []string{"localhost:8091"},
-		Username:   "user",
-		Password:   "password",
-		BucketName: "dcp-test",
-		Dcp: config.ExternalDcp{
-			Group: config.DCPGroup{
-				Name: "groupName",
-			},
-		},
-	}
+  connector, err := dcp.NewDcp("config.yml", listener)
+  if err != nil {
+    panic(err)
+  }
 
-	dcp, err := godcpclient.NewDcp(c, listener)
-	if err != nil {
-		panic(err)
-	}
+  defer connector.Close()
 
-	defer dcp.Close()
-
-	dcp.Start()
+  connector.Start()
 }
 ```
 
 ### Usage
 
 ```
-$ go get github.com/Trendyol/go-dcp-client
+$ go get github.com/Trendyol/go-dcp
 
 ```
 

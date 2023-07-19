@@ -4,18 +4,18 @@ import (
 	"context"
 	"sync"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/leaderelector"
+	"github.com/Trendyol/go-dcp/leaderelector"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 
-	"github.com/Trendyol/go-dcp-client/kubernetes"
+	"github.com/Trendyol/go-dcp/kubernetes"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 
-	"github.com/Trendyol/go-dcp-client/helpers"
-	"github.com/Trendyol/go-dcp-client/servicediscovery"
+	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/servicediscovery"
 )
 
 const (

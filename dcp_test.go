@@ -1,4 +1,4 @@
-package godcpclient
+package dcp
 
 import (
 	"context"
@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Trendyol/go-dcp-client/logger"
+	"github.com/Trendyol/go-dcp/logger"
 
-	"github.com/Trendyol/go-dcp-client/config"
+	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp-client/couchbase"
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/couchbase"
+	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/testcontainers/testcontainers-go"

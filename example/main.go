@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/Trendyol/go-dcp-client"
-	"github.com/Trendyol/go-dcp-client/logger"
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/models"
 )
 
 func listener(ctx *models.ListenerContext) {
@@ -29,12 +29,12 @@ func listener(ctx *models.ListenerContext) {
 }
 
 func main() {
-	dcp, err := godcpclient.NewDcp("config.yml", listener)
+	connector, err := dcp.NewDcp("config.yml", listener)
 	if err != nil {
 		panic(err)
 	}
 
-	defer dcp.Close()
+	defer connector.Close()
 
-	dcp.Start()
+	connector.Start()
 }

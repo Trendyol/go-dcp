@@ -3,7 +3,7 @@ package leaderelector
 import (
 	"context"
 
-	"github.com/Trendyol/go-dcp-client/models"
+	"github.com/Trendyol/go-dcp/models"
 )
 
 type LeaderElector interface {

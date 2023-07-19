@@ -2,7 +2,9 @@ module integration-test-example
 
 go 1.19
 
-require github.com/Trendyol/go-dcp-client v0.0.59
+replace github.com/Trendyol/go-dcp-client => ../../.
+
+require github.com/Trendyol/go-dcp-client v0.0.0
 
 require (
 	github.com/couchbase/gocbcore/v10 v10.2.3 // indirect

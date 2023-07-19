@@ -29,8 +29,12 @@ until [[ $(check_db) = 0 ]]; do
   sleep 1
 done
 
-echo "cbloader"
-cbdocloader -c couchbase://127.0.0.1 -u $USERNAME -p $PASSWORD -m 1024 -b dcp-test -d /opt/couchbase/samples/travel-sample.zip
+couchbase-cli cluster-init -c localhost --cluster-name Cluster --cluster-username user \
+  --cluster-password 123456 --services data --cluster-ramsize 1024
+
+couchbase-cli bucket-create -c couchbase --username user --password 123456 --bucket dcp-test --bucket-type couchbase --bucket-ramsize 1024
+
+cbimport json -c couchbase://127.0.0.1 -u user -p 123456 --bucket-quota 1024 -b dcp-test -d file://opt/couchbase/samples/travel-sample.zip -f sample
 
 echo "couchbase-dev started"
 

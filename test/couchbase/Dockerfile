@@ -1,9 +1,4 @@
-FROM couchbase/server:community-7.1.0-aarch64
-
-ENV CLUSTER_NAME="Cluster"
-ENV USERNAME="Administrator"
-ENV PASSWORD="password"
-ENV BUCKET_NAME="sample"
+FROM couchbase:community-7.1.0
 
 ADD configure.sh /configure.sh
 RUN chmod +x /configure.sh

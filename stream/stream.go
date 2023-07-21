@@ -151,10 +151,16 @@ func (s *stream) Open() {
 
 func (s *stream) Rebalance() {
 	if s.balancing && s.rebalanceTimer != nil {
-		s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
+		// Is rebalance timer triggered already
+		if s.rebalanceTimer.Stop() {
+			s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
+		} else {
+			s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.Rebalance)
+		}
 		logger.Log.Printf("latest rebalance time is resetted")
 		return
 	}
+
 	s.rebalanceLock.Lock()
 
 	s.eventHandler.BeforeRebalanceStart()
@@ -169,18 +175,19 @@ func (s *stream) Rebalance() {
 
 	s.eventHandler.AfterRebalanceStart()
 
-	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, func() {
-		defer s.rebalanceLock.Unlock()
+	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
+}
 
-		s.eventHandler.BeforeRebalanceEnd()
+func (s *stream) rebalance() {
+	defer s.rebalanceLock.Unlock()
+	s.balancing = false
 
-		s.Open()
-		s.balancing = false
-		s.metric.Rebalance++
+	s.eventHandler.BeforeRebalanceEnd()
+	s.Open()
+	s.metric.Rebalance++
 
-		logger.Log.Printf("rebalance is finished")
-		s.eventHandler.AfterRebalanceEnd()
-	})
+	logger.Log.Printf("rebalance is finished")
+	s.eventHandler.AfterRebalanceEnd()
 }
 
 func (s *stream) Save() {

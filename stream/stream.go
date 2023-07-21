@@ -154,13 +154,14 @@ func (s *stream) Rebalance() {
 		// Is rebalance timer triggered already
 		if s.rebalanceTimer.Stop() {
 			s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
+			logger.Log.Printf("latest rebalance time is resetted")
 		} else {
 			s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.Rebalance)
+			logger.Log.Printf("latest rebalance time is reassigned")
 		}
-		logger.Log.Printf("latest rebalance time is resetted")
 		return
 	}
-
+	logger.Log.Printf("rebalance starting")
 	s.rebalanceLock.Lock()
 
 	s.eventHandler.BeforeRebalanceStart()
@@ -171,14 +172,16 @@ func (s *stream) Rebalance() {
 		s.Close()
 	}
 
-	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
-
 	s.eventHandler.AfterRebalanceStart()
 
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
+
+	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 }
 
 func (s *stream) rebalance() {
+	logger.Log.Printf("reassigning vbuckets and opening stream is starting")
+
 	defer s.rebalanceLock.Unlock()
 	s.balancing = false
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+# https://github.com/Trendyol/couchbase-docker-image-for-testcontainers/blob/master/entrypoint.sh
 
 rm -rf /opt/couchbase/var/lib/couchbase/config/config.dat
 

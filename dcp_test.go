@@ -36,19 +36,46 @@ var c = &config.Dcp{
 }
 
 func setupContainer(ctx context.Context) (testcontainers.Container, error) {
-	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "docker.io/trendyoltech/couchbase-testcontainer:6.5.1",
-			ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
-			WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(20 * time.Second),
-			Env: map[string]string{
-				"USERNAME":       c.Username,
-				"PASSWORD":       c.Password,
-				"BUCKET_NAME":    c.BucketName,
-				"BUCKET_RAMSIZE": "1024",
+	req := testcontainers.ContainerRequest{
+		Image:        "couchbase:6.5.1",
+		ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
+		WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(20 * time.Second),
+		Env: map[string]string{
+			"USERNAME":                  c.Username,
+			"PASSWORD":                  c.Password,
+			"BUCKET_NAME":               c.BucketName,
+			"BUCKET_TYPE":               "couchbase",
+			"BUCKET_RAMSIZE":            "1024",
+			"SERVICES":                  "data,index,query,fts,analytics,eventing",
+			"CLUSTER_RAMSIZE":           "1024",
+			"CLUSTER_INDEX_RAMSIZE":     "512",
+			"CLUSTER_EVENTING_RAMSIZE":  "256",
+			"CLUSTER_FTS_RAMSIZE":       "256",
+			"CLUSTER_ANALYTICS_RAMSIZE": "1024",
+			"INDEX_STORAGE_SETTING":     "memopt",
+			"REST_PORT":                 "8091",
+			"CAPI_PORT":                 "8092",
+			"QUERY_PORT":                "8093",
+			"FTS_PORT":                  "8094",
+			"MEMCACHED_SSL_PORT":        "11207",
+			"MEMCACHED_PORT":            "11210",
+			"SSL_REST_PORT":             "18091",
+		},
+		Entrypoint: []string{
+			"/config-entrypoint.sh",
+		},
+		Files: []testcontainers.ContainerFile{
+			{
+				HostFilePath:      "scripts/entrypoint.sh",
+				ContainerFilePath: "/config-entrypoint.sh",
+				FileMode:          600,
 			},
 		},
-		Started: true,
+	}
+
+	return testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
 	})
 }
 
@@ -59,7 +86,7 @@ func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize 
 
 	err := client.Connect()
 	if err != nil {
-		b.Error(err)
+		b.Fatal(err)
 	}
 
 	var iter int
@@ -124,7 +151,7 @@ func BenchmarkDcp(b *testing.B) {
 
 	container, err := setupContainer(ctx)
 	if err != nil {
-		b.Error(err)
+		b.Fatal(err)
 	}
 
 	counter := 0
@@ -150,7 +177,7 @@ func BenchmarkDcp(b *testing.B) {
 		}
 	})
 	if err != nil {
-		b.Error(err)
+		b.Fatal(err)
 	}
 
 	go func() {
@@ -167,6 +194,6 @@ func BenchmarkDcp(b *testing.B) {
 
 	err = container.Terminate(ctx)
 	if err != nil {
-		b.Error(err)
+		b.Fatal(err)
 	}
 }

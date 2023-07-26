@@ -8,8 +8,6 @@ import (
 
 	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/VividCortex/ewma"
-
 	"github.com/Trendyol/go-dcp/metadata"
 
 	"github.com/Trendyol/go-dcp/couchbase"
@@ -36,8 +34,8 @@ type Checkpoint interface {
 }
 
 type CheckpointMetric struct {
-	OffsetWrite        ewma.MovingAverage
-	OffsetWriteLatency ewma.MovingAverage
+	OffsetWrite        int
+	OffsetWriteLatency int64
 }
 
 type checkpoint struct {
@@ -95,13 +93,13 @@ func (s *checkpoint) Save() {
 		return true
 	})
 
-	s.metric.OffsetWrite.Add(float64(dirtyOffsetCount))
+	s.metric.OffsetWrite = dirtyOffsetCount
 
 	start := time.Now()
 
 	err := s.metadata.Save(checkpointDump, dirtyOffsetsDump, s.bucketUUID)
 
-	s.metric.OffsetWriteLatency.Add(float64(time.Since(start).Milliseconds()))
+	s.metric.OffsetWriteLatency = time.Since(start).Milliseconds()
 
 	if err == nil {
 		logger.Log.Printf("saved checkpoint")
@@ -237,9 +235,6 @@ func NewCheckpoint(
 		config:     config,
 		saveLock:   &sync.Mutex{},
 		loadLock:   &sync.Mutex{},
-		metric: &CheckpointMetric{
-			OffsetWrite:        ewma.NewMovingAverage(config.Metric.AverageWindowSec),
-			OffsetWriteLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
-		},
+		metric:     &CheckpointMetric{},
 	}
 }

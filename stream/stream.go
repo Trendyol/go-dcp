@@ -11,8 +11,6 @@ import (
 
 	"github.com/Trendyol/go-dcp/metadata"
 
-	"github.com/VividCortex/ewma"
-
 	"github.com/Trendyol/go-dcp/couchbase"
 	"github.com/Trendyol/go-dcp/models"
 
@@ -34,7 +32,7 @@ type Stream interface {
 }
 
 type Metric struct {
-	ProcessLatency ewma.MovingAverage
+	ProcessLatency int64
 	DcpLatency     int64
 	Rebalance      int
 }
@@ -90,7 +88,7 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 
 	s.listener(ctx)
 
-	s.metric.ProcessLatency.Add(float64(time.Since(start).Milliseconds()))
+	s.metric.ProcessLatency = time.Since(start).Milliseconds()
 }
 
 func (s *stream) listen() {
@@ -325,8 +323,6 @@ func NewStream(client couchbase.Client,
 		stopCh:                     stopCh,
 		bus:                        bus,
 		eventHandler:               eventHandler,
-		metric: &Metric{
-			ProcessLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
-		},
+		metric:                     &Metric{},
 	}
 }

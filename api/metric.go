@@ -138,7 +138,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(
 		s.processLatency,
 		prometheus.GaugeValue,
-		streamMetric.ProcessLatency.Value(),
+		float64(streamMetric.ProcessLatency),
 		[]string{}...,
 	)
 
@@ -205,14 +205,14 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(
 		s.offsetWrite,
 		prometheus.GaugeValue,
-		checkpointMetric.OffsetWrite.Value(),
+		float64(checkpointMetric.OffsetWrite),
 		[]string{}...,
 	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.offsetWriteLatency,
 		prometheus.GaugeValue,
-		checkpointMetric.OffsetWriteLatency.Value(),
+		float64(checkpointMetric.OffsetWriteLatency),
 		[]string{}...,
 	)
 }

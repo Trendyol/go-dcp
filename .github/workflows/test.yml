@@ -25,7 +25,7 @@ jobs:
         run: make compose
 
       - uses: actions/checkout@v3
-      - name: example
+      - name: Integration Test
         run: go test -v test/integration/integration_test.go
         env:
           INPUT_PUBLISH: false

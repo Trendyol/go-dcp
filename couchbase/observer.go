@@ -383,6 +383,11 @@ func (so *observer) Close() {
 
 	so.closed = true
 	close(so.listenerCh)
+
+	// to drain buffered channel
+	closedListenerCh := make(models.ListenerCh)
+	close(closedListenerCh)
+	so.listenerCh = closedListenerCh
 }
 
 func (so *observer) SetVbUUID(vbID uint16, vbUUID gocbcore.VbUUID) {

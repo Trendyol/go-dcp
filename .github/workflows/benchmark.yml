@@ -19,8 +19,5 @@ jobs:
         with:
           go-version: 1.19
 
-      - name: Continuous Benchmarking
-        run: go run go.bobheadxi.dev/gobenchdata@v1 action
-        env:
-          INPUT_PUBLISH: true
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Bench
+        run: go test -v ./... -bench . -benchmem

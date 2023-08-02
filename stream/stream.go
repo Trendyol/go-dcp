@@ -11,8 +11,6 @@ import (
 
 	"github.com/Trendyol/go-dcp/metadata"
 
-	"github.com/VividCortex/ewma"
-
 	"github.com/Trendyol/go-dcp/couchbase"
 	"github.com/Trendyol/go-dcp/models"
 
@@ -34,7 +32,7 @@ type Stream interface {
 }
 
 type Metric struct {
-	ProcessLatency ewma.MovingAverage
+	ProcessLatency int64
 	DcpLatency     int64
 	Rebalance      int
 }
@@ -90,7 +88,7 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 
 	s.listener(ctx)
 
-	s.metric.ProcessLatency.Add(float64(time.Since(start).Milliseconds()))
+	s.metric.ProcessLatency = time.Since(start).Milliseconds()
 }
 
 func (s *stream) listen() {
@@ -151,10 +149,17 @@ func (s *stream) Open() {
 
 func (s *stream) Rebalance() {
 	if s.balancing && s.rebalanceTimer != nil {
-		s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
-		logger.Log.Printf("latest rebalance time is resetted")
+		// Is rebalance timer triggered already
+		if s.rebalanceTimer.Stop() {
+			s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
+			logger.Log.Printf("latest rebalance time is resetted")
+		} else {
+			s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.Rebalance)
+			logger.Log.Printf("latest rebalance time is reassigned")
+		}
 		return
 	}
+	logger.Log.Printf("rebalance starting")
 	s.rebalanceLock.Lock()
 
 	s.eventHandler.BeforeRebalanceStart()
@@ -165,22 +170,25 @@ func (s *stream) Rebalance() {
 		s.Close()
 	}
 
-	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
-
 	s.eventHandler.AfterRebalanceStart()
 
-	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, func() {
-		defer s.rebalanceLock.Unlock()
+	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
 
-		s.eventHandler.BeforeRebalanceEnd()
+	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+}
 
-		s.Open()
-		s.balancing = false
-		s.metric.Rebalance++
+func (s *stream) rebalance() {
+	logger.Log.Printf("reassigning vbuckets and opening stream is starting")
 
-		logger.Log.Printf("rebalance is finished")
-		s.eventHandler.AfterRebalanceEnd()
-	})
+	defer s.rebalanceLock.Unlock()
+	s.balancing = false
+
+	s.eventHandler.BeforeRebalanceEnd()
+	s.Open()
+	s.metric.Rebalance++
+
+	logger.Log.Printf("rebalance is finished")
+	s.eventHandler.AfterRebalanceEnd()
 }
 
 func (s *stream) Save() {
@@ -315,8 +323,6 @@ func NewStream(client couchbase.Client,
 		stopCh:                     stopCh,
 		bus:                        bus,
 		eventHandler:               eventHandler,
-		metric: &Metric{
-			ProcessLatency: ewma.NewMovingAverage(config.Metric.AverageWindowSec),
-		},
+		metric:                     &Metric{},
 	}
 }

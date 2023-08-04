@@ -17,5 +17,3 @@ metadata:
   readOnly: true
   config:
     bucket: dcp-test
-    scope: _default
-    collection: _default

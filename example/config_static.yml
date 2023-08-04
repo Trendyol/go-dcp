@@ -8,5 +8,3 @@ dcp:
     name: groupName
     membership:
       type: static
-      memberNumber: 1
-      totalMembers: 1

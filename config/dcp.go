@@ -279,7 +279,7 @@ func (c *Dcp) applyDefaultGroupMembership() {
 		c.Dcp.Group.Membership.Type = MembershipTypeCouchbase
 	}
 
-	if totalMembersFromEnvVariable := os.Getenv("GO_DCP_DCP_GROUP_MEMBERSHIP_TOTALMEMBERS"); totalMembersFromEnvVariable != "" {
+	if totalMembersFromEnvVariable := os.Getenv("GO_DCP__DCP_GROUP_MEMBERSHIP_TOTALMEMBERS"); totalMembersFromEnvVariable != "" {
 		t, err := strconv.Atoi(totalMembersFromEnvVariable)
 		if err != nil {
 			panic("a non-integer environment variable was entered for 'totalMembers'")
@@ -287,7 +287,7 @@ func (c *Dcp) applyDefaultGroupMembership() {
 		c.Dcp.Group.Membership.TotalMembers = t
 	}
 
-	if memberNumberFromEnvVariable := os.Getenv("GO_DCP_DCP_GROUP_MEMBERSHIP_MEMBERNUMBER"); memberNumberFromEnvVariable != "" {
+	if memberNumberFromEnvVariable := os.Getenv("GO_DCP__DCP_GROUP_MEMBERSHIP_MEMBERNUMBER"); memberNumberFromEnvVariable != "" {
 		t, err := strconv.Atoi(memberNumberFromEnvVariable)
 		if err != nil {
 			panic("a non-integer environment variable was entered for 'memberNumber'")

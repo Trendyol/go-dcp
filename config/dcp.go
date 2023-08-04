@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"os"
 	"strconv"
 	"time"
 
@@ -276,6 +277,22 @@ func (c *Dcp) applyDefaultGroupMembership() {
 
 	if c.Dcp.Group.Membership.Type == "" {
 		c.Dcp.Group.Membership.Type = MembershipTypeCouchbase
+	}
+
+	if totalMembersFromEnvVariable := os.Getenv("GO_DCP__DCP_GROUP_MEMBERSHIP_TOTALMEMBERS"); totalMembersFromEnvVariable != "" {
+		t, err := strconv.Atoi(totalMembersFromEnvVariable)
+		if err != nil {
+			panic("a non-integer environment variable was entered for 'totalMembers'")
+		}
+		c.Dcp.Group.Membership.TotalMembers = t
+	}
+
+	if memberNumberFromEnvVariable := os.Getenv("GO_DCP__DCP_GROUP_MEMBERSHIP_MEMBERNUMBER"); memberNumberFromEnvVariable != "" {
+		t, err := strconv.Atoi(memberNumberFromEnvVariable)
+		if err != nil {
+			panic("a non-integer environment variable was entered for 'memberNumber'")
+		}
+		c.Dcp.Group.Membership.MemberNumber = t
 	}
 }
 

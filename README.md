@@ -91,7 +91,7 @@ $ go get github.com/Trendyol/go-dcp
 | `dcp.listener.bufferSize`                |       uint        |    no    |    1000    | Go DCP listener buffered channel size.                                                                                  |
 | `dcp.group.membership.type`              |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details.     |
 | `dcp.group.membership.memberNumber`      |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                               |
-| `dcp.group.membership.totalMembers`      |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                               |
+| `dcp.group.membership.totalMembers`      |        int        |    no    |     1      | Set this if membership is `static` or `kubernetesStatefulSet`. Other methods will ignore this field.                    |
 | `dcp.group.membership.rebalanceDelay`    |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                              |
 | `leaderElection.enabled`                 |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                          |
 | `leaderElection.type`                    |      string       |    no    | kubernetes | Leader Election types. `kubernetes`                                                                                     |
@@ -114,6 +114,15 @@ $ go get github.com/Trendyol/go-dcp
 | `api.port`                               |        int        |    no    |    8080    | Set API port                                                                                                            |
 | `metric.path`                            |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                               |
 | `metric.averageWindowSec`                |      float64      |    no    |    10.0    | Set metric window range.                                                                                                |
+
+### Environment Variables
+
+These environment variables will **overwrite** the corresponding configs.
+
+| Variable                                    | Type |       Corresponding Config        |                         Description                          |
+|---------------------------------------------|:----:|:---------------------------------:|:------------------------------------------------------------:|
+| `GO_DCP__DCP_GROUP_MEMBERSHIP_MEMBERNUMBER` | int  | dcp.group.membership.memberNumber | To be able to prevent making deployment to scale up or down. 
+| `GO_DCP__DCP_GROUP_MEMBERSHIP_TOTALMEMBERS` | int  | dcp.group.membership.totalMembers | To be able to prevent making deployment to scale up or down. 
 
 ### Monitoring
 

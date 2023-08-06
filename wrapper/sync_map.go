@@ -1,66 +1,54 @@
 package wrapper
 
 import (
-	"sync"
-
 	jsoniter "github.com/json-iterator/go"
+	csmap "github.com/mhmtszr/concurrent-swiss-map"
 )
 
-type SyncMap[K comparable, V any] struct {
-	m sync.Map
+type ConcurrentSwissMap[K comparable, V any] struct {
+	m *csmap.CsMap[K, V]
 }
 
-func (m *SyncMap[K, V]) Delete(key K) {
+func CreateConcurrentSwissMap[K comparable, V any](size uint64) *ConcurrentSwissMap[K, V] {
+	return &ConcurrentSwissMap[K, V]{
+		m: csmap.Create[K, V](
+			csmap.WithSize[K, V](size),
+		),
+	}
+}
+
+func (m *ConcurrentSwissMap[K, V]) Delete(key K) {
 	m.m.Delete(key)
 }
 
-func (m *SyncMap[K, V]) Load(key K) (value V, ok bool) {
-	v, ok := m.m.Load(key)
-	if !ok {
-		return value, ok
-	}
-
-	return v.(V), ok
+func (m *ConcurrentSwissMap[K, V]) Load(key K) (value V, ok bool) {
+	return m.m.Load(key)
 }
 
-func (m *SyncMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
-	v, loaded := m.m.LoadAndDelete(key)
-	if !loaded {
-		return value, loaded
-	}
-
-	return v.(V), loaded
-}
-
-func (m *SyncMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
-	a, loaded := m.m.LoadOrStore(key, value)
-	return a.(V), loaded
-}
-
-func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
-	m.m.Range(func(key, value any) bool {
-		return f(key.(K), value.(V))
+func (m *ConcurrentSwissMap[K, V]) Range(f func(key K, value V) bool) {
+	m.m.Range(func(key K, value V) bool {
+		return !f(key, value)
 	})
 }
 
-func (m *SyncMap[K, V]) Store(key K, value V) {
+func (m *ConcurrentSwissMap[K, V]) Store(key K, value V) {
 	m.m.Store(key, value)
 }
 
-func (m *SyncMap[K, V]) ToMap() map[K]V {
+func (m *ConcurrentSwissMap[K, V]) ToMap() map[K]V {
 	result := make(map[K]V)
 	m.Range(func(key K, value V) bool {
 		result[key] = value
-		return true
+		return false
 	})
 	return result
 }
 
-func (m *SyncMap[K, V]) MarshalJSON() ([]byte, error) {
+func (m *ConcurrentSwissMap[K, V]) MarshalJSON() ([]byte, error) {
 	return jsoniter.Marshal(m.ToMap())
 }
 
-func (m *SyncMap[K, V]) UnmarshalJSON(data []byte) error {
+func (m *ConcurrentSwissMap[K, V]) UnmarshalJSON(data []byte) error {
 	var result map[K]V
 	if err := jsoniter.Unmarshal(data, &result); err != nil {
 		return err

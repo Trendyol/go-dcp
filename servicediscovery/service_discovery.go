@@ -36,7 +36,7 @@ type ServiceDiscovery interface {
 type serviceDiscovery struct {
 	bus             helpers.Bus
 	leaderService   *Service
-	services        *wrapper.SyncMap[string, *Service]
+	services        *wrapper.ConcurrentSwissMap[string, *Service]
 	heartbeatTicker *time.Ticker
 	monitorTicker   *time.Ticker
 	info            *membership.Model
@@ -203,7 +203,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 
 func NewServiceDiscovery(config *config.Dcp, bus helpers.Bus) ServiceDiscovery {
 	return &serviceDiscovery{
-		services: &wrapper.SyncMap[string, *Service]{},
+		services: wrapper.CreateConcurrentSwissMap[string, *Service](0),
 		bus:      bus,
 		config:   config,
 	}

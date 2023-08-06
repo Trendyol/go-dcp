@@ -29,7 +29,7 @@ type Observer interface {
 	ModifyCollection(modification models.DcpCollectionModification)
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
-	GetMetrics() *wrapper.SyncMap[uint16, *ObserverMetric]
+	GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
 	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
@@ -60,14 +60,14 @@ func (om *ObserverMetric) AddExpiration() {
 
 type observer struct {
 	bus                    helpers.Bus
-	metrics                *wrapper.SyncMap[uint16, *ObserverMetric]
+	metrics                *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
 	listenerEndCh          models.ListenerEndCh
 	collectionIDs          map[uint32]string
-	catchup                *wrapper.SyncMap[uint16, uint64]
-	currentSnapshots       *wrapper.SyncMap[uint16, *models.SnapshotMarker]
+	catchup                *wrapper.ConcurrentSwissMap[uint16, uint64]
+	currentSnapshots       *wrapper.ConcurrentSwissMap[uint16, *models.SnapshotMarker]
 	listenerCh             models.ListenerCh
-	persistSeqNo           *wrapper.SyncMap[uint16, gocbcore.SeqNo]
-	uuIDMap                *wrapper.SyncMap[uint16, gocbcore.VbUUID]
+	persistSeqNo           *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo]
+	uuIDMap                *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
 	config                 *dcp.Dcp
 	catchupNeededVbIDCount int
 	closed                 bool
@@ -361,7 +361,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 	})
 }
 
-func (so *observer) GetMetrics() *wrapper.SyncMap[uint16, *ObserverMetric] {
+func (so *observer) GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric] {
 	return so.metrics
 }
 
@@ -411,15 +411,15 @@ func NewObserver(
 	bus helpers.Bus,
 ) Observer {
 	observer := &observer{
-		currentSnapshots: &wrapper.SyncMap[uint16, *models.SnapshotMarker]{},
-		uuIDMap:          &wrapper.SyncMap[uint16, gocbcore.VbUUID]{},
-		metrics:          &wrapper.SyncMap[uint16, *ObserverMetric]{},
-		catchup:          &wrapper.SyncMap[uint16, uint64]{},
+		currentSnapshots: wrapper.CreateConcurrentSwissMap[uint16, *models.SnapshotMarker](),
+		uuIDMap:          wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](),
+		metrics:          wrapper.CreateConcurrentSwissMap[uint16, *ObserverMetric](),
+		catchup:          wrapper.CreateConcurrentSwissMap[uint16, uint64](),
 		collectionIDs:    collectionIDs,
 		listenerCh:       make(models.ListenerCh, config.Dcp.Listener.BufferSize),
 		listenerEndCh:    make(models.ListenerEndCh, 1),
 		bus:              bus,
-		persistSeqNo:     &wrapper.SyncMap[uint16, gocbcore.SeqNo]{},
+		persistSeqNo:     wrapper.CreateConcurrentSwissMap[uint16, gocbcore.SeqNo](),
 		config:           config,
 	}
 

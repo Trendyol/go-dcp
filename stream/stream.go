@@ -24,7 +24,7 @@ type Stream interface {
 	Rebalance()
 	Save()
 	Close()
-	GetOffsets() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool)
+	GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool)
 	GetObserver() couchbase.Observer
 	GetMetric() *Metric
 	UnmarkDirtyOffsets()
@@ -49,13 +49,13 @@ type stream struct {
 	stopCh                     chan struct{}
 	finishStreamWithCloseCh    chan struct{}
 	rebalanceTimer             *time.Timer
-	dirtyOffsets               *wrapper.SyncMap[uint16, bool]
+	dirtyOffsets               *wrapper.ConcurrentSwissMap[uint16, bool]
 	listener                   models.Listener
 	config                     *config.Dcp
 	metric                     *Metric
 	finishStreamWithEndEventCh chan struct{}
 	collectionIDs              map[uint32]string
-	offsets                    *wrapper.SyncMap[uint16, *models.Offset]
+	offsets                    *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	activeStreams              int
 	rebalanceLock              sync.Mutex
 	anyDirtyOffset             bool
@@ -273,14 +273,15 @@ func (s *stream) Close() {
 	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
 	s.observer = nil
-	s.offsets = &wrapper.SyncMap[uint16, *models.Offset]{}
-	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
+
+	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset]()
+	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool]()
 
 	logger.Log.Printf("stream stopped")
 	s.eventHandler.AfterStreamStop()
 }
 
-func (s *stream) GetOffsets() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool) {
+func (s *stream) GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool) {
 	return s.offsets, s.dirtyOffsets, s.anyDirtyOffset
 }
 
@@ -298,7 +299,7 @@ func (s *stream) GetCheckpointMetric() *CheckpointMetric {
 
 func (s *stream) UnmarkDirtyOffsets() {
 	s.anyDirtyOffset = false
-	s.dirtyOffsets = &wrapper.SyncMap[uint16, bool]{}
+	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool]()
 }
 
 func NewStream(client couchbase.Client,

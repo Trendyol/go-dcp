@@ -50,7 +50,7 @@ type rollbackMitigation struct {
 	config             *config.Dcp
 	bus                helpers.Bus
 	configSnapshot     *gocbcore.ConfigSnapshot
-	persistedSeqNos    *wrapper.SyncMap[uint16, []*vbUUIDAndSeqNo]
+	persistedSeqNos    *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
 	configWatchTimer   *time.Ticker
 	observeTimer       *time.Ticker
 	observeCloseCh     chan struct{}
@@ -268,7 +268,7 @@ func (r *rollbackMitigation) reset() {
 		panic(err)
 	}
 
-	r.persistedSeqNos = &wrapper.SyncMap[uint16, []*vbUUIDAndSeqNo]{}
+	r.persistedSeqNos = wrapper.CreateConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]()
 
 	for _, vbID := range r.vbIds {
 		replicaArr := make([]*vbUUIDAndSeqNo, replicas+1)

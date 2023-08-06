@@ -3,7 +3,7 @@ package wrapper
 import "testing"
 
 func TestSyncMapWrapper(t *testing.T) {
-	p := CreateConcurrentSwissMap[string, string]()
+	p := CreateConcurrentSwissMap[string, string](0)
 	p.Store("key", "value")
 
 	if value, ok := p.Load("key"); ok {

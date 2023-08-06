@@ -13,7 +13,10 @@ func (s *readMetadata) Save(_ map[uint16]*models.CheckpointDocument, _ map[uint1
 	return nil
 }
 
-func (s *readMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error) {
+func (s *readMetadata) Load(
+	vbIds []uint16,
+	bucketUUID string,
+) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error) {
 	return s.metadata.Load(vbIds, bucketUUID)
 }
 

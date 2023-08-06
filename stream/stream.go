@@ -274,8 +274,8 @@ func (s *stream) Close() {
 	s.observer.CloseEnd()
 	s.observer = nil
 
-	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset]()
-	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool]()
+	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
+	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 
 	logger.Log.Printf("stream stopped")
 	s.eventHandler.AfterStreamStop()
@@ -299,7 +299,7 @@ func (s *stream) GetCheckpointMetric() *CheckpointMetric {
 
 func (s *stream) UnmarkDirtyOffsets() {
 	s.anyDirtyOffset = false
-	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool]()
+	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 }
 
 func NewStream(client couchbase.Client,

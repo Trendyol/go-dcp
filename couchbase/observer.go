@@ -411,15 +411,15 @@ func NewObserver(
 	bus helpers.Bus,
 ) Observer {
 	observer := &observer{
-		currentSnapshots: wrapper.CreateConcurrentSwissMap[uint16, *models.SnapshotMarker](),
-		uuIDMap:          wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](),
-		metrics:          wrapper.CreateConcurrentSwissMap[uint16, *ObserverMetric](),
-		catchup:          wrapper.CreateConcurrentSwissMap[uint16, uint64](),
+		currentSnapshots: wrapper.CreateConcurrentSwissMap[uint16, *models.SnapshotMarker](1024),
+		uuIDMap:          wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](100),
+		metrics:          wrapper.CreateConcurrentSwissMap[uint16, *ObserverMetric](100),
+		catchup:          wrapper.CreateConcurrentSwissMap[uint16, uint64](100),
 		collectionIDs:    collectionIDs,
 		listenerCh:       make(models.ListenerCh, config.Dcp.Listener.BufferSize),
 		listenerEndCh:    make(models.ListenerEndCh, 1),
 		bus:              bus,
-		persistSeqNo:     wrapper.CreateConcurrentSwissMap[uint16, gocbcore.SeqNo](),
+		persistSeqNo:     wrapper.CreateConcurrentSwissMap[uint16, gocbcore.SeqNo](100),
 		config:           config,
 	}
 

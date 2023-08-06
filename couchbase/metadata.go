@@ -63,7 +63,7 @@ func (s *cbMetadata) saveVBucketCheckpoint(ctx context.Context, vbID uint16, che
 }
 
 func (s *cbMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error) {
-	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument]()
+	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument](1024)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(vbIds))

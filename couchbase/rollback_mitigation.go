@@ -268,7 +268,7 @@ func (r *rollbackMitigation) reset() {
 		panic(err)
 	}
 
-	r.persistedSeqNos = wrapper.CreateConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]()
+	r.persistedSeqNos = wrapper.CreateConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo](1024)
 
 	for _, vbID := range r.vbIds {
 		replicaArr := make([]*vbUUIDAndSeqNo, replicas+1)

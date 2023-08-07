@@ -1,3 +1,4 @@
+#FROM couchbase/server:community-7.1.0-aarch64
 FROM couchbase:community-7.1.0
 
 ADD configure.sh /configure.sh

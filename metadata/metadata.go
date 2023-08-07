@@ -7,6 +7,6 @@ import (
 
 type Metadata interface {
 	Save(state map[uint16]*models.CheckpointDocument, dirtyOffsets map[uint16]bool, bucketUUID string) error
-	Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[uint16, *models.CheckpointDocument], bool, error)
+	Load(vbIds []uint16, bucketUUID string) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error)
 	Clear(vbIds []uint16) error
 }

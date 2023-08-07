@@ -26,7 +26,7 @@ const (
 
 type Checkpoint interface {
 	Save()
-	Load() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool)
+	Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool)
 	Clear()
 	StartSchedule()
 	StopSchedule()
@@ -109,7 +109,7 @@ func (s *checkpoint) Save() {
 	}
 }
 
-func (s *checkpoint) Load() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.SyncMap[uint16, bool], bool) {
+func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool) {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
 
@@ -121,8 +121,8 @@ func (s *checkpoint) Load() (*wrapper.SyncMap[uint16, *models.Offset], *wrapper.
 		panic(err)
 	}
 
-	offsets := &wrapper.SyncMap[uint16, *models.Offset]{}
-	dirtyOffsets := &wrapper.SyncMap[uint16, bool]{}
+	offsets := wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
+	dirtyOffsets := wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 	anyDirtyOffset := false
 
 	if !exist && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {

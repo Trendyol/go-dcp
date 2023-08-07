@@ -25,10 +25,10 @@ func (s *fileMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[u
 	return nil
 }
 
-func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.SyncMap[uint16, *models.CheckpointDocument], bool, error) { //nolint:lll,unused
+func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error) { //nolint:lll,unused
 	file, err := os.ReadFile(s.fileName)
 
-	state := &wrapper.SyncMap[uint16, *models.CheckpointDocument]{}
+	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument](1024)
 	exist := true
 
 	if err != nil {

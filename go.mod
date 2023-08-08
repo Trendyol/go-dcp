@@ -8,7 +8,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.48.0
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
-	github.com/mhmtszr/concurrent-swiss-map v0.0.5
+	github.com/mhmtszr/concurrent-swiss-map v0.0.9
 	github.com/prometheus/client_golang v1.16.0
 	github.com/testcontainers/testcontainers-go v0.22.0
 	golang.org/x/sync v0.3.0
@@ -32,8 +32,6 @@ require (
 	github.com/docker/docker v24.0.5+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dolthub/maphash v0.1.0 // indirect
-	github.com/dolthub/swiss v0.1.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect

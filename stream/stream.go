@@ -224,12 +224,16 @@ func (s *stream) closeAllStreams() error {
 	go func() {
 		var err error
 
+		var wg sync.WaitGroup
+		wg.Add(s.offsets.Count())
 		s.offsets.Range(func(vbID uint16, _ *models.Offset) bool {
-			err = s.client.CloseStream(vbID)
-
+			go func(vbID uint16) {
+				defer wg.Done()
+				err = s.client.CloseStream(vbID)
+			}(vbID)
 			return true
 		})
-
+		wg.Wait()
 		errCh <- err
 	}()
 

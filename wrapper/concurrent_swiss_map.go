@@ -35,6 +35,10 @@ func (m *ConcurrentSwissMap[K, V]) Store(key K, value V) {
 	m.m.Store(key, value)
 }
 
+func (m *ConcurrentSwissMap[K, V]) Count() int {
+	return m.m.Count()
+}
+
 func (m *ConcurrentSwissMap[K, V]) ToMap() map[K]V {
 	result := make(map[K]V)
 	m.Range(func(key K, value V) bool {

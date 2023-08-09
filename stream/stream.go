@@ -181,13 +181,13 @@ func (s *stream) rebalance() {
 	logger.Log.Printf("reassigning vbuckets and opening stream is starting")
 
 	defer s.rebalanceLock.Unlock()
-	s.balancing = false
 
 	s.eventHandler.BeforeRebalanceEnd()
 	s.Open()
 	s.metric.Rebalance++
 
 	logger.Log.Printf("rebalance is finished")
+	s.balancing = false
 	s.eventHandler.AfterRebalanceEnd()
 }
 

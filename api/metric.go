@@ -218,7 +218,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 //nolint:funlen
-func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDiscovery stream.VBucketDiscovery) *metricCollector {
+func NewMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDiscovery stream.VBucketDiscovery) *metricCollector {
 	return &metricCollector{
 		stream:           stream,
 		client:           client,
@@ -337,12 +337,8 @@ func newMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 
 func NewMetricMiddleware(app *fiber.App,
 	config *dcp.Dcp,
-	stream stream.Stream,
-	client couchbase.Client,
-	vBucketDiscovery stream.VBucketDiscovery,
 	metricCollectors ...prometheus.Collector,
 ) (func(ctx *fiber.Ctx) error, error) {
-	prometheus.DefaultRegisterer.MustRegister(newMetricCollector(client, stream, vBucketDiscovery))
 	prometheus.DefaultRegisterer.MustRegister(metricCollectors...)
 
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)

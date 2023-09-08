@@ -147,7 +147,9 @@ func (s *dcp) Start() {
 				s.api.Shutdown()
 			}()
 
-			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery, s.metricCollectors...)
+			s.metricCollectors = append(s.metricCollectors, api.NewMetricCollector(s.client, s.stream, s.vBucketDiscovery))
+
+			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors...)
 			s.api.Listen()
 		}()
 	}
@@ -198,7 +200,15 @@ func (s *dcp) Close() {
 	s.client.DcpClose()
 	s.client.Close()
 
+	s.unregisterMetricCollectors()
+
 	logger.Log.Printf("dcp stream closed")
+}
+
+func (s *dcp) unregisterMetricCollectors() {
+	for _, collector := range s.metricCollectors {
+		prometheus.DefaultRegisterer.Unregister(collector)
+	}
 }
 
 func (s *dcp) Commit() {

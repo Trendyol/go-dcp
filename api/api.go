@@ -81,7 +81,6 @@ func NewAPI(config *dcp.Dcp,
 	client couchbase.Client,
 	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	vBucketDiscovery stream.VBucketDiscovery,
 	metricCollectors ...prometheus.Collector,
 ) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
@@ -94,7 +93,7 @@ func NewAPI(config *dcp.Dcp,
 		serviceDiscovery: serviceDiscovery,
 	}
 
-	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client, vBucketDiscovery, metricCollectors...)
+	metricMiddleware, err := NewMetricMiddleware(app, config, metricCollectors...)
 
 	if err == nil {
 		app.Use(metricMiddleware)

@@ -86,7 +86,7 @@ func (s *dcp) SetMetadata(metadata metadata.Metadata) {
 }
 
 func (s *dcp) SetMetricCollectors(metricCollectors ...prometheus.Collector) {
-	s.metricCollectors = append(metricCollectors, metricCollectors...)
+	s.metricCollectors = append(s.metricCollectors, metricCollectors...)
 }
 
 func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {

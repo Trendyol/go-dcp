@@ -86,7 +86,7 @@ func (s *dcp) SetMetadata(metadata metadata.Metadata) {
 }
 
 func (s *dcp) SetMetricCollectors(metricCollectors ...prometheus.Collector) {
-	s.metricCollectors = metricCollectors
+	s.metricCollectors = append(metricCollectors, metricCollectors...)
 }
 
 func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
@@ -206,9 +206,11 @@ func (s *dcp) Close() {
 }
 
 func (s *dcp) unregisterMetricCollectors() {
-	for _, collector := range s.metricCollectors {
-		prometheus.DefaultRegisterer.Unregister(collector)
+	for i := range s.metricCollectors {
+		prometheus.DefaultRegisterer.Unregister(s.metricCollectors[i])
 	}
+
+	s.metricCollectors = []prometheus.Collector{}
 }
 
 func (s *dcp) Commit() {

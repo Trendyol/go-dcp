@@ -2,7 +2,7 @@ package dcp
 
 import (
 	"errors"
-	"github.com/Trendyol/go-dcp/metric"
+	"gopkg.in/yaml.v3"
 	"os"
 	"os/signal"
 	"reflect"
@@ -11,23 +11,18 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
-	"github.com/Trendyol/go-dcp/config"
-
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Trendyol/go-dcp/api"
-
-	"github.com/Trendyol/go-dcp/metadata"
-
-	"github.com/Trendyol/go-dcp/stream"
-
+	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/couchbase"
-
-	"github.com/Trendyol/go-dcp/models"
-
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/metadata"
+	"github.com/Trendyol/go-dcp/metric"
+	"github.com/Trendyol/go-dcp/models"
 	"github.com/Trendyol/go-dcp/servicediscovery"
+	"github.com/Trendyol/go-dcp/stream"
 )
 
 type Dcp interface {

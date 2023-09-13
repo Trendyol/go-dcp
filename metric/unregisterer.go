@@ -66,10 +66,10 @@ func (u *Unregisterer) UnregisterAll() bool {
 
 // UnregisterAll unregisters all collectors that were registered through the
 // Reigsterer.
-func (u *Unregisterer) RegisterAll(c []prometheus.Collector) error {
+func (u *Unregisterer) RegisterAll(cs []prometheus.Collector) error {
 	var result error
-	for c := range u.cs {
-		err := u.Register(c)
+	for i := range cs {
+		err := u.Register(cs[i])
 		if err != nil {
 			result = err
 		}

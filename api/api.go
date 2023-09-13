@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+
 	"github.com/Trendyol/go-dcp/metric"
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/prometheus/client_golang/prometheus"

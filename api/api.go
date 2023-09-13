@@ -84,10 +84,6 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func (s *api) registerMetricCollectors(collectors []prometheus.Collector) error {
-	return s.registerer.RegisterAll(collectors)
-}
-
 func NewAPI(config *dcp.Dcp,
 	client couchbase.Client,
 	stream stream.Stream,

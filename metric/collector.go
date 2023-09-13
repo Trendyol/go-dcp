@@ -1,19 +1,13 @@
-package api
+package metric
 
 import (
 	"strconv"
 
 	"github.com/Trendyol/go-dcp/models"
 
-	dcp "github.com/Trendyol/go-dcp/config"
-
 	"github.com/Trendyol/go-dcp/couchbase"
 	"github.com/Trendyol/go-dcp/helpers"
-	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/stream"
-
-	"github.com/ansrivas/fiberprometheus/v2"
-	"github.com/gofiber/fiber/v2"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -333,18 +327,4 @@ func NewMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 			nil,
 		),
 	}
-}
-
-func NewMetricMiddleware(app *fiber.App,
-	config *dcp.Dcp,
-	metricCollectors ...prometheus.Collector,
-) (func(ctx *fiber.Ctx) error, error) {
-	prometheus.DefaultRegisterer.MustRegister(metricCollectors...)
-
-	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
-	fiberPrometheus.RegisterAt(app, config.Metric.Path)
-
-	logger.Log.Printf("metric middleware registered on path %s", config.Metric.Path)
-
-	return fiberPrometheus.Middleware, nil
 }

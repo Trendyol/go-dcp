@@ -9,7 +9,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-
 	"gopkg.in/yaml.v3"
 
 	"github.com/Trendyol/go-dcp/config"
@@ -211,8 +210,8 @@ func (s *dcp) GetConfig() *config.Dcp {
 
 func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	config.ApplyDefaults()
-	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
-	logger.Log.Printf("using config: %v", string(configJSON))
+	copyOfConfig := config
+	printConfiguration(*copyOfConfig)
 
 	client := couchbase.NewClient(config)
 
@@ -284,4 +283,10 @@ func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logg
 	logger.SetErrorLogger(errorLogger)
 
 	return NewDcp(cfg, listener)
+}
+
+func printConfiguration(config config.Dcp) {
+	config.Password = "*****"
+	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
+	logger.Log.Printf("using config: %v", string(configJSON))
 }

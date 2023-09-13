@@ -2,6 +2,7 @@ package dcp
 
 import (
 	"errors"
+	"github.com/Trendyol/go-dcp/metric"
 	"os"
 	"os/signal"
 	"reflect"
@@ -9,8 +10,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/Trendyol/go-dcp/config"
 
@@ -147,6 +146,7 @@ func (s *dcp) Start() {
 				s.api.Shutdown()
 			}()
 
+			s.metricCollectors = append(s.metricCollectors, metric.NewMetricCollector(s.client, s.stream, s.vBucketDiscovery))
 			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors)
 			s.api.Listen()
 		}()

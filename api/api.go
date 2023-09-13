@@ -84,8 +84,8 @@ func (s *api) followers(c *fiber.Ctx) error {
 	return c.JSON(s.serviceDiscovery.GetAll())
 }
 
-func (s *api) registerMetricCollectors(collectors []prometheus.Collector) {
-	s.registerer.RegisterAll(collectors)
+func (s *api) registerMetricCollectors(collectors []prometheus.Collector) error {
+	return s.registerer.RegisterAll(collectors)
 }
 
 func NewAPI(config *dcp.Dcp,
@@ -105,11 +105,9 @@ func NewAPI(config *dcp.Dcp,
 		registerer:       metric.WrapWithUnregisterer(prometheus.DefaultRegisterer),
 	}
 
-	api.registerer.RegisterAll(collectors)
-	metricMiddleware, err := newMetricMiddleware(app, config)
-
+	err := api.registerer.RegisterAll(collectors)
 	if err == nil {
-		app.Use(metricMiddleware)
+		app.Use(newMetricMiddleware(app, config))
 	} else {
 		logger.ErrorLog.Printf("metric middleware cannot be initialized: %v", err)
 	}
@@ -129,13 +127,11 @@ func NewAPI(config *dcp.Dcp,
 	return api
 }
 
-func newMetricMiddleware(app *fiber.App,
-	config *dcp.Dcp,
-) (func(ctx *fiber.Ctx) error, error) {
+func newMetricMiddleware(app *fiber.App, config *dcp.Dcp) func(ctx *fiber.Ctx) error {
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
 	logger.Log.Printf("metric middleware registered on path %s", config.Metric.Path)
 
-	return fiberPrometheus.Middleware, nil
+	return fiberPrometheus.Middleware
 }

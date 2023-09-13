@@ -1,6 +1,8 @@
 package metric
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 // Unregisterer is a Prometheus Registerer that can unregister all collectors
 // passed to it.
@@ -64,12 +66,14 @@ func (u *Unregisterer) UnregisterAll() bool {
 
 // UnregisterAll unregisters all collectors that were registered through the
 // Reigsterer.
-func (u *Unregisterer) RegisterAll(c []prometheus.Collector) bool {
-	success := true
+func (u *Unregisterer) RegisterAll(c []prometheus.Collector) error {
+	var result error
 	for c := range u.cs {
-		if u.Register(c) != nil {
-			success = false
+		err := u.Register(c)
+		if err != nil {
+			result = err
 		}
 	}
-	return success
+
+	return result
 }

@@ -287,6 +287,6 @@ func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logg
 
 func printConfiguration(config config.Dcp) {
 	config.Password = "*****"
-	configJson, _ := jsoniter.MarshalIndent(config, "", "  ")
-	logger.Log.Printf("using config: %v", string(configJson))
+	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
+	logger.Log.Printf("using config: %v", string(configJSON))
 }

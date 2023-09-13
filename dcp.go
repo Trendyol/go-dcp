@@ -2,7 +2,6 @@ package dcp
 
 import (
 	"errors"
-	"github.com/tidwall/sjson"
 	"os"
 	"os/signal"
 	"reflect"
@@ -211,7 +210,8 @@ func (s *dcp) GetConfig() *config.Dcp {
 
 func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	config.ApplyDefaults()
-	printConfiguration(config)
+	copyOfConfig := config
+	printConfiguration(*copyOfConfig)
 
 	client := couchbase.NewClient(config)
 
@@ -285,8 +285,8 @@ func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logg
 	return NewDcp(cfg, listener)
 }
 
-func printConfiguration(config *config.Dcp) {
+func printConfiguration(config config.Dcp) {
+	config.Password = "*****"
 	configJson, _ := jsoniter.MarshalIndent(config, "", "  ")
-	maskedConfigJson, _ := sjson.Set(string(configJson), "Password", "*****")
-	logger.Log.Printf("using config: %v", maskedConfigJson)
+	logger.Log.Printf("using config: %v", string(configJson))
 }

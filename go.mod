@@ -11,7 +11,6 @@ require (
 	github.com/mhmtszr/concurrent-swiss-map v0.0.9
 	github.com/prometheus/client_golang v1.16.0
 	github.com/testcontainers/testcontainers-go v0.22.0
-	github.com/tidwall/sjson v1.2.5
 	golang.org/x/sync v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.27.4

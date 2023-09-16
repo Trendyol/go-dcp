@@ -99,7 +99,7 @@ func (s *cbMetadata) Load(
 			if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 				state.Store(vbID, doc)
 			} else {
-				logger.ErrorLog.Printf("cannot load checkpoint, vbID: %d, err: %v", vbID, err)
+				logger.Log.Error("cannot load checkpoint, vbID: %d, err: %v", vbID, err)
 				panic(err)
 			}
 
@@ -131,7 +131,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
-		logger.ErrorLog.Printf("cannot initialize couchbase metadata: %v", err)
+		logger.Log.Error("cannot initialize couchbase metadata: %v", err)
 		panic(err)
 	}
 

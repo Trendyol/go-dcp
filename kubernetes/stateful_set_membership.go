@@ -46,7 +46,7 @@ func getPodOrdinalFromHostname() (int, error) {
 func NewStatefulSetMembership(config *config.Dcp) membership.Membership {
 	podOrdinal, err := getPodOrdinalFromHostname()
 	if err != nil {
-		logger.ErrorLog.Printf("error while get pod ordinal from hostname: %v", err)
+		logger.Log.Error("error while get pod ordinal from hostname: %v", err)
 		panic(err)
 	}
 
@@ -54,7 +54,7 @@ func NewStatefulSetMembership(config *config.Dcp) membership.Membership {
 
 	if memberNumber > config.Dcp.Group.Membership.TotalMembers {
 		err := fmt.Errorf("memberNumber is greater than totalMembers")
-		logger.ErrorLog.Printf("memberNumber: %v, totalMembers: %v, err: %v", memberNumber, config.Dcp.Group.Membership.TotalMembers, err)
+		logger.Log.Error("memberNumber: %v, totalMembers: %v, err: %v", memberNumber, config.Dcp.Group.Membership.TotalMembers, err)
 		panic(err)
 	}
 

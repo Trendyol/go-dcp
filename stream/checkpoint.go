@@ -55,7 +55,7 @@ func (s *checkpoint) Save() {
 	offsets, dirtyOffsets, anyDirtyOffset := s.stream.GetOffsets()
 
 	if !anyDirtyOffset {
-		logger.Log.Printf("no need to save checkpoint")
+		logger.Log.Debug("no need to save checkpoint")
 		return
 	}
 
@@ -102,10 +102,10 @@ func (s *checkpoint) Save() {
 	s.metric.OffsetWriteLatency = time.Since(start).Milliseconds()
 
 	if err == nil {
-		logger.Log.Printf("saved checkpoint")
+		logger.Log.Debug("saved checkpoint")
 		s.stream.UnmarkDirtyOffsets()
 	} else {
-		logger.ErrorLog.Printf("error while saving checkpoint document: %v", err)
+		logger.Log.Error("error while saving checkpoint document: %v", err)
 	}
 }
 
@@ -115,9 +115,9 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 
 	dump, exist, err := s.metadata.Load(s.vbIds, s.bucketUUID)
 	if err == nil {
-		logger.Log.Printf("loaded checkpoint")
+		logger.Log.Debug("loaded checkpoint")
 	} else {
-		logger.ErrorLog.Printf("error while loading checkpoint document: %v", err)
+		logger.Log.Error("error while loading checkpoint document: %v", err)
 		panic(err)
 	}
 
@@ -126,11 +126,11 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	anyDirtyOffset := false
 
 	if !exist && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
-		logger.Log.Printf("no checkpoint found, auto reset checkpoint to latest")
+		logger.Log.Debug("no checkpoint found, auto reset checkpoint to latest")
 
 		seqNoMap, err := s.client.GetVBucketSeqNos()
 		if err != nil {
-			logger.ErrorLog.Printf("error while getting vbucket seqNos: %v", err)
+			logger.Log.Error("error while getting vbucket seqNos: %v", err)
 			panic(err)
 		}
 
@@ -175,7 +175,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 
 func (s *checkpoint) Clear() {
 	_ = s.metadata.Clear(s.vbIds)
-	logger.Log.Printf("cleared checkpoint")
+	logger.Log.Debug("cleared checkpoint")
 }
 
 func (s *checkpoint) StartSchedule() {
@@ -190,7 +190,7 @@ func (s *checkpoint) StartSchedule() {
 		}
 	}()
 
-	logger.Log.Printf("started checkpoint schedule")
+	logger.Log.Debug("started checkpoint schedule")
 }
 
 func (s *checkpoint) StopSchedule() {
@@ -202,7 +202,7 @@ func (s *checkpoint) StopSchedule() {
 		s.schedule.Stop()
 	}
 
-	logger.Log.Printf("stopped checkpoint schedule")
+	logger.Log.Debug("stopped checkpoint schedule")
 }
 
 func (s *checkpoint) GetMetric() *CheckpointMetric {
@@ -212,7 +212,7 @@ func (s *checkpoint) GetMetric() *CheckpointMetric {
 func getBucketUUID(client couchbase.Client) string {
 	snapshot, err := client.GetConfigSnapshot()
 	if err != nil {
-		logger.ErrorLog.Printf("failed to get config snapshot: %v", err)
+		logger.Log.Error("failed to get config snapshot: %v", err)
 		panic(err)
 	}
 

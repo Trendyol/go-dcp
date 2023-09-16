@@ -108,7 +108,7 @@ func (s *serviceDiscovery) StartHeartbeat() {
 			if s.leaderService != nil {
 				err := s.leaderService.Client.Ping()
 				if err != nil {
-					logger.ErrorLog.Printf("leader is down, health check failed for leader")
+					logger.Log.Info("leader is down, health check failed for leader")
 
 					tempLeaderService := s.leaderService
 
@@ -126,8 +126,7 @@ func (s *serviceDiscovery) StartHeartbeat() {
 				err := service.Client.Ping()
 				if err != nil {
 					s.Remove(name)
-
-					logger.Log.Printf("client %s disconnected", name)
+					logger.Log.Info("client %s disconnected", name)
 				}
 
 				return true
@@ -144,7 +143,7 @@ func (s *serviceDiscovery) StartMonitor() {
 	s.monitorTicker = time.NewTicker(5 * time.Second)
 
 	go func() {
-		logger.Log.Printf("service discovery will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+		logger.Log.Info("service discovery will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(s.config.Dcp.Group.Membership.RebalanceDelay)
 
 		for range s.monitorTicker.C {
@@ -160,7 +159,7 @@ func (s *serviceDiscovery) StartMonitor() {
 			for index, name := range names {
 				if service, ok := s.services.Load(name); ok {
 					if err := service.Client.Rebalance(index+2, totalMembers); err != nil {
-						logger.ErrorLog.Printf("rebalance failed for %s", name)
+						logger.Log.Error("rebalance failed for %s", name)
 					}
 				}
 			}
@@ -194,9 +193,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 
 	if newInfo.IsChanged(s.info) {
 		s.info = newInfo
-
-		logger.Log.Printf("new info arrived for member: %v/%v", memberNumber, totalMembers)
-
+		logger.Log.Info("new info arrived for member: %v/%v", memberNumber, totalMembers)
 		s.bus.Emit(helpers.MembershipChangedBusEventName, newInfo)
 	}
 }

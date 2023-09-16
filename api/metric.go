@@ -348,7 +348,7 @@ func NewMetricMiddleware(app *fiber.App,
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
-	logger.Log.Printf("metric middleware registered on path %s", config.Metric.Path)
+	logger.Log.Info("metric middleware registered on path %s", config.Metric.Path)
 
 	return fiberPrometheus.Middleware, nil
 }

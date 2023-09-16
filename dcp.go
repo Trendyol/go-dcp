@@ -2,6 +2,7 @@ package dcp
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"reflect"
@@ -67,7 +68,7 @@ func (s *dcp) startHealthCheck() {
 	go func() {
 		for range s.healthCheckTicker.C {
 			if err := s.client.Ping(); err != nil {
-				logger.ErrorLog.Printf("health check failed: %v", err)
+				logger.Log.Error("health check failed: %v", err)
 				s.healthCheckTicker.Stop()
 				s.healCheckFailedCh <- struct{}{}
 				break
@@ -113,7 +114,7 @@ func (s *dcp) Start() {
 		s.metadata = metadata.NewReadMetadata(s.metadata)
 	}
 
-	logger.Log.Printf("using %v metadata", reflect.TypeOf(s.metadata))
+	logger.Log.Info("using %v metadata", reflect.TypeOf(s.metadata))
 
 	bus := helpers.NewBus()
 
@@ -157,7 +158,7 @@ func (s *dcp) Start() {
 		s.startHealthCheck()
 	}
 
-	logger.Log.Printf("dcp stream started")
+	logger.Log.Info("dcp stream started")
 
 	s.readyCh <- struct{}{}
 
@@ -197,7 +198,7 @@ func (s *dcp) Close() {
 	s.client.DcpClose()
 	s.client.Close()
 
-	logger.Log.Printf("dcp stream closed")
+	logger.Log.Info("dcp stream closed")
 }
 
 func (s *dcp) Commit() {
@@ -278,15 +279,8 @@ func newDcpConfig(path string) (config.Dcp, error) {
 	return c, nil
 }
 
-func NewDcpWithLoggers(cfg any, listener models.Listener, infoLogger logger.Logger, errorLogger logger.Logger) (Dcp, error) {
-	logger.SetLogger(infoLogger)
-	logger.SetErrorLogger(errorLogger)
-
-	return NewDcp(cfg, listener)
-}
-
 func printConfiguration(config config.Dcp) {
 	config.Password = "*****"
 	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
-	logger.Log.Printf("using config: %v", string(configJSON))
+	fmt.Printf("using config: %v", string(configJSON))
 }

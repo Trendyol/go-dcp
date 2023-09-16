@@ -2,6 +2,7 @@ package stream
 
 import (
 	"errors"
+
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/kubernetes"

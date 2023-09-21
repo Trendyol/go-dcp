@@ -115,7 +115,6 @@ $ go get github.com/Trendyol/go-dcp
 | `metric.path`                            |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                               |
 | `metric.averageWindowSec`                |      float64      |    no    |    10.0    | Set metric window range.                                                                                                |
 | `logging.level`                          |      string       |    no    |    info    | Set logging level.                                                                                                      |
-| `logging.appName`                        |      string       |    no    |     -      | Set logging app-name field.                                                                                             |
 
 ### Environment Variables
 

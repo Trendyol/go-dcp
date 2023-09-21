@@ -95,8 +95,7 @@ type Metadata struct {
 }
 
 type Logging struct {
-	AppName string `yaml:"appName"`
-	Level   string `yaml:"level"`
+	Level string `yaml:"level"`
 }
 
 type Dcp struct {
@@ -228,7 +227,7 @@ func (c *Dcp) ApplyDefaults() {
 	c.applyDefaultLeaderElection()
 	c.applyDefaultDcp()
 	c.applyDefaultMetadata()
-	c.applyDefaultLogging()
+	c.applyLogging()
 }
 
 func (c *Dcp) applyDefaultRollbackMitigation() {
@@ -377,15 +376,15 @@ func (c *Dcp) applyDefaultMetadata() {
 	}
 }
 
-func (c *Dcp) applyDefaultLogging() {
+func (c *Dcp) applyLogging() {
+	if logger.Log != nil {
+		return
+	}
+
 	loggingLevel := c.Logging.Level
 	if loggingLevel == "" {
 		c.Logging.Level = logger.INFO
 	}
 
-	if c.Logging.AppName == "" {
-		c.Logging.AppName = c.BucketName
-	}
-
-	logger.InitLogger(c.Logging.Level, c.Logging.AppName)
+	logger.InitDefaultLogger(c.Logging.Level)
 }

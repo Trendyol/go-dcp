@@ -5,7 +5,6 @@ password: password
 bucketName: dcp-test
 logging:
   level: info
-  appName: my-dcp-test-app
 dcp:
   group:
     name: groupName

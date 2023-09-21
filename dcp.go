@@ -3,6 +3,7 @@ package dcp
 import (
 	"errors"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"reflect"
@@ -277,6 +278,13 @@ func newDcpConfig(path string) (config.Dcp, error) {
 		return config.Dcp{}, err
 	}
 	return c, nil
+}
+
+func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger) (Dcp, error) {
+	logger.Log = &logger.Loggers{
+		Logrus: logrus,
+	}
+	return NewDcp(cfg, listener)
 }
 
 func printConfiguration(config config.Dcp) {

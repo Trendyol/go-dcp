@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/Trendyol/go-dcp"
 	"github.com/Trendyol/go-dcp/models"
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +29,7 @@ func listener(ctx *models.ListenerContext) {
 func TestCouchbase(t *testing.T) {
 	newDcp, err := dcp.NewDcp("config.yml", listener)
 	if err != nil {
-		return
+		log.Fatalf("couldn't create dcp err: %v", err)
 	}
 
 	var wg sync.WaitGroup
@@ -54,6 +55,8 @@ func TestCouchbase(t *testing.T) {
 			}
 		}
 	}()
+
+	time.Sleep(500 * time.Second)
 
 	wg.Wait()
 	t.Log("done")

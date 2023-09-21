@@ -31,7 +31,7 @@ type api struct {
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
 	config           *dcp.Dcp
-	registerer       *metric.Unregisterer
+	registerer       *metric.Registerer
 }
 
 func (s *api) Listen() {
@@ -99,7 +99,7 @@ func NewAPI(config *dcp.Dcp,
 		client:           client,
 		stream:           stream,
 		serviceDiscovery: serviceDiscovery,
-		registerer:       metric.WrapWithUnregisterer(prometheus.DefaultRegisterer),
+		registerer:       metric.WrapWithRegisterer(prometheus.DefaultRegisterer),
 	}
 
 	err := api.registerer.RegisterAll(collectors)

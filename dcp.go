@@ -3,12 +3,13 @@ package dcp
 import (
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
 	"reflect"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	jsoniter "github.com/json-iterator/go"
 	"gopkg.in/yaml.v3"

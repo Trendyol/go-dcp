@@ -9,25 +9,21 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"gopkg.in/yaml.v3"
 
-	"github.com/Trendyol/go-dcp/config"
+	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/Trendyol/go-dcp/api"
-
-	"github.com/Trendyol/go-dcp/metadata"
-
-	"github.com/Trendyol/go-dcp/stream"
-
+	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/couchbase"
-
-	"github.com/Trendyol/go-dcp/models"
-
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/metadata"
+	"github.com/Trendyol/go-dcp/metric"
+	"github.com/Trendyol/go-dcp/models"
 	"github.com/Trendyol/go-dcp/servicediscovery"
+	"github.com/Trendyol/go-dcp/stream"
 )
 
 type Dcp interface {
@@ -85,7 +81,7 @@ func (s *dcp) SetMetadata(metadata metadata.Metadata) {
 }
 
 func (s *dcp) SetMetricCollectors(metricCollectors ...prometheus.Collector) {
-	s.metricCollectors = metricCollectors
+	s.metricCollectors = append(s.metricCollectors, metricCollectors...)
 }
 
 func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
@@ -146,7 +142,8 @@ func (s *dcp) Start() {
 				s.api.Shutdown()
 			}()
 
-			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.vBucketDiscovery, s.metricCollectors...)
+			s.metricCollectors = append(s.metricCollectors, metric.NewMetricCollector(s.client, s.stream, s.vBucketDiscovery))
+			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors)
 			s.api.Listen()
 		}()
 	}
@@ -196,6 +193,9 @@ func (s *dcp) Close() {
 
 	s.client.DcpClose()
 	s.client.Close()
+
+	s.api.UnregisterMetricCollectors()
+	s.metricCollectors = []prometheus.Collector{}
 
 	logger.Log.Printf("dcp stream closed")
 }

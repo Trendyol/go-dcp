@@ -3,9 +3,11 @@ package api
 import (
 	"fmt"
 
-	dcp "github.com/Trendyol/go-dcp/config"
-
+	"github.com/Trendyol/go-dcp/metric"
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/prometheus/client_golang/prometheus"
+
+	dcp "github.com/Trendyol/go-dcp/config"
 
 	"github.com/gofiber/fiber/v2/middleware/pprof"
 
@@ -20,6 +22,7 @@ import (
 type API interface {
 	Listen()
 	Shutdown()
+	UnregisterMetricCollectors()
 }
 
 type api struct {
@@ -28,6 +31,7 @@ type api struct {
 	serviceDiscovery servicediscovery.ServiceDiscovery
 	app              *fiber.App
 	config           *dcp.Dcp
+	registerer       *metric.Registerer
 }
 
 func (s *api) Listen() {
@@ -48,6 +52,10 @@ func (s *api) Shutdown() {
 		logger.ErrorLog.Printf("api cannot be shutdown, err: %v", err)
 		panic(err)
 	}
+}
+
+func (s *api) UnregisterMetricCollectors() {
+	s.registerer.UnregisterAll()
 }
 
 func (s *api) status(c *fiber.Ctx) error {
@@ -81,8 +89,7 @@ func NewAPI(config *dcp.Dcp,
 	client couchbase.Client,
 	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	vBucketDiscovery stream.VBucketDiscovery,
-	metricCollectors ...prometheus.Collector,
+	collectors []prometheus.Collector,
 ) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
@@ -92,12 +99,12 @@ func NewAPI(config *dcp.Dcp,
 		client:           client,
 		stream:           stream,
 		serviceDiscovery: serviceDiscovery,
+		registerer:       metric.WrapWithRegisterer(prometheus.DefaultRegisterer),
 	}
 
-	metricMiddleware, err := NewMetricMiddleware(app, config, stream, client, vBucketDiscovery, metricCollectors...)
-
+	err := api.registerer.RegisterAll(collectors)
 	if err == nil {
-		app.Use(metricMiddleware)
+		app.Use(newMetricMiddleware(app, config))
 	} else {
 		logger.ErrorLog.Printf("metric middleware cannot be initialized: %v", err)
 	}
@@ -115,4 +122,13 @@ func NewAPI(config *dcp.Dcp,
 	app.Get("/rebalance", api.rebalance)
 
 	return api
+}
+
+func newMetricMiddleware(app *fiber.App, config *dcp.Dcp) func(ctx *fiber.Ctx) error {
+	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
+	fiberPrometheus.RegisterAt(app, config.Metric.Path)
+
+	logger.Log.Printf("metric middleware registered on path %s", config.Metric.Path)
+
+	return fiberPrometheus.Middleware
 }

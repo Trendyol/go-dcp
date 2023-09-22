@@ -110,7 +110,7 @@ func (s *client) GetMetaAgent() *gocbcore.Agent {
 func CreateTLSRootCaProvider(rootCAPath string) func() *x509.CertPool {
 	cert, err := os.ReadFile(os.ExpandEnv(rootCAPath))
 	if err != nil {
-		logger.ErrorLog.Printf("error while reading cert file: %v", err)
+		logger.Log.Error("error while reading cert file: %v", err)
 		panic(err)
 	}
 
@@ -251,11 +251,11 @@ func (s *client) Connect() error {
 			s.metaAgent = metaAgent
 		}
 
-		logger.Log.Printf("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, metadataBucketName)
+		logger.Log.Info("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, metadataBucketName)
 		return nil
 	}
 
-	logger.Log.Printf("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
+	logger.Log.Info("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
@@ -269,7 +269,7 @@ func (s *client) Close() {
 		_ = s.agent.Close()
 	}
 
-	logger.Log.Printf("connections closed %s", s.config.Hosts)
+	logger.Log.Info("connections closed %s", s.config.Hosts)
 }
 
 func (s *client) DcpConnect() error {
@@ -327,14 +327,14 @@ func (s *client) DcpConnect() error {
 	}
 
 	s.dcpAgent = client
-	logger.Log.Printf("connected to %s as dcp, bucket: %s", s.config.Hosts, s.config.BucketName)
+	logger.Log.Info("connected to %s as dcp, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
 
 func (s *client) DcpClose() {
 	_ = s.dcpAgent.Close()
-	logger.Log.Printf("dcp connection closed %s", s.config.Hosts)
+	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
 func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
@@ -381,13 +381,13 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 func (s *client) GetNumVBuckets() int {
 	snapshot, err := s.GetConfigSnapshot()
 	if err != nil {
-		logger.ErrorLog.Printf("failed to get config snapshot: %v", err)
+		logger.Log.Error("failed to get config snapshot: %v", err)
 		panic(err)
 	}
 
 	vBuckets, err := snapshot.NumVbuckets()
 	if err != nil {
-		logger.ErrorLog.Printf("failed to get number of vbucket: %v", err)
+		logger.Log.Error("failed to get number of vbucket: %v", err)
 		panic(err)
 	}
 
@@ -428,7 +428,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 	observer Observer,
 	openStreamOptions gocbcore.OpenStreamOptions,
 ) error {
-	logger.Log.Printf(
+	logger.Log.Info(
 		"open stream with rollback, vbID: %d, failedSeqNo: %d, rollbackSeqNo: %d",
 		vbID, failedSeqNo, rollbackSeqNo,
 	)
@@ -521,7 +521,7 @@ func (s *client) OpenStream(
 
 	if err != nil {
 		if rollbackErr, ok := err.(gocbcore.DCPRollbackError); ok {
-			logger.Log.Printf("need to rollback for vbID: %d, vbUUID: %d", vbID, offset.VbUUID)
+			logger.Log.Info("need to rollback for vbID: %d, vbUUID: %d", vbID, offset.VbUUID)
 			return s.openStreamWithRollback(vbID, gocbcore.SeqNo(offset.SeqNo), rollbackErr.SeqNo, observer, openStreamOptions)
 		}
 	}
@@ -587,7 +587,7 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) ma
 		for _, collectionName := range collectionNames {
 			collectionID, err := s.getCollectionID(scopeName, collectionName)
 			if err != nil {
-				logger.ErrorLog.Printf("cannot get collection ids: %v", err)
+				logger.Log.Error("cannot get collection ids: %v", err)
 				panic(err)
 			}
 

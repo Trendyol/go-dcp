@@ -35,21 +35,21 @@ type api struct {
 }
 
 func (s *api) Listen() {
-	logger.Log.Printf("api starting on port %d", s.config.API.Port)
+	logger.Log.Info("api starting on port %d", s.config.API.Port)
 
 	err := s.app.Listen(fmt.Sprintf(":%d", s.config.API.Port))
 
 	if err != nil {
-		logger.ErrorLog.Printf("api cannot start on port %d, err: %v", s.config.API.Port, err)
+		logger.Log.Error("api cannot start on port %d, err: %v", s.config.API.Port, err)
 	} else {
-		logger.Log.Printf("api stopped")
+		logger.Log.Info("api stopped")
 	}
 }
 
 func (s *api) Shutdown() {
 	err := s.app.Shutdown()
 	if err != nil {
-		logger.ErrorLog.Printf("api cannot be shutdown, err: %v", err)
+		logger.Log.Error("api cannot be shutdown, err: %v", err)
 		panic(err)
 	}
 }
@@ -106,7 +106,7 @@ func NewAPI(config *dcp.Dcp,
 	if err == nil {
 		app.Use(newMetricMiddleware(app, config))
 	} else {
-		logger.ErrorLog.Printf("metric middleware cannot be initialized: %v", err)
+		logger.Log.Error("metric middleware cannot be initialized: %v", err)
 	}
 
 	if config.Debug {
@@ -128,7 +128,7 @@ func newMetricMiddleware(app *fiber.App, config *dcp.Dcp) func(ctx *fiber.Ctx) e
 	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
-	logger.Log.Printf("metric middleware registered on path %s", config.Metric.Path)
+	logger.Log.Info("metric middleware registered on path %s", config.Metric.Path)
 
 	return fiberPrometheus.Middleware
 }

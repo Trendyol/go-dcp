@@ -45,7 +45,7 @@ func (rh *Handler) Register(payload Register, reply *bool) error {
 	followerService := NewService(followerClient, payload.Identity.Name)
 	rh.serviceDiscovery.Add(followerService)
 
-	logger.Log.Printf("registered client %s", payload.Identity.Name)
+	logger.Log.Info("registered client %s", payload.Identity.Name)
 
 	*reply = true
 
@@ -65,24 +65,24 @@ func (s *server) Listen() {
 
 	err := server.Register(s.handler)
 	if err != nil {
-		logger.ErrorLog.Printf("error while registering rpc handler: %s", err)
+		logger.Log.Error("error while registering rpc handler: %s", err)
 		panic(err)
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
-		logger.ErrorLog.Printf("error while listening rpc server: %s", err)
+		logger.Log.Error("error while listening rpc server: %s", err)
 		panic(err)
 	}
 
 	s.listener = listener
-	logger.Log.Printf("rpc server started on port %d", s.port)
+	logger.Log.Info("rpc server started on port %d", s.port)
 
 	go func() {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				logger.ErrorLog.Printf("rpc server error: %s", err)
+				logger.Log.Error("rpc server error: %s", err)
 
 				break
 			}
@@ -90,14 +90,14 @@ func (s *server) Listen() {
 			go server.ServeConn(conn)
 		}
 
-		logger.Log.Printf("rpc server stopped")
+		logger.Log.Info("rpc server stopped")
 	}()
 }
 
 func (s *server) Shutdown() {
 	err := s.listener.Close()
 	if err != nil {
-		logger.ErrorLog.Printf("error while closing rpc server: %s", err)
+		logger.Log.Error("error while closing rpc server: %s", err)
 	}
 }
 

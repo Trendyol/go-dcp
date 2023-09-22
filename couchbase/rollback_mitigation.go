@@ -222,7 +222,7 @@ func (r *rollbackMitigation) reconfigure() {
 	}
 
 	r.activeGroupID++
-	logger.Log.Printf("new cluster config received, groupId = %v", r.activeGroupID)
+	logger.Log.Info("new cluster config received, groupId = %v", r.activeGroupID)
 
 	r.reset()
 	err := r.markAbsentInstances()
@@ -306,11 +306,11 @@ func (r *rollbackMitigation) waitFirstConfig() error {
 }
 
 func (r *rollbackMitigation) Start() {
-	logger.Log.Printf("rollback mitigation will start with %v interval", r.config.RollbackMitigation.Interval)
+	logger.Log.Info("rollback mitigation will start with %v interval", r.config.RollbackMitigation.Interval)
 
 	err := r.waitFirstConfig()
 	if err != nil {
-		logger.ErrorLog.Printf("cannot get first config: %v", err)
+		logger.Log.Error("cannot get first config: %v", err)
 		panic(err)
 	}
 
@@ -328,7 +328,7 @@ func (r *rollbackMitigation) Stop() {
 	r.closed = true
 	r.configWatchTimer.Stop()
 
-	logger.Log.Printf("rollback mitigation stopped")
+	logger.Log.Info("rollback mitigation stopped")
 }
 
 func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bus helpers.Bus) RollbackMitigation {

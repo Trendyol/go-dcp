@@ -3,6 +3,8 @@ hosts:
 username: user
 password: 123456
 bucketName: dcp-test
+logging:
+  level: info
 dcp:
   group:
     name: groupName

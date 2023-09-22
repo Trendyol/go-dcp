@@ -106,7 +106,7 @@ func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
 			so.catchup.Delete(vbID)
 			so.catchupNeededVbIDCount--
 
-			logger.Log.Printf("catchup completed for vbID: %d", vbID)
+			logger.Log.Info("catchup completed for vbID: %d", vbID)
 
 			return seqNo == catchupSeqNo
 		}

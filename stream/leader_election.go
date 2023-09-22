@@ -65,7 +65,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *models.Identity) {
 
 	err = leaderClient.Register()
 	if err != nil {
-		logger.ErrorLog.Printf("error while registering leader client: %v", err)
+		logger.Log.Error("error while registering leader client: %v", err)
 		panic(err)
 	}
 }

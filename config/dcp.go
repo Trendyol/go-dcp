@@ -94,6 +94,10 @@ type Metadata struct {
 	ReadOnly bool              `json:"readOnly"`
 }
 
+type Logging struct {
+	Level string `yaml:"level"`
+}
+
 type Dcp struct {
 	Username             string             `yaml:"username"`
 	BucketName           string             `yaml:"bucketName"`
@@ -114,6 +118,7 @@ type Dcp struct {
 	ConnectionBufferSize uint               `yaml:"connectionBufferSize"`
 	SecureConnection     bool               `yaml:"secureConnection"`
 	Debug                bool               `yaml:"debug"`
+	Logging              Logging            `yaml:"logging"`
 }
 
 func (c *Dcp) IsCollectionModeEnabled() bool {
@@ -135,13 +140,13 @@ func (c *Dcp) GetFileMetadata() string {
 		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
 	} else {
 		err := errors.New("file metadata file name is not set")
-		logger.ErrorLog.Printf("failed to get metadata file name: %v", err)
+		logger.Log.Error("failed to get metadata file name: %v", err)
 		panic(err)
 	}
 
 	if fileName == "" {
 		err := errors.New("file metadata file name is empty")
-		logger.ErrorLog.Printf("failed to get metadata file name: %v", err)
+		logger.Log.Error("failed to get metadata file name: %v", err)
 		panic(err)
 	}
 
@@ -184,7 +189,7 @@ func (c *Dcp) getMetadataConnectionBufferSize() uint {
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
 		parsedConnectionBufferSize, err := strconv.ParseUint(connectionBufferSize, 10, 32)
 		if err != nil {
-			logger.ErrorLog.Printf("failed to parse metadata connection buffer size: %v", err)
+			logger.Log.Error("failed to parse metadata connection buffer size: %v", err)
 			panic(err)
 		}
 
@@ -198,7 +203,7 @@ func (c *Dcp) getMetadataConnectionTimeout() time.Duration {
 	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
 		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
 		if err != nil {
-			logger.ErrorLog.Printf("failed to parse metadata connection timeout: %v", err)
+			logger.Log.Error("failed to parse metadata connection timeout: %v", err)
 			panic(err)
 		}
 
@@ -222,6 +227,7 @@ func (c *Dcp) ApplyDefaults() {
 	c.applyDefaultLeaderElection()
 	c.applyDefaultDcp()
 	c.applyDefaultMetadata()
+	c.applyLogging()
 }
 
 func (c *Dcp) applyDefaultRollbackMitigation() {
@@ -368,4 +374,17 @@ func (c *Dcp) applyDefaultMetadata() {
 	if c.Metadata.Type == "" {
 		c.Metadata.Type = MetadataTypeCouchbase
 	}
+}
+
+func (c *Dcp) applyLogging() {
+	if logger.Log != nil {
+		return
+	}
+
+	loggingLevel := c.Logging.Level
+	if loggingLevel == "" {
+		c.Logging.Level = logger.INFO
+	}
+
+	logger.InitDefaultLogger(c.Logging.Level)
 }

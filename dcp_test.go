@@ -80,7 +80,7 @@ func setupContainer(ctx context.Context) (testcontainers.Container, error) {
 }
 
 func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize int) {
-	logger.Log.Printf("mock data stream started with iteration=%v", iteration)
+	logger.Log.Info("mock data stream started with iteration=%v", iteration)
 
 	client := couchbase.NewClient(c)
 
@@ -135,7 +135,7 @@ func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize 
 
 	client.Close()
 
-	logger.Log.Printf("mock data stream finished with totalSize=%v", iteration)
+	logger.Log.Info("mock data stream finished with totalSize=%v", iteration)
 }
 
 //nolint:funlen
@@ -168,7 +168,7 @@ func BenchmarkDcp(b *testing.B) {
 			counter++
 
 			if counter%notifySize == 0 {
-				logger.Log.Printf("%v/%v processed", counter/notifySize, totalNotify)
+				logger.Log.Info("%v/%v processed", counter/notifySize, totalNotify)
 			}
 
 			if counter == mockDataSize {

@@ -31,17 +31,17 @@ import (
 func listener(ctx *models.ListenerContext) {
   switch event := ctx.Event.(type) {
   case models.DcpMutation:
-    logger.Log.Printf(
+    logger.Log.Info(
       "mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
       event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
     )
   case models.DcpDeletion:
-    logger.Log.Printf(
+    logger.Log.Info(
       "deleted(vb=%v,eventTime=%v) | id: %v",
       event.VbID, event.EventTime, string(event.Key),
     )
   case models.DcpExpiration:
-    logger.Log.Printf(
+    logger.Log.Info(
       "expired(vb=%v,eventTime=%v) | id: %v",
       event.VbID, event.EventTime, string(event.Key),
     )
@@ -114,6 +114,7 @@ $ go get github.com/Trendyol/go-dcp
 | `api.port`                               |        int        |    no    |    8080    | Set API port                                                                                                            |
 | `metric.path`                            |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                               |
 | `metric.averageWindowSec`                |      float64      |    no    |    10.0    | Set metric window range.                                                                                                |
+| `logging.level`                          |      string       |    no    |    info    | Set logging level.                                                                                                      |
 
 ### Environment Variables
 

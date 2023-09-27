@@ -139,7 +139,7 @@ func (s *stream) Open() {
 	go s.listenEnd()
 	go s.listen()
 
-	logger.Log.Printf("stream started")
+	logger.Log.Info("stream started")
 	s.eventHandler.AfterStreamStart()
 
 	s.checkpoint.StartSchedule()
@@ -152,14 +152,14 @@ func (s *stream) Rebalance() {
 		// Is rebalance timer triggered already
 		if s.rebalanceTimer.Stop() {
 			s.rebalanceTimer.Reset(s.config.Dcp.Group.Membership.RebalanceDelay)
-			logger.Log.Printf("latest rebalance time is resetted")
+			logger.Log.Info("latest rebalance time is resetted")
 		} else {
 			s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.Rebalance)
-			logger.Log.Printf("latest rebalance time is reassigned")
+			logger.Log.Info("latest rebalance time is reassigned")
 		}
 		return
 	}
-	logger.Log.Printf("rebalance starting")
+	logger.Log.Info("rebalance starting")
 	s.rebalanceLock.Lock()
 
 	s.eventHandler.BeforeRebalanceStart()
@@ -174,11 +174,11 @@ func (s *stream) Rebalance() {
 
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
 
-	logger.Log.Printf("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 }
 
 func (s *stream) rebalance() {
-	logger.Log.Printf("reassigning vbuckets and opening stream is starting")
+	logger.Log.Info("reassigning vbuckets and opening stream is starting")
 
 	defer s.rebalanceLock.Unlock()
 
@@ -186,7 +186,7 @@ func (s *stream) rebalance() {
 	s.Open()
 	s.metric.Rebalance++
 
-	logger.Log.Printf("rebalance is finished")
+	logger.Log.Info("rebalance is finished")
 	s.balancing = false
 	s.eventHandler.AfterRebalanceEnd()
 }
@@ -204,7 +204,7 @@ func (s *stream) openAllStreams(vbIds []uint16) {
 			offset, _ := s.offsets.Load(innerVbId)
 			err := s.client.OpenStream(innerVbId, s.collectionIDs, offset, s.observer)
 			if err != nil {
-				logger.ErrorLog.Printf("cannot open stream, vbID: %d, err: %v", innerVbId, err)
+				logger.Log.Error("cannot open stream, vbID: %d, err: %v", innerVbId, err)
 				panic(err)
 			}
 
@@ -271,7 +271,7 @@ func (s *stream) Close() {
 
 	err := s.closeAllStreams()
 	if err != nil {
-		logger.ErrorLog.Printf("cannot close all streams: %v", err)
+		logger.Log.Error("cannot close all streams: %v", err)
 	}
 
 	s.finishStreamWithCloseCh <- struct{}{}
@@ -281,7 +281,7 @@ func (s *stream) Close() {
 	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
 	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 
-	logger.Log.Printf("stream stopped")
+	logger.Log.Info("stream stopped")
 	s.eventHandler.AfterStreamStop()
 }
 

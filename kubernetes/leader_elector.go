@@ -31,14 +31,14 @@ type leaderElector struct {
 func (le *leaderElector) Run(ctx context.Context) {
 	callback := leaderelection.LeaderCallbacks{
 		OnStartedLeading: func(c context.Context) {
-			logger.Log.Printf("granted to leader")
+			logger.Log.Info("granted to leader")
 
 			le.client.AddLabel(le.leaseLockNamespace, "role", "leader")
 
 			le.handler.OnBecomeLeader()
 		},
 		OnStoppedLeading: func() {
-			logger.Log.Printf("revoked from leader")
+			logger.Log.Info("revoked from leader")
 
 			le.client.RemoveLabel(le.leaseLockNamespace, "role")
 
@@ -51,7 +51,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 				return
 			}
 
-			logger.Log.Printf("granted to follower for leader: %s", leaderIdentity.Name)
+			logger.Log.Info("granted to follower for leader: %s", leaderIdentity.Name)
 
 			le.client.AddLabel(le.leaseLockNamespace, "role", "follower")
 
@@ -104,7 +104,7 @@ func NewLeaderElector(
 		leaseLockName = val
 	} else {
 		err := fmt.Errorf("leaseLockName is not defined")
-		logger.ErrorLog.Printf("error while creating leader elector: %v", err)
+		logger.Log.Error("error while creating leader elector: %v", err)
 		panic(err)
 	}
 
@@ -112,7 +112,7 @@ func NewLeaderElector(
 		leaseLockNamespace = val
 	} else {
 		err := fmt.Errorf("leaseLockNamespace is not defined")
-		logger.ErrorLog.Printf("error while creating leader elector: %v", err)
+		logger.Log.Error("error while creating leader elector: %v", err)
 		panic(err)
 	}
 

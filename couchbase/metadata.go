@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -148,5 +149,6 @@ func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 
 func getCheckpointID(vbID uint16, groupName string) []byte {
 	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
-	return []byte(helpers.Prefix + url.QueryEscape(groupName) + ":checkpoint:" + strconv.Itoa(int(vbID)))
+	encodedGroupName := strings.ReplaceAll(url.QueryEscape(groupName), ".", "%2E")
+	return []byte(helpers.Prefix + encodedGroupName + ":checkpoint:" + strconv.Itoa(int(vbID)))
 }

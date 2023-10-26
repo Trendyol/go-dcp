@@ -49,7 +49,7 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	start := readyToStreamVBuckets[0]
 	end := readyToStreamVBuckets[len(readyToStreamVBuckets)-1]
 
-	logger.Log.Debug(
+	logger.Log.Info(
 		"member: %v/%v, vbucket range: %v-%v",
 		receivedInfo.MemberNumber, receivedInfo.TotalMembers,
 		start, end,

@@ -3,7 +3,9 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -184,6 +186,19 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 		}
 
 		uuIDMap[vbID] = failoverLogs[0].VbUUID
+
+		var failoverInfos []string
+		for index, failoverLog := range failoverLogs {
+			failoverInfos = append(
+				failoverInfos,
+				fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failoverLog.VbUUID, failoverLog.SeqNo),
+			)
+		}
+
+		logger.Log.Debug(
+			"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
+			vbID, uuIDMap[vbID], strings.Join(failoverInfos, ", "),
+		)
 
 		return true
 	})

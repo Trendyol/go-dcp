@@ -55,7 +55,7 @@ func (s *checkpoint) Save() {
 	offsets, dirtyOffsets, anyDirtyOffset := s.stream.GetOffsets()
 
 	if !anyDirtyOffset {
-		logger.Log.Debug("no need to save checkpoint")
+		logger.Log.Trace("no need to save checkpoint")
 		return
 	}
 
@@ -102,7 +102,7 @@ func (s *checkpoint) Save() {
 	s.metric.OffsetWriteLatency = time.Since(start).Milliseconds()
 
 	if err == nil {
-		logger.Log.Debug("saved checkpoint")
+		logger.Log.Trace("saved checkpoint")
 		s.stream.UnmarkDirtyOffsets()
 	} else {
 		logger.Log.Error("error while saving checkpoint document: %v", err)

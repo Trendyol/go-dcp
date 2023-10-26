@@ -13,9 +13,11 @@ const (
 	WARN  = "WARN"
 	INFO  = "INFO"
 	DEBUG = "DEBUG"
+	TRACE = "TRACE"
 )
 
 type Logger interface {
+	Trace(message string, args ...interface{})
 	Debug(message string, args ...interface{})
 	Info(message string, args ...interface{})
 	Warn(message string, args ...interface{})
@@ -25,6 +27,10 @@ type Logger interface {
 
 type Loggers struct {
 	Logrus *logrus.Logger
+}
+
+func (loggers *Loggers) Trace(message string, args ...interface{}) {
+	loggers.Log(TRACE, message, args...)
 }
 
 func (loggers *Loggers) Debug(message string, args ...interface{}) {

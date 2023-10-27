@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"github.com/couchbase/gocbcore/v10"
 	"strconv"
 
 	"github.com/Trendyol/go-dcp/models"
@@ -24,6 +25,7 @@ type metricCollector struct {
 	currentSeqNo *prometheus.Desc
 	startSeqNo   *prometheus.Desc
 	endSeqNo     *prometheus.Desc
+	persistSeqNo *prometheus.Desc
 
 	processLatency *prometheus.Desc
 	dcpLatency     *prometheus.Desc
@@ -54,6 +56,17 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	seqNoMap, err := s.client.GetVBucketSeqNos()
+
+	observer.GetPersistSeqNo().Range(func(vbID uint16, seqNo gocbcore.SeqNo) bool {
+		ch <- prometheus.MustNewConstMetric(
+			s.persistSeqNo,
+			prometheus.CounterValue,
+			float64(seqNo),
+			strconv.Itoa(int(vbID)),
+		)
+
+		return true
+	})
 
 	observer.GetMetrics().Range(func(vbID uint16, metric *couchbase.ObserverMetric) bool {
 		ch <- prometheus.MustNewConstMetric(
@@ -251,6 +264,12 @@ func NewMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 		endSeqNo: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "end_seq_no", "current"),
 			"End seq no",
+			[]string{"vbId"},
+			nil,
+		),
+		persistSeqNo: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "persist_seq_no", "current"),
+			"Persist seq no",
 			[]string{"vbId"},
 			nil,
 		),

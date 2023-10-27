@@ -30,6 +30,7 @@ type Observer interface {
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
 	GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
+	GetPersistSeqNo() *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo]
 	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
@@ -87,6 +88,8 @@ func (so *observer) persistSeqNoChangedListener(event interface{}) {
 		if persistSeqNo.SeqNo > currentPersistSeqNo {
 			so.persistSeqNo.Store(persistSeqNo.VbID, persistSeqNo.SeqNo)
 		}
+	} else {
+		logger.Log.Debug("persistSeqNo: %v on vbId: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
 	}
 }
 
@@ -363,6 +366,10 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 
 func (so *observer) GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric] {
 	return so.metrics
+}
+
+func (so *observer) GetPersistSeqNo() *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo] {
+	return so.persistSeqNo
 }
 
 func (so *observer) Listen() models.ListenerCh {

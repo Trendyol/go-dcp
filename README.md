@@ -23,42 +23,42 @@ This repository contains go implementation of a Couchbase Database Change Protoc
 package main
 
 import (
-  "github.com/Trendyol/go-dcp"
-  "github.com/Trendyol/go-dcp/logger"
-  "github.com/Trendyol/go-dcp/models"
+	"github.com/Trendyol/go-dcp"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/models"
 )
 
 func listener(ctx *models.ListenerContext) {
-  switch event := ctx.Event.(type) {
-  case models.DcpMutation:
-    logger.Log.Info(
-      "mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
-      event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
-    )
-  case models.DcpDeletion:
-    logger.Log.Info(
-      "deleted(vb=%v,eventTime=%v) | id: %v",
-      event.VbID, event.EventTime, string(event.Key),
-    )
-  case models.DcpExpiration:
-    logger.Log.Info(
-      "expired(vb=%v,eventTime=%v) | id: %v",
-      event.VbID, event.EventTime, string(event.Key),
-    )
-  }
+	switch event := ctx.Event.(type) {
+	case models.DcpMutation:
+		logger.Log.Info(
+			"mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
+			event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
+		)
+	case models.DcpDeletion:
+		logger.Log.Info(
+			"deleted(vb=%v,eventTime=%v) | id: %v",
+			event.VbID, event.EventTime, string(event.Key),
+		)
+	case models.DcpExpiration:
+		logger.Log.Info(
+			"expired(vb=%v,eventTime=%v) | id: %v",
+			event.VbID, event.EventTime, string(event.Key),
+		)
+	}
 
-  ctx.Ack()
+	ctx.Ack()
 }
 
 func main() {
-  connector, err := dcp.NewDcp("config.yml", listener)
-  if err != nil {
-    panic(err)
-  }
+	connector, err := dcp.NewDcp("config.yml", listener)
+	if err != nil {
+		panic(err)
+	}
 
-  defer connector.Close()
+	defer connector.Close()
 
-  connector.Start()
+	connector.Start()
 }
 ```
 
@@ -154,6 +154,7 @@ You can adjust the average window time for the metrics by specifying the value o
 | cbgo_seq_no_current                  | The current sequence number on a specific vBucket                                     | vbId: ID of the vBucket | Gauge      |
 | cbgo_start_seq_no_current            | The starting sequence number on a specific vBucket                                    | vbId: ID of the vBucket | Gauge      |
 | cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket                                      | vbId: ID of the vBucket | Gauge      |
+| cbgo_persist_seq_no_current          | The persist sequence number on a specific vBucket                                     | vbId: ID of the vBucket | Gauge      |
 | cbgo_lag_current                     | The current lag on a specific vBucket                                                 | vbId: ID of the vBucket | Gauge      |
 | cbgo_process_latency_ms_current      | The average process latency in milliseconds for the last metric.averageWindowSec      | N/A                     | Gauge      |
 | cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds                               | N/A                     | Counter    |

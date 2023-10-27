@@ -139,6 +139,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 		}
 
 		if vbUUID != replica.vbUUID {
+			logger.Log.Debug("vbUUID mismatch %v != %v", vbID, replica.vbUUID)
 			return 0
 		}
 
@@ -256,14 +257,17 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 
 		if err != nil {
 			if errors.Is(err, gocbcore.ErrTemporaryFailure) {
-				// skip
+				logger.Log.Error("error while observe: %v", err)
 				return
 			} else {
 				panic(err)
 			}
 		}
 
-		replicas, _ := r.persistedSeqNos.Load(vbID)
+		replicas, ok := r.persistedSeqNos.Load(vbID)
+		if !ok {
+			logger.Log.Error("replicas of vbID: %v not found", vbID)
+		}
 
 		if len(replicas) > replica {
 			replicas[replica].SetSeqNo(result.PersistSeqNo)
@@ -273,6 +277,8 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 				VbID:  vbID,
 				SeqNo: r.getMinSeqNo(vbID),
 			})
+		} else {
+			logger.Log.Error("replica: %v not found", replica)
 		}
 	})
 }

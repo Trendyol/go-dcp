@@ -99,11 +99,12 @@ type Logging struct {
 }
 
 type Dcp struct {
-	Username             string             `yaml:"username"`
+	Logging              Logging            `yaml:"logging"`
 	BucketName           string             `yaml:"bucketName"`
 	ScopeName            string             `yaml:"scopeName"`
 	Password             string             `yaml:"password"`
 	RootCAPath           string             `yaml:"rootCAPath"`
+	Username             string             `yaml:"username"`
 	Metadata             Metadata           `yaml:"metadata"`
 	Hosts                []string           `yaml:"hosts"`
 	CollectionNames      []string           `yaml:"collectionNames"`
@@ -112,13 +113,12 @@ type Dcp struct {
 	LeaderElection       LeaderElection     `yaml:"leaderElector"`
 	Dcp                  ExternalDcp        `yaml:"dcp"`
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
-	API                  API                `yaml:"api"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
+	API                  API                `yaml:"api"`
 	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
 	ConnectionBufferSize uint               `yaml:"connectionBufferSize"`
 	SecureConnection     bool               `yaml:"secureConnection"`
 	Debug                bool               `yaml:"debug"`
-	Logging              Logging            `yaml:"logging"`
 }
 
 func (c *Dcp) IsCollectionModeEnabled() bool {

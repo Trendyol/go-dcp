@@ -1,8 +1,9 @@
 package metric
 
 import (
-	"github.com/couchbase/gocbcore/v10"
 	"strconv"
+
+	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/models"
 

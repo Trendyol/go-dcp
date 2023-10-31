@@ -4,11 +4,11 @@ go 1.19
 
 require (
 	github.com/ansrivas/fiberprometheus/v2 v2.6.0
-	github.com/couchbase/gocbcore/v10 v10.2.6
+	github.com/couchbase/gocbcore/v10 v10.2.9
 	github.com/gofiber/fiber/v2 v2.48.0
 	github.com/google/uuid v1.3.0
 	github.com/json-iterator/go v1.1.12
-	github.com/mhmtszr/concurrent-swiss-map v0.0.9
+	github.com/mhmtszr/concurrent-swiss-map v1.0.3
 	github.com/prometheus/client_golang v1.16.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/testcontainers/testcontainers-go v0.22.0

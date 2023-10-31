@@ -126,6 +126,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 	}
 
 	if startIndex == -1 {
+		logger.Log.Error("all replicas absent")
 		return 0
 	}
 
@@ -139,7 +140,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 		}
 
 		if vbUUID != replica.vbUUID {
-			logger.Log.Debug("vbUUID mismatch %v != %v", vbID, replica.vbUUID)
+			logger.Log.Debug("vbUUID mismatch %v != %v", vbUUID, replica.vbUUID)
 			return 0
 		}
 
@@ -159,6 +160,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 			serverIndex, err := r.configSnapshot.VbucketToServer(vbID, uint32(idx))
 			if err != nil {
 				if errors.Is(err, gocbcore.ErrInvalidReplica) {
+					logger.Log.Error("invalid replica of vbId: %v, replica: %v, err: %v", vbID, idx, err)
 					replica.SetAbsent()
 				} else {
 					outerError = err
@@ -166,6 +168,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 				}
 			} else {
 				if serverIndex < 0 {
+					logger.Log.Error("invalid server index of vbId: %v, replica: %v, serverIndex: %v", vbID, idx, serverIndex)
 					replica.SetAbsent()
 				}
 			}
@@ -215,6 +218,7 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 					}
 
 					if r.closed || r.activeGroupID != groupID {
+						logger.Log.Debug("closed(%v) or groupID(%v!=%v) changed on startObserve", r.closed, r.activeGroupID, groupID)
 						return false
 					}
 
@@ -224,6 +228,7 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 				return true
 			})
 		case <-r.observeCloseCh:
+			logger.Log.Debug("observe close triggered")
 			r.observeCloseDoneCh <- struct{}{}
 			return
 		}
@@ -231,10 +236,13 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 }
 
 func (r *rollbackMitigation) reconfigure() {
+	logger.Log.Debug("reconfigure triggerred")
+
 	if r.observeTimer != nil {
 		r.observeTimer.Stop()
 		r.observeCloseCh <- struct{}{}
 		<-r.observeCloseDoneCh
+		logger.Log.Debug("observe close done")
 	}
 
 	r.activeGroupID++
@@ -252,6 +260,7 @@ func (r *rollbackMitigation) reconfigure() {
 func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUUID gocbcore.VbUUID) {
 	r.observeVbID(vbID, replica, vbUUID, func(result *gocbcore.ObserveVbResult, err error) {
 		if r.closed || r.activeGroupID != groupID {
+			logger.Log.Debug("closed(%v) or groupID(%v!=%v) changed on observe", r.closed, r.activeGroupID, groupID)
 			return
 		}
 

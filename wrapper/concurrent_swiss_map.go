@@ -43,7 +43,7 @@ func (m *ConcurrentSwissMap[K, V]) ToMap() map[K]V {
 	result := make(map[K]V)
 	m.Range(func(key K, value V) bool {
 		result[key] = value
-		return false
+		return true
 	})
 	return result
 }

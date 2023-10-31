@@ -356,6 +356,11 @@ func (r *rollbackMitigation) Start() {
 
 func (r *rollbackMitigation) Stop() {
 	r.closed = true
+	if r.observeTimer != nil {
+		r.observeTimer.Stop()
+		r.observeCloseCh <- struct{}{}
+		<-r.observeCloseDoneCh
+	}
 	r.configWatchTimer.Stop()
 
 	logger.Log.Info("rollback mitigation stopped")

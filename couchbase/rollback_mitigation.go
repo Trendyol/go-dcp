@@ -105,11 +105,13 @@ func (r *rollbackMitigation) observeVbID(
 	callback func(*gocbcore.ObserveVbResult, error),
 ) { //nolint:unused
 	_, err := r.client.GetAgent().ObserveVb(gocbcore.ObserveVbOptions{
-		VbID:       vbID,
-		ReplicaIdx: replica,
-		VbUUID:     vbUUID,
+		VbID:          vbID,
+		ReplicaIdx:    replica,
+		VbUUID:        vbUUID,
+		RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 	}, callback)
 	if err != nil {
+		logger.Log.Error("ObserveVBID error for vbId: %v, replica:%v, vbUUID: %v, err: %v", vbID, replica, vbUUID, err)
 		callback(nil, err)
 	}
 }
@@ -140,7 +142,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 		}
 
 		if vbUUID != replica.vbUUID {
-			logger.Log.Debug("vbUUID mismatch %v != %v", vbUUID, replica.vbUUID)
+			logger.Log.Debug("vbUUID mismatch %v != %v for %v index of %v", vbUUID, replica.vbUUID, idx, len(replicas))
 			return 0
 		}
 

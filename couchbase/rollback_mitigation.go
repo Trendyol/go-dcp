@@ -53,6 +53,8 @@ type rollbackMitigation struct {
 	bus                helpers.Bus
 	configSnapshot     *gocbcore.ConfigSnapshot
 	persistedSeqNos    *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
+	vbUUIDMap          *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
+	failOverUUIDTimer  *time.Ticker
 	configWatchTimer   *time.Ticker
 	observeTimer       *time.Ticker
 	observeCloseCh     chan struct{}
@@ -183,32 +185,9 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 }
 
 func (r *rollbackMitigation) startObserve(groupID int) {
-	uuIDMap := map[uint16]gocbcore.VbUUID{}
 
-	r.persistedSeqNos.Range(func(vbID uint16, _ []*vbUUIDAndSeqNo) bool {
-		failoverLogs, err := r.client.GetFailoverLogs(vbID)
-		if err != nil {
-			panic(err)
-		}
-
-		uuIDMap[vbID] = failoverLogs[0].VbUUID
-
-		var failoverInfos []string
-		for index, failoverLog := range failoverLogs {
-			failoverInfos = append(
-				failoverInfos,
-				fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failoverLog.VbUUID, failoverLog.SeqNo),
-			)
-		}
-
-		logger.Log.Debug(
-			"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
-			vbID, uuIDMap[vbID], strings.Join(failoverInfos, ", "),
-		)
-
-		return true
-	})
-
+	r.LoadVbUUIDMap()
+	go r.observeVbUUIDMap()
 	r.observeTimer = time.NewTicker(r.config.RollbackMitigation.Interval)
 	for {
 		select {
@@ -224,7 +203,8 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 						return false
 					}
 
-					r.observe(vbID, idx, groupID, uuIDMap[vbID])
+					vbUUID, _ := r.vbUUIDMap.Load(vbID)
+					r.observe(vbID, idx, groupID, vbUUID)
 				}
 
 				return true
@@ -235,6 +215,36 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 			return
 		}
 	}
+}
+
+func (r *rollbackMitigation) observeVbUUIDMap() {
+	for range r.failOverUUIDTimer.C {
+		r.LoadVbUUIDMap()
+	}
+}
+
+func (r *rollbackMitigation) LoadVbUUIDMap() {
+	r.persistedSeqNos.Range(func(vbID uint16, _ []*vbUUIDAndSeqNo) bool {
+		failoverLogs, err := r.client.GetFailoverLogs(vbID)
+		if err != nil {
+			panic(err)
+		}
+		r.vbUUIDMap.Store(vbID, failoverLogs[0].VbUUID)
+		var failoverInfos []string
+		for index, failoverLog := range failoverLogs {
+			failoverInfos = append(
+				failoverInfos,
+				fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failoverLog.VbUUID, failoverLog.SeqNo),
+			)
+		}
+
+		logger.Log.Debug(
+			"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
+			vbID, failoverLogs[0].VbUUID, strings.Join(failoverInfos, ", "),
+		)
+
+		return true
+	})
 }
 
 func (r *rollbackMitigation) reconfigure() {
@@ -331,6 +341,7 @@ func (r *rollbackMitigation) waitFirstConfig() error {
 
 	err = opm.Wait(op, err)
 	if err != nil {
+		logger.Log.Error("Error occurred while waiting first config err: %v", err)
 		return err
 	}
 
@@ -364,6 +375,7 @@ func (r *rollbackMitigation) Stop() {
 		<-r.observeCloseDoneCh
 	}
 	r.configWatchTimer.Stop()
+	r.failOverUUIDTimer.Stop()
 
 	logger.Log.Info("rollback mitigation stopped")
 }

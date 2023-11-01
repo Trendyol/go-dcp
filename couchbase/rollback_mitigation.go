@@ -185,9 +185,11 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 }
 
 func (r *rollbackMitigation) startObserve(groupID int) {
+	r.vbUUIDMap = wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](1024)
 
 	r.LoadVbUUIDMap()
 	go r.observeVbUUIDMap()
+
 	r.observeTimer = time.NewTicker(r.config.RollbackMitigation.Interval)
 	for {
 		select {

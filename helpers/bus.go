@@ -8,27 +8,21 @@ type Bus interface {
 }
 
 type bus struct {
-	listeners map[string][]Listener
+	listeners map[string]Listener
 }
 
 func (i *bus) Emit(eventName string, event interface{}) {
-	if listeners, ok := i.listeners[eventName]; ok {
-		for _, listener := range listeners {
-			listener(event)
-		}
+	if listener, ok := i.listeners[eventName]; ok {
+		listener(event)
 	}
 }
 
 func (i *bus) Subscribe(eventName string, listener Listener) {
-	if listeners, ok := i.listeners[eventName]; ok {
-		i.listeners[eventName] = append(listeners, listener)
-	} else {
-		i.listeners[eventName] = []Listener{listener}
-	}
+	i.listeners[eventName] = listener
 }
 
 func NewBus() Bus {
 	return &bus{
-		listeners: map[string][]Listener{},
+		listeners: map[string]Listener{},
 	}
 }

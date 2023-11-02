@@ -220,6 +220,10 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 }
 
 func (r *rollbackMitigation) observeVbUUIDMap() {
+	if r.failOverUUIDTimer != nil {
+		return
+	}
+
 	r.failOverUUIDTimer = time.NewTicker(time.Minute)
 	for range r.failOverUUIDTimer.C {
 		r.LoadVbUUIDMap()

@@ -377,8 +377,14 @@ func (r *rollbackMitigation) Stop() {
 		r.observeCloseCh <- struct{}{}
 		<-r.observeCloseDoneCh
 	}
-	r.configWatchTimer.Stop()
-	r.failOverUUIDTimer.Stop()
+
+	if r.configWatchTimer != nil {
+		r.configWatchTimer.Stop()
+	}
+
+	if r.failOverUUIDTimer != nil {
+		r.failOverUUIDTimer.Stop()
+	}
 
 	logger.Log.Info("rollback mitigation stopped")
 }

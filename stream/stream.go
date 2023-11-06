@@ -3,6 +3,7 @@ package stream
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -115,7 +116,17 @@ func (s *stream) listen() {
 func (s *stream) listenEnd() {
 	for endContext := range s.observer.ListenEnd() {
 		if endContext.Err != nil && errors.Is(endContext.Err, gocbcore.ErrSocketClosed) {
-			panic(endContext.Err)
+			go func(vbID uint16) {
+				for {
+					err := s.openStream(vbID)
+					if err == nil {
+						logger.Log.Info("re-open stream, vbID: %d", vbID)
+						break
+					} else {
+						logger.Log.Error("cannot re-open stream, vbID: %d, err: %v", vbID, err)
+					}
+				}
+			}(endContext.Event.VbID)
 		} else {
 			s.activeStreams--
 			if s.activeStreams == 0 {
@@ -202,13 +213,14 @@ func (s *stream) Save() {
 	s.checkpoint.Save()
 }
 
-func (s *stream) openStream(vbID uint16) {
-	offset, _ := s.offsets.Load(vbID)
-	err := s.client.OpenStream(vbID, s.collectionIDs, offset, s.observer)
-	if err != nil {
-		logger.Log.Error("cannot open stream, vbID: %d, err: %v", vbID, err)
-		panic(err)
+func (s *stream) openStream(vbID uint16) error {
+	offset, exist := s.offsets.Load(vbID)
+	if !exist {
+		err := fmt.Errorf("vbID: %d not found on offset map", vbID)
+		logger.Log.Error("error while opening stream, err: %v", err)
+		return err
 	}
+	return s.client.OpenStream(vbID, s.collectionIDs, offset, s.observer)
 }
 
 func (s *stream) openAllStreams(vbIds []uint16) {
@@ -217,7 +229,11 @@ func (s *stream) openAllStreams(vbIds []uint16) {
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
-			s.openStream(innerVbId)
+			err := s.openStream(innerVbId)
+			if err != nil {
+				logger.Log.Error("cannot open stream, vbID: %d, err: %v", innerVbId, err)
+				panic(err)
+			}
 			openWg.Done()
 		}(vbID)
 	}

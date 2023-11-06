@@ -115,7 +115,7 @@ func (s *stream) listen() {
 func (s *stream) listenEnd() {
 	for endContext := range s.observer.ListenEnd() {
 		if endContext.Err != nil && errors.Is(endContext.Err, gocbcore.ErrSocketClosed) {
-			s.openStream(endContext.Event.VbID)
+			panic(endContext.Err)
 		} else {
 			s.activeStreams--
 			if s.activeStreams == 0 {

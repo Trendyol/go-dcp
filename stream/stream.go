@@ -26,7 +26,7 @@ type Stream interface {
 	Close()
 	GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool)
 	GetObserver() couchbase.Observer
-	GetMetric() *Metric
+	GetMetric() (*Metric, int)
 	UnmarkDirtyOffsets()
 	GetCheckpointMetric() *CheckpointMetric
 }
@@ -293,8 +293,8 @@ func (s *stream) GetObserver() couchbase.Observer {
 	return s.observer
 }
 
-func (s *stream) GetMetric() *Metric {
-	return s.metric
+func (s *stream) GetMetric() (*Metric, int) {
+	return s.metric, s.activeStreams
 }
 
 func (s *stream) GetCheckpointMetric() *CheckpointMetric {

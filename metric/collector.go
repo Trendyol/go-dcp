@@ -34,6 +34,7 @@ type metricCollector struct {
 
 	lag *prometheus.Desc
 
+	activeStream      *prometheus.Desc
 	totalMembers      *prometheus.Desc
 	memberNumber      *prometheus.Desc
 	membershipType    *prometheus.Desc
@@ -141,7 +142,14 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		return true
 	})
 
-	streamMetric := s.stream.GetMetric()
+	streamMetric, activeStream := s.stream.GetMetric()
+
+	ch <- prometheus.MustNewConstMetric(
+		s.activeStream,
+		prometheus.GaugeValue,
+		float64(activeStream),
+		[]string{}...,
+	)
 
 	ch <- prometheus.MustNewConstMetric(
 		s.processLatency,
@@ -295,6 +303,12 @@ func NewMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 		rebalance: prometheus.NewDesc(
 			prometheus.BuildFQName(helpers.Name, "rebalance", "current"),
 			"Rebalance count",
+			[]string{},
+			nil,
+		),
+		activeStream: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "active_stream", "current"),
+			"Active stream",
 			[]string{},
 			nil,
 		),

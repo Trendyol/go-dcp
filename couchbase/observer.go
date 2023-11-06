@@ -262,12 +262,18 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 }
 
 // nolint:staticcheck
-func (so *observer) End(event models.DcpStreamEnd, _ error) {
+func (so *observer) End(event models.DcpStreamEnd, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			// listenerEndCh channel is closed
 		}
 	}()
+
+	if err != nil {
+		logger.Log.Error("end stream vbId: %v got error: %v", event.VbID, err)
+	} else {
+		logger.Log.Info("end stream vbId: %v", event.VbID)
+	}
 
 	so.listenerEndCh <- event
 }

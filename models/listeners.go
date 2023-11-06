@@ -10,8 +10,13 @@ type ListenerArgs struct {
 	Event interface{}
 }
 
+type DcpStreamEndContext struct {
+	Err   error
+	Event DcpStreamEnd
+}
+
 type (
 	Listener      func(*ListenerContext)
 	ListenerCh    chan ListenerArgs
-	ListenerEndCh chan DcpStreamEnd
+	ListenerEndCh chan DcpStreamEndContext
 )

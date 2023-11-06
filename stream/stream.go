@@ -2,8 +2,11 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
 
@@ -110,10 +113,14 @@ func (s *stream) listen() {
 }
 
 func (s *stream) listenEnd() {
-	for range s.observer.ListenEnd() {
-		s.activeStreams--
-		if s.activeStreams == 0 {
-			s.finishStreamWithEndEventCh <- struct{}{}
+	for endContext := range s.observer.ListenEnd() {
+		if endContext.Err != nil && errors.Is(endContext.Err, gocbcore.ErrSocketClosed) {
+			s.openStream(endContext.Event.VbID)
+		} else {
+			s.activeStreams--
+			if s.activeStreams == 0 {
+				s.finishStreamWithEndEventCh <- struct{}{}
+			}
 		}
 	}
 }
@@ -195,19 +202,22 @@ func (s *stream) Save() {
 	s.checkpoint.Save()
 }
 
+func (s *stream) openStream(vbID uint16) {
+	offset, _ := s.offsets.Load(vbID)
+	err := s.client.OpenStream(vbID, s.collectionIDs, offset, s.observer)
+	if err != nil {
+		logger.Log.Error("cannot open stream, vbID: %d, err: %v", vbID, err)
+		panic(err)
+	}
+}
+
 func (s *stream) openAllStreams(vbIds []uint16) {
 	openWg := &sync.WaitGroup{}
 	openWg.Add(len(vbIds))
 
 	for _, vbID := range vbIds {
 		go func(innerVbId uint16) {
-			offset, _ := s.offsets.Load(innerVbId)
-			err := s.client.OpenStream(innerVbId, s.collectionIDs, offset, s.observer)
-			if err != nil {
-				logger.Log.Error("cannot open stream, vbID: %d, err: %v", innerVbId, err)
-				panic(err)
-			}
-
+			s.openStream(innerVbId)
 			openWg.Done()
 		}(vbID)
 	}

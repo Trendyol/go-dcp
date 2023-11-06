@@ -275,7 +275,10 @@ func (so *observer) End(event models.DcpStreamEnd, err error) {
 		logger.Log.Info("end stream vbId: %v", event.VbID)
 	}
 
-	so.listenerEndCh <- event
+	so.listenerEndCh <- models.DcpStreamEndContext{
+		Event: event,
+		Err:   err,
+	}
 }
 
 func (so *observer) CreateCollection(event models.DcpCollectionCreation) {

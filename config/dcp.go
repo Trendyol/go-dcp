@@ -3,10 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
-	"github.com/Trendyol/go-dcp/helpers"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/Trendyol/go-dcp/helpers"
 
 	"github.com/Trendyol/go-dcp/logger"
 )
@@ -25,6 +26,8 @@ const (
 	CouchbaseMetadataConnectionBufferSizeMBConfig = "connectionBufferSizeMB"
 	CouchbaseMetadataConnectionTimeoutConfig      = "connectionTimeout"
 	CheckpointTypeAuto                            = "auto"
+
+	DefaultConnectionBufferSize = "20MB"
 )
 
 type DCPGroupMembership struct {
@@ -44,10 +47,10 @@ type DCPListener struct {
 }
 
 type ExternalDcp struct {
+	ConnectionBufferSizeMB string        `yaml:"connectionBufferSizeMB"`
 	Group                  DCPGroup      `yaml:"group"`
 	BufferSize             int           `yaml:"bufferSize"`
 	ConnectionBufferSize   uint          `yaml:"connectionBufferSize"`
-	ConnectionBufferSizeMB string        `yaml:"connectionBufferSizeMB"`
 	ConnectionTimeout      time.Duration `yaml:"connectionTimeout"`
 	Listener               DCPListener   `yaml:"listener"`
 }
@@ -340,7 +343,7 @@ func (c *Dcp) applyDefaultScopeName() {
 
 func (c *Dcp) applyDefaultConnectionBufferSize() {
 	if c.Dcp.ConnectionBufferSizeMB == "" {
-		c.Dcp.ConnectionBufferSizeMB = "20MB"
+		c.Dcp.ConnectionBufferSizeMB = DefaultConnectionBufferSize
 	}
 }
 
@@ -375,9 +378,7 @@ func (c *Dcp) applyDefaultDcp() {
 		c.Dcp.BufferSize = 16_777_216
 	}
 
-	if c.Dcp.ConnectionBufferSizeMB == "" {
-		c.Dcp.ConnectionBufferSizeMB = "20MB"
-	}
+	c.applyDefaultConnectionBufferSize()
 
 	if c.Dcp.Listener.BufferSize == 0 {
 		c.Dcp.Listener.BufferSize = 1000

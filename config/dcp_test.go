@@ -1,9 +1,10 @@
 package config
 
 import (
-	"github.com/Trendyol/go-dcp/helpers"
 	"testing"
 	"time"
+
+	"github.com/Trendyol/go-dcp/helpers"
 )
 
 func TestDefaultConfig(t *testing.T) {

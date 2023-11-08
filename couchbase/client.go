@@ -215,7 +215,7 @@ func resolveHostsAsHTTP(hosts []string) []string {
 }
 
 func (s *client) Connect() error {
-	connectionBufferSize := s.config.ConnectionBufferSize
+	connectionBufferSize := s.config.GetConnectionBufferSize()
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {

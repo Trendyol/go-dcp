@@ -3,6 +3,8 @@ package helpers
 import (
 	"bytes"
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -51,4 +53,17 @@ func Retry(f func() error, attempts int, sleep time.Duration) (err error) {
 	}
 
 	return err
+}
+
+const OneMbInBytes = 1_048_576
+
+func MBToBytes(str string) uint {
+	str = strings.ToUpper(str)
+
+	s := strings.Split(str, "MB")
+
+	s[0] = strings.ReplaceAll(s[0], ",", ".")
+
+	mb, _ := strconv.ParseFloat(s[0], 64)
+	return uint(mb * OneMbInBytes)
 }

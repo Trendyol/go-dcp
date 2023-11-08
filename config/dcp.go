@@ -2,6 +2,8 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"github.com/Trendyol/go-dcp/helpers"
 	"os"
 	"strconv"
 	"time"
@@ -10,18 +12,19 @@ import (
 )
 
 const (
-	DefaultScopeName                            = "_default"
-	DefaultCollectionName                       = "_default"
-	FileMetadataFileNameConfig                  = "fileName"
-	MetadataTypeCouchbase                       = "couchbase"
-	MetadataTypeFile                            = "file"
-	MembershipTypeCouchbase                     = "couchbase"
-	CouchbaseMetadataBucketConfig               = "bucket"
-	CouchbaseMetadataScopeConfig                = "scope"
-	CouchbaseMetadataCollectionConfig           = "collection"
-	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
-	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
-	CheckpointTypeAuto                          = "auto"
+	DefaultScopeName                              = "_default"
+	DefaultCollectionName                         = "_default"
+	FileMetadataFileNameConfig                    = "fileName"
+	MetadataTypeCouchbase                         = "couchbase"
+	MetadataTypeFile                              = "file"
+	MembershipTypeCouchbase                       = "couchbase"
+	CouchbaseMetadataBucketConfig                 = "bucket"
+	CouchbaseMetadataScopeConfig                  = "scope"
+	CouchbaseMetadataCollectionConfig             = "collection"
+	CouchbaseMetadataConnectionBufferSizeConfig   = "connectionBufferSize"
+	CouchbaseMetadataConnectionBufferSizeMBConfig = "connectionBufferSizeMB"
+	CouchbaseMetadataConnectionTimeoutConfig      = "connectionTimeout"
+	CheckpointTypeAuto                            = "auto"
 )
 
 type DCPGroupMembership struct {
@@ -41,11 +44,12 @@ type DCPListener struct {
 }
 
 type ExternalDcp struct {
-	Group                DCPGroup      `yaml:"group"`
-	BufferSize           int           `yaml:"bufferSize"`
-	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
-	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
-	Listener             DCPListener   `yaml:"listener"`
+	Group                  DCPGroup      `yaml:"group"`
+	BufferSize             int           `yaml:"bufferSize"`
+	ConnectionBufferSize   uint          `yaml:"connectionBufferSize"`
+	ConnectionBufferSizeMB string        `yaml:"connectionBufferSizeMB"`
+	ConnectionTimeout      time.Duration `yaml:"connectionTimeout"`
+	Listener               DCPListener   `yaml:"listener"`
 }
 
 type API struct {
@@ -99,26 +103,33 @@ type Logging struct {
 }
 
 type Dcp struct {
-	Logging              Logging            `yaml:"logging"`
-	BucketName           string             `yaml:"bucketName"`
-	ScopeName            string             `yaml:"scopeName"`
-	Password             string             `yaml:"password"`
-	RootCAPath           string             `yaml:"rootCAPath"`
-	Username             string             `yaml:"username"`
-	Metadata             Metadata           `yaml:"metadata"`
-	Hosts                []string           `yaml:"hosts"`
-	CollectionNames      []string           `yaml:"collectionNames"`
-	Metric               Metric             `yaml:"metric"`
-	Checkpoint           Checkpoint         `yaml:"checkpoint"`
-	LeaderElection       LeaderElection     `yaml:"leaderElector"`
-	Dcp                  ExternalDcp        `yaml:"dcp"`
-	HealthCheck          HealthCheck        `yaml:"healthCheck"`
-	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
-	API                  API                `yaml:"api"`
-	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
-	ConnectionBufferSize uint               `yaml:"connectionBufferSize"`
-	SecureConnection     bool               `yaml:"secureConnection"`
-	Debug                bool               `yaml:"debug"`
+	Logging            Logging            `yaml:"logging"`
+	BucketName         string             `yaml:"bucketName"`
+	ScopeName          string             `yaml:"scopeName"`
+	Password           string             `yaml:"password"`
+	RootCAPath         string             `yaml:"rootCAPath"`
+	Username           string             `yaml:"username"`
+	Metadata           Metadata           `yaml:"metadata"`
+	Hosts              []string           `yaml:"hosts"`
+	CollectionNames    []string           `yaml:"collectionNames"`
+	Metric             Metric             `yaml:"metric"`
+	Checkpoint         Checkpoint         `yaml:"checkpoint"`
+	LeaderElection     LeaderElection     `yaml:"leaderElector"`
+	Dcp                ExternalDcp        `yaml:"dcp"`
+	HealthCheck        HealthCheck        `yaml:"healthCheck"`
+	RollbackMitigation RollbackMitigation `yaml:"rollbackMitigation"`
+	API                API                `yaml:"api"`
+	ConnectionTimeout  time.Duration      `yaml:"connectionTimeout"`
+	SecureConnection   bool               `yaml:"secureConnection"`
+	Debug              bool               `yaml:"debug"`
+}
+
+func (c *Dcp) GetConnectionBufferSize() uint {
+	if c.Dcp.ConnectionBufferSize != 0 {
+		return c.Dcp.ConnectionBufferSize
+	}
+
+	return helpers.MBToBytes(c.Dcp.ConnectionBufferSizeMB)
 }
 
 func (c *Dcp) IsCollectionModeEnabled() bool {
@@ -189,14 +200,17 @@ func (c *Dcp) getMetadataConnectionBufferSize() uint {
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
 		parsedConnectionBufferSize, err := strconv.ParseUint(connectionBufferSize, 10, 32)
 		if err != nil {
-			logger.Log.Error("failed to parse metadata connection buffer size: %v", err)
-			panic(err)
+			panic(fmt.Errorf("failed to parse metadata connection buffer size: %v", err))
 		}
 
 		return uint(parsedConnectionBufferSize)
 	}
 
-	return 5242880 // 5 MB
+	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeMBConfig]; ok {
+		return helpers.MBToBytes(connectionBufferSize)
+	}
+
+	return helpers.MBToBytes("5MB")
 }
 
 func (c *Dcp) getMetadataConnectionTimeout() time.Duration {
@@ -325,8 +339,8 @@ func (c *Dcp) applyDefaultScopeName() {
 }
 
 func (c *Dcp) applyDefaultConnectionBufferSize() {
-	if c.ConnectionBufferSize == 0 {
-		c.ConnectionBufferSize = 20971520
+	if c.Dcp.ConnectionBufferSizeMB == "" {
+		c.Dcp.ConnectionBufferSizeMB = "20MB"
 	}
 }
 
@@ -358,11 +372,11 @@ func (c *Dcp) applyDefaultLeaderElection() {
 
 func (c *Dcp) applyDefaultDcp() {
 	if c.Dcp.BufferSize == 0 {
-		c.Dcp.BufferSize = 16777216
+		c.Dcp.BufferSize = 16_777_216
 	}
 
-	if c.Dcp.ConnectionBufferSize == 0 {
-		c.Dcp.ConnectionBufferSize = 20971520
+	if c.Dcp.ConnectionBufferSizeMB == "" {
+		c.Dcp.ConnectionBufferSizeMB = "20MB"
 	}
 
 	if c.Dcp.Listener.BufferSize == 0 {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/Trendyol/go-dcp/helpers"
 	"testing"
 	"time"
 )
@@ -199,8 +200,8 @@ func TestDcpApplyDefaultConnectionBufferSize(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultConnectionBufferSize()
 
-	if c.ConnectionBufferSize != 20971520 {
-		t.Errorf("ConnectionBufferSize is not set to expected value")
+	if c.Dcp.ConnectionBufferSizeMB != "20MB" {
+		t.Errorf("ConnectionBufferSizeMB is not set to expected value")
 	}
 }
 
@@ -255,8 +256,8 @@ func TestDcpApplyDefaultDcp(t *testing.T) {
 		t.Errorf("Dcp.BufferSize is not set to expected value")
 	}
 
-	if c.Dcp.ConnectionBufferSize != 20971520 {
-		t.Errorf("Dcp.ConnectionBufferSize is not set to expected value")
+	if c.Dcp.ConnectionBufferSizeMB != "20MB" {
+		t.Errorf("Dcp.ConnectionBufferSizeMB is not set to expected value")
 	}
 
 	if c.Dcp.Listener.BufferSize != 1000 {
@@ -278,4 +279,105 @@ func TestApplyDefaultMetadata(t *testing.T) {
 	if c.Metadata.Type != "couchbase" {
 		t.Errorf("Metadata.Type is not set to expected value")
 	}
+}
+
+func TestDcp_getMetadataConnectionBufferSize(t *testing.T) {
+	t.Run("When_User_Cannot_Specify_ConnectionBufferSize", func(t *testing.T) {
+		// Given
+		c := &Dcp{}
+		expected := helpers.MBToBytes("5MB")
+
+		// When
+		actual := c.getMetadataConnectionBufferSize()
+
+		// Then
+		if expected != actual {
+			t.Errorf("Default metadata connection buffer size must be 5mb")
+		}
+	})
+	t.Run("When_User_Specify_ConnectionBufferSize", func(t *testing.T) {
+		// Given
+		c := &Dcp{
+			Metadata: Metadata{
+				Config: map[string]string{
+					CouchbaseMetadataConnectionBufferSizeConfig: "1048576",
+				},
+			},
+		}
+		expected := helpers.MBToBytes("1MB")
+
+		// When
+		actual := c.getMetadataConnectionBufferSize()
+
+		// Then
+		if expected != actual {
+			t.Errorf("Metadata connection buffer size must be 1mb")
+		}
+	})
+	t.Run("When_User_Specify_ConnectionBufferSizeMB", func(t *testing.T) {
+		// Given
+		c := &Dcp{
+			Metadata: Metadata{
+				Config: map[string]string{
+					CouchbaseMetadataConnectionBufferSizeMBConfig: "10MB",
+				},
+			},
+		}
+		expected := helpers.MBToBytes("10MB")
+
+		// When
+		actual := c.getMetadataConnectionBufferSize()
+
+		// Then
+		if expected != actual {
+			t.Errorf("Metadata connection buffer size must be 10MB")
+		}
+	})
+}
+
+func TestDcp_GetConnectionBufferSize(t *testing.T) {
+	t.Run("When_User_Cannot_Specify_ConnectionBufferSize", func(t *testing.T) {
+		// Given
+		c := &Dcp{}
+		c.applyDefaultConnectionBufferSize()
+		expected := helpers.MBToBytes("20MB")
+
+		// When
+		actual := c.GetConnectionBufferSize()
+
+		// Then
+		if expected != actual {
+			t.Errorf("Default connection buffer size must be 20MB")
+		}
+	})
+	t.Run("When_User_Specify_ConnectionBufferSize", func(t *testing.T) {
+		// Given
+		c := &Dcp{
+			Dcp: ExternalDcp{ConnectionBufferSize: 1048576},
+		}
+		expected := helpers.MBToBytes("1MB")
+
+		// When
+		actual := c.GetConnectionBufferSize()
+
+		// Then
+		if expected != actual {
+			t.Errorf("Connection buffer size must be 1MB")
+		}
+	})
+	t.Run("When_User_Specify_ConnectionBufferSizeMB", func(t *testing.T) {
+		// Given
+		c := &Dcp{
+			Dcp: ExternalDcp{ConnectionBufferSizeMB: "15MB"},
+		}
+		expected := helpers.MBToBytes("15MB")
+
+		// When
+		actual := c.GetConnectionBufferSize()
+
+		// Then
+		if expected != actual {
+			t.Errorf("Connection buffer size must be 15MB")
+		}
+	})
 }

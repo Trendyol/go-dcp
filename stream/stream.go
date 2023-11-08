@@ -27,7 +27,7 @@ type Stream interface {
 	Open()
 	Rebalance()
 	Save()
-	Close()
+	Close(bool)
 	GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool)
 	GetObserver() couchbase.Observer
 	GetMetric() (*Metric, int)
@@ -64,6 +64,7 @@ type stream struct {
 	rebalanceLock              sync.Mutex
 	anyDirtyOffset             bool
 	balancing                  bool
+	closeWithCancel            bool
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -113,20 +114,34 @@ func (s *stream) listen() {
 	}
 }
 
+func (s *stream) reopenStream(vbID uint16) {
+	go func(innerVbID uint16) {
+		for {
+			err := s.openStream(innerVbID)
+			if err == nil {
+				logger.Log.Info("re-open stream, vbID: %d", innerVbID)
+				break
+			} else {
+				logger.Log.Error("cannot re-open stream, vbID: %d, err: %v", innerVbID, err)
+			}
+
+			time.Sleep(time.Second)
+		}
+	}(vbID)
+}
+
 func (s *stream) listenEnd() {
 	for endContext := range s.observer.ListenEnd() {
-		if endContext.Err != nil && errors.Is(endContext.Err, gocbcore.ErrSocketClosed) {
-			go func(vbID uint16) {
-				for {
-					err := s.openStream(vbID)
-					if err == nil {
-						logger.Log.Info("re-open stream, vbID: %d", vbID)
-						break
-					} else {
-						logger.Log.Error("cannot re-open stream, vbID: %d, err: %v", vbID, err)
-					}
-				}
-			}(endContext.Event.VbID)
+		if !s.closeWithCancel && endContext.Err != nil {
+			logger.Log.Error("end stream vbId: %v got error: %v", endContext.Event.VbID, endContext.Err)
+		}
+
+		if endContext.Err == nil {
+			logger.Log.Debug("end stream vbId: %v", endContext.Event.VbID)
+		}
+
+		if !s.closeWithCancel && endContext.Err != nil && errors.Is(endContext.Err, gocbcore.ErrSocketClosed) {
+			s.reopenStream(endContext.Event.VbID)
 		} else {
 			s.activeStreams--
 			if s.activeStreams == 0 {
@@ -185,7 +200,7 @@ func (s *stream) Rebalance() {
 	if !s.balancing {
 		s.balancing = true
 		s.Save()
-		s.Close()
+		s.Close(false)
 	}
 
 	s.eventHandler.AfterRebalanceStart()
@@ -282,7 +297,9 @@ func (s *stream) wait() {
 	}
 }
 
-func (s *stream) Close() {
+func (s *stream) Close(closeWithCancel bool) {
+	s.closeWithCancel = closeWithCancel
+
 	s.eventHandler.BeforeStreamStop()
 
 	if !s.config.RollbackMitigation.Disabled {

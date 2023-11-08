@@ -159,6 +159,7 @@ You can adjust the average window time for the metrics by specifying the value o
 | cbgo_process_latency_ms_current      | The average process latency in milliseconds for the last metric.averageWindowSec      | N/A                     | Gauge      |
 | cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds                               | N/A                     | Counter    |
 | cbgo_rebalance_current               | The number of total rebalance                                                         | N/A                     | Gauge      |
+| cbgo_active_stream_current           | The number of total active stream                                                     | N/A                     | Gauge      |
 | cbgo_total_members_current           | The total number of members in the cluster                                            | N/A                     | Gauge      |
 | cbgo_member_number_current           | The number of the current member                                                      | N/A                     | Gauge      |
 | cbgo_membership_type_current         | The type of membership of the current member                                          | Membership type         | Gauge      |

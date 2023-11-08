@@ -109,7 +109,7 @@ func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
 			so.catchup.Delete(vbID)
 			so.catchupNeededVbIDCount--
 
-			logger.Log.Info("catchup completed for vbID: %d", vbID)
+			logger.Log.Info("catchup completed for vbID: %d, remaining catchup: %d", vbID, so.catchupNeededVbIDCount)
 
 			return seqNo == catchupSeqNo
 		}
@@ -268,12 +268,6 @@ func (so *observer) End(event models.DcpStreamEnd, err error) {
 			// listenerEndCh channel is closed
 		}
 	}()
-
-	if err != nil {
-		logger.Log.Error("end stream vbId: %v got error: %v", event.VbID, err)
-	} else {
-		logger.Log.Info("end stream vbId: %v", event.VbID)
-	}
 
 	so.listenerEndCh <- models.DcpStreamEndContext{
 		Event: event,

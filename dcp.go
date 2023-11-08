@@ -58,6 +58,7 @@ type dcp struct {
 	readyCh           chan struct{}
 	cancelCh          chan os.Signal
 	metricCollectors  []prometheus.Collector
+	closeWithCancel   bool
 }
 
 func (s *dcp) startHealthCheck() {
@@ -164,6 +165,7 @@ func (s *dcp) Start() {
 	select {
 	case <-s.stopCh:
 	case <-s.cancelCh:
+		s.closeWithCancel = true
 	case <-s.healCheckFailedCh:
 	}
 }
@@ -181,7 +183,7 @@ func (s *dcp) Close() {
 	if s.config.Checkpoint.Type == stream.CheckpointTypeAuto {
 		s.stream.Save()
 	}
-	s.stream.Close()
+	s.stream.Close(s.closeWithCancel)
 
 	if s.config.LeaderElection.Enabled {
 		s.leaderElection.Stop()

@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/Trendyol/go-dcp/helpers"
+
 	"github.com/couchbase/gocbcore/v10/connstr"
 
 	"github.com/Trendyol/go-dcp/config"
@@ -215,7 +217,7 @@ func resolveHostsAsHTTP(hosts []string) []string {
 }
 
 func (s *client) Connect() error {
-	connectionBufferSize := s.config.ConnectionBufferSize
+	connectionBufferSize := uint(helpers.ResolveUnionIntOrUnitStringValue(s.config.Dcp.ConnectionBufferSize))
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
@@ -283,11 +285,11 @@ func (s *client) DcpConnect() error {
 			Enabled: true,
 		},
 		DCPConfig: gocbcore.DCPConfig{
-			BufferSize:      s.config.Dcp.BufferSize,
+			BufferSize:      helpers.ResolveUnionIntOrUnitStringValue(s.config.Dcp.BufferSize),
 			UseExpiryOpcode: true,
 		},
 		KVConfig: gocbcore.KVConfig{
-			ConnectionBufferSize: s.config.Dcp.ConnectionBufferSize,
+			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrUnitStringValue(s.config.Dcp.ConnectionBufferSize)),
 		},
 	}
 

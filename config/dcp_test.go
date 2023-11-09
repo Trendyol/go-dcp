@@ -37,7 +37,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestGetCouchbaseMetadata(t *testing.T) {
 	dcp := &Dcp{
 		Metadata: Metadata{
-			Config: map[string]string{
+			Config: map[string]any{
 				CouchbaseMetadataBucketConfig: "mybucket",
 				CouchbaseMetadataScopeConfig:  "myscope",
 			},
@@ -77,7 +77,7 @@ func TestGetCouchbaseMetadata(t *testing.T) {
 func TestDcp_GetFileMetadata(t *testing.T) {
 	dcp := &Dcp{
 		Metadata: Metadata{
-			Config: map[string]string{
+			Config: map[string]any{
 				FileMetadataFileNameConfig: "testfile.json",
 			},
 		},
@@ -199,7 +199,7 @@ func TestDcpApplyDefaultConnectionBufferSize(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultConnectionBufferSize()
 
-	if c.ConnectionBufferSize != 20971520 {
+	if c.Dcp.ConnectionBufferSize.(int) != 20971520 {
 		t.Errorf("ConnectionBufferSize is not set to expected value")
 	}
 }
@@ -251,11 +251,11 @@ func TestDcpApplyDefaultDcp(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultDcp()
 
-	if c.Dcp.BufferSize != 16777216 {
+	if c.Dcp.BufferSize.(int) != 16777216 {
 		t.Errorf("Dcp.BufferSize is not set to expected value")
 	}
 
-	if c.Dcp.ConnectionBufferSize != 20971520 {
+	if c.Dcp.ConnectionBufferSize.(int) != 20971520 {
 		t.Errorf("Dcp.ConnectionBufferSize is not set to expected value")
 	}
 

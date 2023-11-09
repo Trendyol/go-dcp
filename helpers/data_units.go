@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func ResolveUnionIntOrUnitStringValue(bufferSize any) int {
-	switch value := bufferSize.(type) {
+func ResolveUnionIntOrStringValue(input any) int {
+	switch value := input.(type) {
 	case int:
 		return value
 	case uint:

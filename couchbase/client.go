@@ -217,7 +217,7 @@ func resolveHostsAsHTTP(hosts []string) []string {
 }
 
 func (s *client) Connect() error {
-	connectionBufferSize := uint(helpers.ResolveUnionIntOrUnitStringValue(s.config.Dcp.ConnectionBufferSize))
+	connectionBufferSize := uint(helpers.ResolveUnionIntOrStringValue(s.config.Dcp.ConnectionBufferSize))
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
@@ -285,11 +285,11 @@ func (s *client) DcpConnect() error {
 			Enabled: true,
 		},
 		DCPConfig: gocbcore.DCPConfig{
-			BufferSize:      helpers.ResolveUnionIntOrUnitStringValue(s.config.Dcp.BufferSize),
+			BufferSize:      helpers.ResolveUnionIntOrStringValue(s.config.Dcp.BufferSize),
 			UseExpiryOpcode: true,
 		},
 		KVConfig: gocbcore.KVConfig{
-			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrUnitStringValue(s.config.Dcp.ConnectionBufferSize)),
+			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrStringValue(s.config.Dcp.ConnectionBufferSize)),
 		},
 	}
 

@@ -188,7 +188,7 @@ func (c *Dcp) getMetadataCollection() string {
 
 func (c *Dcp) getMetadataConnectionBufferSize() uint {
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
-		return uint(helpers.ResolveUnionIntOrUnitStringValue(connectionBufferSize))
+		return uint(helpers.ResolveUnionIntOrStringValue(connectionBufferSize))
 	}
 
 	result, _ := helpers.ConvertSizeUnitToByte("5MB")

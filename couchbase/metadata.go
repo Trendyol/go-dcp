@@ -3,10 +3,11 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"github.com/couchbase/gocbcore/v10"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
 

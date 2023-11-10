@@ -12,7 +12,7 @@ func IsMetadata(data interface{}) bool {
 		return false
 	}
 
-	return bytes.HasPrefix(value.Bytes(), []byte(Prefix))
+	return bytes.HasPrefix(value.Bytes(), []byte(Prefix)) || bytes.HasPrefix(value.Bytes(), []byte(TxnPrefix))
 }
 
 func ChunkSlice[T any](slice []T, chunks int) [][]T {

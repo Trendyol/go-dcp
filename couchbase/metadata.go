@@ -137,13 +137,13 @@ func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 		panic(err)
 	}
 
-	_, scope, collection, _, _ := config.GetCouchbaseMetadata()
+	couchbaseMetadataConfig := config.GetCouchbaseMetadata()
 
 	return &cbMetadata{
 		client:         client,
 		config:         config,
-		scopeName:      scope,
-		collectionName: collection,
+		scopeName:      couchbaseMetadataConfig.Scope,
+		collectionName: couchbaseMetadataConfig.Collection,
 	}
 }
 

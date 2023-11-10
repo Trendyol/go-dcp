@@ -219,14 +219,14 @@ func (s *client) Connect() error {
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
-		if metadataBucketName == s.config.BucketName {
-			if metadataConnectionBufferSize > connectionBufferSize {
-				connectionBufferSize = metadataConnectionBufferSize
+		couchbaseMetadataConfig := s.config.GetCouchbaseMetadata()
+		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
+			if couchbaseMetadataConfig.ConnectionBufferSize > connectionBufferSize {
+				connectionBufferSize = couchbaseMetadataConfig.ConnectionBufferSize
 			}
 
-			if metadataConnectionTimeout > connectionTimeout {
-				connectionTimeout = metadataConnectionTimeout
+			if couchbaseMetadataConfig.ConnectionTimeout > connectionTimeout {
+				connectionTimeout = couchbaseMetadataConfig.ConnectionTimeout
 			}
 		}
 	}
@@ -239,11 +239,15 @@ func (s *client) Connect() error {
 	s.agent = agent
 
 	if s.config.IsCouchbaseMetadata() {
-		metadataBucketName, _, _, metadataConnectionBufferSize, metadataConnectionTimeout := s.config.GetCouchbaseMetadata()
-		if metadataBucketName == s.config.BucketName {
+		couchbaseMetadataConfig := s.config.GetCouchbaseMetadata()
+		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
-			metaAgent, err := s.connect(metadataBucketName, metadataConnectionBufferSize, metadataConnectionTimeout)
+			metaAgent, err := s.connect(
+				couchbaseMetadataConfig.Bucket,
+				couchbaseMetadataConfig.ConnectionBufferSize,
+				couchbaseMetadataConfig.ConnectionTimeout,
+			)
 			if err != nil {
 				return err
 			}
@@ -251,7 +255,7 @@ func (s *client) Connect() error {
 			s.metaAgent = metaAgent
 		}
 
-		logger.Log.Info("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, metadataBucketName)
+		logger.Log.Info("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, couchbaseMetadataConfig.Bucket)
 		return nil
 	}
 

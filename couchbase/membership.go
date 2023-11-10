@@ -28,6 +28,7 @@ type cbMembership struct {
 	infoChan            chan *membership.Model
 	heartbeatTicker     *time.Ticker
 	config              *config.Dcp
+	membershipConfig    *config.CouchbaseMembership
 	monitorTicker       *time.Ticker
 	scopeName           string
 	collectionName      string
@@ -45,12 +46,7 @@ type Instance struct {
 }
 
 const (
-	_type                  = "instance"
-	_expirySec             = 10
-	_heartbeatIntervalSec  = 5
-	_heartbeatToleranceSec = 2
-	_monitorIntervalMs     = 500
-	_timeoutSec            = 10
+	_type = "instance"
 )
 
 func (h *cbMembership) GetInfo() *membership.Model {
@@ -62,7 +58,7 @@ func (h *cbMembership) GetInfo() *membership.Model {
 }
 
 func (h *cbMembership) register() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), h.membershipConfig.Timeout)
 	defer cancel()
 
 	now := time.Now().UnixNano()
@@ -83,14 +79,23 @@ func (h *cbMembership) register() {
 
 	payload, _ := jsoniter.Marshal(instance)
 
-	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, _expirySec)
+	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
-		err = CreateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, helpers.JSONFlags, _expirySec)
+		err = CreateDocument(
+			ctx,
+			h.client.GetMetaAgent(),
+			h.scopeName,
+			h.collectionName,
+			h.id,
+			payload,
+			helpers.JSONFlags,
+			h.membershipConfig.ExpirySeconds,
+		)
 
 		if err == nil {
-			err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, _expirySec)
+			err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds)
 		}
 	}
 
@@ -121,7 +126,7 @@ func (h *cbMembership) isClusterChanged(currentActiveInstances []Instance) bool 
 }
 
 func (h *cbMembership) heartbeat() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), h.membershipConfig.Timeout)
 	defer cancel()
 
 	instance := &Instance{
@@ -132,7 +137,7 @@ func (h *cbMembership) heartbeat() {
 
 	payload, _ := jsoniter.Marshal(instance)
 
-	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, _expirySec)
+	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds)
 	if err != nil {
 		logger.Log.Error("error while heartbeat: %v", err)
 		return
@@ -140,12 +145,12 @@ func (h *cbMembership) heartbeat() {
 }
 
 func (h *cbMembership) isAlive(heartbeatTime int64) bool {
-	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+(_heartbeatToleranceSec*1000*1000*1000)
+	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+h.membershipConfig.HeartbeatToleranceDuration.Nanoseconds()
 }
 
 //nolint:funlen
 func (h *cbMembership) monitor() {
-	ctx, cancel := context.WithTimeout(context.Background(), _timeoutSec*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), h.membershipConfig.Timeout)
 	defer cancel()
 
 	data, err := Get(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll)
@@ -261,7 +266,7 @@ func (h *cbMembership) rebalance(instances []Instance) {
 }
 
 func (h *cbMembership) startHeartbeat() {
-	h.heartbeatTicker = time.NewTicker(_heartbeatIntervalSec * time.Second)
+	h.heartbeatTicker = time.NewTicker(h.membershipConfig.HeartbeatInterval)
 
 	go func() {
 		for range h.heartbeatTicker.C {
@@ -271,7 +276,7 @@ func (h *cbMembership) startHeartbeat() {
 }
 
 func (h *cbMembership) startMonitor() {
-	h.monitorTicker = time.NewTicker(_monitorIntervalMs * time.Millisecond)
+	h.monitorTicker = time.NewTicker(h.membershipConfig.MonitorInterval)
 
 	go func() {
 		logger.Log.Info("couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)
@@ -304,17 +309,18 @@ func NewCBMembership(config *config.Dcp, client Client, bus helpers.Bus) members
 		panic(err)
 	}
 
-	_, scope, collection, _, _ := config.GetCouchbaseMetadata()
+	couchbaseMetadataConfig := config.GetCouchbaseMetadata()
 
 	cbm := &cbMembership{
-		infoChan:       make(chan *membership.Model),
-		client:         client,
-		id:             []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
-		instanceAll:    []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
-		bus:            bus,
-		scopeName:      scope,
-		collectionName: collection,
-		config:         config,
+		infoChan:         make(chan *membership.Model),
+		client:           client,
+		id:               []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
+		instanceAll:      []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
+		bus:              bus,
+		scopeName:        couchbaseMetadataConfig.Scope,
+		collectionName:   couchbaseMetadataConfig.Collection,
+		membershipConfig: config.GetCouchbaseMembership(),
+		config:           config,
 	}
 
 	cbm.register()

@@ -45,7 +45,7 @@ func TestGetCouchbaseMetadata(t *testing.T) {
 		BucketName: "mybucket2",
 	}
 
-	bucket, scope, collection, connectionBufferSize, connectionTimeout := dcp.GetCouchbaseMetadata()
+	couchbaseMetadata := dcp.GetCouchbaseMetadata()
 
 	expectedBucket := "mybucket"
 	expectedScope := "myscope"
@@ -53,24 +53,69 @@ func TestGetCouchbaseMetadata(t *testing.T) {
 	expectedConnectionBufferSize := uint(5242880)
 	expectedConnectionTimeout := 5 * time.Second
 
-	if bucket != expectedBucket {
+	if couchbaseMetadata.Bucket != expectedBucket {
 		t.Errorf("Bucket is not set to expected value")
 	}
 
-	if scope != expectedScope {
+	if couchbaseMetadata.Scope != expectedScope {
 		t.Errorf("Scope is not set to expected value")
 	}
 
-	if collection != expectedCollection {
+	if couchbaseMetadata.Collection != expectedCollection {
 		t.Errorf("Collection is not set to expected value")
 	}
 
-	if connectionBufferSize != expectedConnectionBufferSize {
+	if couchbaseMetadata.ConnectionBufferSize != expectedConnectionBufferSize {
 		t.Errorf("ConnectionBufferSize is not set to expected value")
 	}
 
-	if connectionTimeout != expectedConnectionTimeout {
+	if couchbaseMetadata.ConnectionTimeout != expectedConnectionTimeout {
 		t.Errorf("ConnectionTimeout is not set to expected value")
+	}
+}
+
+func TestGetCouchbaseMembership(t *testing.T) {
+	dcp := &Dcp{
+		Dcp: ExternalDcp{
+			Group: DCPGroup{
+				Membership: DCPGroupMembership{
+					Config: map[string]string{
+						CouchbaseMembershipExpirySecondsConfig:     "5",
+						CouchbaseMembershipHeartbeatIntervalConfig: "5s",
+						CouchbaseMembershipMonitorIntervalConfig:   "1s",
+						CouchbaseMembershipTimeoutConfig:           "10s",
+					},
+				},
+			},
+		},
+	}
+
+	couchbaseMembership := dcp.GetCouchbaseMembership()
+
+	expectedExpiryDuration := uint32(5)
+	expectedHeartbeatInterval := 5 * time.Second
+	expectedHeartbeatTolerance := 2 * time.Second
+	expectedMonitorInterval := 1 * time.Second
+	expectedTimeout := 10 * time.Second
+
+	if couchbaseMembership.ExpirySeconds != expectedExpiryDuration {
+		t.Errorf("ExpiryDuration is not set to expected value")
+	}
+
+	if couchbaseMembership.HeartbeatInterval != expectedHeartbeatInterval {
+		t.Errorf("HeartbeatInterval is not set to expected value")
+	}
+
+	if couchbaseMembership.HeartbeatToleranceDuration != expectedHeartbeatTolerance {
+		t.Errorf("HeartbeatToleranceDuration is not set to expected value")
+	}
+
+	if couchbaseMembership.MonitorInterval != expectedMonitorInterval {
+		t.Errorf("MonitorInterval is not set to expected value")
+	}
+
+	if couchbaseMembership.Timeout != expectedTimeout {
+		t.Errorf("Timeout is not set to expected value")
 	}
 }
 

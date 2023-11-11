@@ -85,8 +85,8 @@ $ go get github.com/Trendyol/go-dcp
 | `secureConnection`                       |       bool        |    no    |   false    | Enable TLS connection of Couchbase.                                                                                     |
 | `rootCAPath`                             |      string       |    no    |  *not set  | if `secureConnection` set `true` this field is required.                                                                |
 | `debug`                                  |       bool        |    no    |   false    | For debugging purpose.                                                                                                  |
-| `dcp.bufferSize`                         |    int, string    |    no    |  16777216  | Go DCP listener pre-allocated buffer size. `16mb` is default. Check this if you get OOM Killed.                         |
-| `dcp.connectionBufferSize`               |   uint, string    |    no    |  20971520  | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed.     |
+| `dcp.bufferSize`                         |    int, string    |    no    |    16mb    | Go DCP listener pre-allocated buffer size. `16mb` is default. Check this if you get OOM Killed.                         |
+| `dcp.connectionBufferSize`               |   uint, string    |    no    |    20mb    | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed.     |
 | `dcp.connectionTimeout`                  |   time.Duration   |    no    |     5s     | DCP connection timeout.                                                                                                 |
 | `dcp.listener.bufferSize`                |       uint        |    no    |    1000    | Go DCP listener buffered channel size.                                                                                  |
 | `dcp.group.membership.type`              |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details.     |

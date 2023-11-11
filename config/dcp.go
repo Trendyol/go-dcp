@@ -355,7 +355,7 @@ func (c *Dcp) applyDefaultLeaderElection() {
 
 func (c *Dcp) applyDefaultDcp() {
 	if c.Dcp.BufferSize == nil {
-		c.Dcp.BufferSize = 16777216
+		c.Dcp.BufferSize = helpers.ResolveUnionIntOrStringValue("16mb")
 	}
 
 	c.applyDefaultConnectionBufferSize()

@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Trendyol/go-dcp/helpers"
+
 	"github.com/Trendyol/go-dcp/logger"
 )
 
@@ -47,9 +49,9 @@ type DCPListener struct {
 }
 
 type ExternalDcp struct {
+	BufferSize           any           `yaml:"bufferSize"`
+	ConnectionBufferSize any           `yaml:"connectionBufferSize"`
 	Group                DCPGroup      `yaml:"group"`
-	BufferSize           int           `yaml:"bufferSize"`
-	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
 	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
 	Listener             DCPListener   `yaml:"listener"`
 }
@@ -95,9 +97,9 @@ type RollbackMitigation struct {
 }
 
 type Metadata struct {
-	Config   map[string]string `yaml:"config"`
-	Type     string            `yaml:"type"`
-	ReadOnly bool              `json:"readOnly"`
+	Config   map[string]any `yaml:"config"`
+	Type     string         `yaml:"type"`
+	ReadOnly bool           `json:"readOnly"`
 }
 
 type Logging struct {
@@ -105,15 +107,16 @@ type Logging struct {
 }
 
 type Dcp struct {
-	Logging              Logging            `yaml:"logging"`
+	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
 	BucketName           string             `yaml:"bucketName"`
 	ScopeName            string             `yaml:"scopeName"`
 	Password             string             `yaml:"password"`
 	RootCAPath           string             `yaml:"rootCAPath"`
 	Username             string             `yaml:"username"`
+	Logging              Logging            `yaml:"logging"`
 	Metadata             Metadata           `yaml:"metadata"`
-	Hosts                []string           `yaml:"hosts"`
 	CollectionNames      []string           `yaml:"collectionNames"`
+	Hosts                []string           `yaml:"hosts"`
 	Metric               Metric             `yaml:"metric"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
 	LeaderElection       LeaderElection     `yaml:"leaderElector"`
@@ -122,7 +125,6 @@ type Dcp struct {
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`
 	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
-	ConnectionBufferSize uint               `yaml:"connectionBufferSize"`
 	SecureConnection     bool               `yaml:"secureConnection"`
 	Debug                bool               `yaml:"debug"`
 }
@@ -143,7 +145,7 @@ func (c *Dcp) GetFileMetadata() string {
 	var fileName string
 
 	if _, ok := c.Metadata.Config[FileMetadataFileNameConfig]; ok {
-		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
+		fileName = c.Metadata.Config[FileMetadataFileNameConfig].(string)
 	} else {
 		err := errors.New("file metadata file name is not set")
 		logger.Log.Error("failed to get metadata file name: %v", err)
@@ -247,29 +249,23 @@ func (c *Dcp) GetCouchbaseMetadata() CouchbaseMetadata {
 	}
 
 	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
-		couchbaseMetadata.Bucket = bucket
+		couchbaseMetadata.Bucket = bucket.(string)
 	}
 
 	if scope, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
-		couchbaseMetadata.Scope = scope
+		couchbaseMetadata.Scope = scope.(string)
 	}
 
 	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
-		couchbaseMetadata.Collection = collection
+		couchbaseMetadata.Collection = collection.(string)
 	}
 
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
-		parsedConnectionBufferSize, err := strconv.ParseUint(connectionBufferSize, 10, 32)
-		if err != nil {
-			logger.Log.Error("failed to parse metadata connection buffer size: %v", err)
-			panic(err)
-		}
-
-		couchbaseMetadata.ConnectionBufferSize = uint(parsedConnectionBufferSize)
+		couchbaseMetadata.ConnectionBufferSize = uint(helpers.ResolveUnionIntOrStringValue(connectionBufferSize))
 	}
 
 	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
-		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
+		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout.(string))
 		if err != nil {
 			logger.Log.Error("failed to parse metadata connection timeout: %v", err)
 			panic(err)
@@ -393,8 +389,8 @@ func (c *Dcp) applyDefaultScopeName() {
 }
 
 func (c *Dcp) applyDefaultConnectionBufferSize() {
-	if c.ConnectionBufferSize == 0 {
-		c.ConnectionBufferSize = 20971520
+	if c.ConnectionBufferSize == nil {
+		c.ConnectionBufferSize = helpers.ResolveUnionIntOrStringValue("20mb")
 	}
 }
 
@@ -425,12 +421,12 @@ func (c *Dcp) applyDefaultLeaderElection() {
 }
 
 func (c *Dcp) applyDefaultDcp() {
-	if c.Dcp.BufferSize == 0 {
-		c.Dcp.BufferSize = 16777216
+	if c.Dcp.BufferSize == nil {
+		c.Dcp.BufferSize = helpers.ResolveUnionIntOrStringValue("16mb")
 	}
 
-	if c.Dcp.ConnectionBufferSize == 0 {
-		c.Dcp.ConnectionBufferSize = 20971520
+	if c.Dcp.ConnectionBufferSize == nil {
+		c.Dcp.ConnectionBufferSize = helpers.ResolveUnionIntOrStringValue("20mb")
 	}
 
 	if c.Dcp.Listener.BufferSize == 0 {

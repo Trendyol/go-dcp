@@ -293,7 +293,7 @@ func (s *client) DcpConnect() error {
 			UseExpiryOpcode: true,
 		},
 		KVConfig: gocbcore.KVConfig{
-			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrStringValue("20mb")),
+			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrStringValue(s.config.Dcp.ConnectionBufferSize)),
 		},
 	}
 

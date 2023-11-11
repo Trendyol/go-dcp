@@ -24,13 +24,19 @@ const (
 	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
 	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
 	CheckpointTypeAuto                          = "auto"
+	CouchbaseMembershipExpirySecondsConfig      = "expirySeconds"
+	CouchbaseMembershipHeartbeatIntervalConfig  = "heartbeatInterval"
+	CouchbaseMembershipHeartbeatToleranceConfig = "heartbeatToleranceDuration"
+	CouchbaseMembershipMonitorIntervalConfig    = "monitorInterval"
+	CouchbaseMembershipTimeoutConfig            = "timeout"
 )
 
 type DCPGroupMembership struct {
-	Type           string        `yaml:"type"`
-	MemberNumber   int           `yaml:"memberNumber"`
-	TotalMembers   int           `yaml:"totalMembers"`
-	RebalanceDelay time.Duration `yaml:"rebalanceDelay"`
+	Config         map[string]string `yaml:"config"`
+	Type           string            `yaml:"type"`
+	MemberNumber   int               `yaml:"memberNumber"`
+	TotalMembers   int               `yaml:"totalMembers"`
+	RebalanceDelay time.Duration     `yaml:"rebalanceDelay"`
 }
 
 type DCPGroup struct {
@@ -154,12 +160,126 @@ func (c *Dcp) GetFileMetadata() string {
 	return fileName
 }
 
-func (c *Dcp) GetCouchbaseMetadata() (string, string, string, uint, time.Duration) {
-	return c.getMetadataBucket(),
-		c.getMetadataScope(),
-		c.getMetadataCollection(),
-		c.getMetadataConnectionBufferSize(),
-		c.getMetadataConnectionTimeout()
+type CouchbaseMembership struct {
+	ExpirySeconds              uint32        `yaml:"expirySeconds"`
+	HeartbeatInterval          time.Duration `yaml:"heartbeatInterval"`
+	HeartbeatToleranceDuration time.Duration `yaml:"heartbeatToleranceDuration"`
+	MonitorInterval            time.Duration `yaml:"monitorInterval"`
+	Timeout                    time.Duration `yaml:"timeout"`
+}
+
+func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
+	couchbaseMembership := CouchbaseMembership{
+		ExpirySeconds:              10,
+		HeartbeatInterval:          5 * time.Second,
+		HeartbeatToleranceDuration: 2 * time.Second,
+		MonitorInterval:            500 * time.Millisecond,
+		Timeout:                    10 * time.Second,
+	}
+
+	if expirySeconds, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipExpirySecondsConfig]; ok {
+		parsedExpirySeconds, err := strconv.ParseUint(expirySeconds, 10, 32)
+		if err != nil {
+			logger.Log.Error("failed to parse membership expiry seconds: %v", err)
+			panic(err)
+		}
+
+		couchbaseMembership.ExpirySeconds = uint32(parsedExpirySeconds)
+	}
+
+	if heartbeatInterval, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipHeartbeatIntervalConfig]; ok {
+		parsedHeartbeatInterval, err := time.ParseDuration(heartbeatInterval)
+		if err != nil {
+			logger.Log.Error("failed to parse membership heartbeat interval: %v", err)
+			panic(err)
+		}
+
+		couchbaseMembership.HeartbeatInterval = parsedHeartbeatInterval
+	}
+
+	if heartbeatToleranceDuration, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipHeartbeatToleranceConfig]; ok {
+		parsedHeartbeatToleranceDuration, err := time.ParseDuration(heartbeatToleranceDuration)
+		if err != nil {
+			logger.Log.Error("failed to parse membership heartbeat tolerance duration: %v", err)
+			panic(err)
+		}
+
+		couchbaseMembership.HeartbeatToleranceDuration = parsedHeartbeatToleranceDuration
+	}
+
+	if monitorInterval, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipMonitorIntervalConfig]; ok {
+		parsedMonitorInterval, err := time.ParseDuration(monitorInterval)
+		if err != nil {
+			logger.Log.Error("failed to parse membership monitor interval: %v", err)
+			panic(err)
+		}
+
+		couchbaseMembership.MonitorInterval = parsedMonitorInterval
+	}
+
+	if timeout, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipTimeoutConfig]; ok {
+		parsedTimeout, err := time.ParseDuration(timeout)
+		if err != nil {
+			logger.Log.Error("failed to parse membership timeout: %v", err)
+			panic(err)
+		}
+
+		couchbaseMembership.Timeout = parsedTimeout
+	}
+
+	return &couchbaseMembership
+}
+
+type CouchbaseMetadata struct {
+	Bucket               string        `yaml:"bucket"`
+	Scope                string        `yaml:"scope"`
+	Collection           string        `yaml:"collection"`
+	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
+	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
+}
+
+func (c *Dcp) GetCouchbaseMetadata() CouchbaseMetadata {
+	couchbaseMetadata := CouchbaseMetadata{
+		Bucket:               c.BucketName,
+		Scope:                DefaultScopeName,
+		Collection:           DefaultCollectionName,
+		ConnectionBufferSize: 5242880, // 5 MB
+		ConnectionTimeout:    5 * time.Second,
+	}
+
+	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
+		couchbaseMetadata.Bucket = bucket
+	}
+
+	if scope, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
+		couchbaseMetadata.Scope = scope
+	}
+
+	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
+		couchbaseMetadata.Collection = collection
+	}
+
+	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
+		parsedConnectionBufferSize, err := strconv.ParseUint(connectionBufferSize, 10, 32)
+		if err != nil {
+			logger.Log.Error("failed to parse metadata connection buffer size: %v", err)
+			panic(err)
+		}
+
+		couchbaseMetadata.ConnectionBufferSize = uint(parsedConnectionBufferSize)
+	}
+
+	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
+		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
+		if err != nil {
+			logger.Log.Error("failed to parse metadata connection timeout: %v", err)
+			panic(err)
+		}
+
+		couchbaseMetadata.ConnectionTimeout = parsedConnectionTimeout
+	}
+
+	return couchbaseMetadata
 }
 
 func (c *Dcp) getMetadataBucket() string {
@@ -168,45 +288,6 @@ func (c *Dcp) getMetadataBucket() string {
 	}
 
 	return c.BucketName
-}
-
-func (c *Dcp) getMetadataScope() string {
-	if scope, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig].(string); ok {
-		return scope
-	}
-
-	return DefaultScopeName
-}
-
-func (c *Dcp) getMetadataCollection() string {
-	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig].(string); ok {
-		return collection
-	}
-
-	return DefaultCollectionName
-}
-
-func (c *Dcp) getMetadataConnectionBufferSize() uint {
-	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
-		return uint(helpers.ResolveUnionIntOrStringValue(connectionBufferSize))
-	}
-
-	result, _ := helpers.ConvertSizeUnitToByte("5MB")
-	return uint(result)
-}
-
-func (c *Dcp) getMetadataConnectionTimeout() time.Duration {
-	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig].(string); ok {
-		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
-		if err != nil {
-			logger.Log.Error("failed to parse metadata connection timeout: %v", err)
-			panic(err)
-		}
-
-		return parsedConnectionTimeout
-	}
-
-	return 5 * time.Second
 }
 
 func (c *Dcp) ApplyDefaults() {

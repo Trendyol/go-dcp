@@ -9,6 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
+	"github.com/Trendyol/go-dcp/membership"
+
 	"github.com/sirupsen/logrus"
 
 	jsoniter "github.com/json-iterator/go"
@@ -92,7 +96,7 @@ func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
 	s.eventHandler = eventHandler
 }
 
-func (s *dcp) membershipChangedListener(_ interface{}) {
+func (s *dcp) membershipChangedListener(_ *membership.Model) {
 	s.stream.Rebalance()
 }
 
@@ -115,7 +119,7 @@ func (s *dcp) Start() {
 
 	logger.Log.Info("using %v metadata", reflect.TypeOf(s.metadata))
 
-	bus := helpers.NewBus()
+	bus := EventBus.New()
 
 	vBuckets := s.client.GetNumVBuckets()
 
@@ -137,7 +141,11 @@ func (s *dcp) Start() {
 
 	s.stream.Open()
 
-	bus.Subscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
+	err := bus.Subscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
+		panic(err)
+	}
 
 	if !s.config.API.Disabled {
 		go func() {

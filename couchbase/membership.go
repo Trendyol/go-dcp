@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/helpers"
@@ -23,7 +25,7 @@ import (
 
 type cbMembership struct {
 	client              Client
-	bus                 helpers.Bus
+	bus                 EventBus.Bus
 	info                *membership.Model
 	infoChan            chan *membership.Model
 	heartbeatTicker     *time.Ticker
@@ -256,7 +258,7 @@ func (h *cbMembership) rebalance(instances []Instance) {
 		logger.Log.Error("error while rebalance, self = %v, err: %v", string(h.id), err)
 		panic(err)
 	} else {
-		h.bus.Emit(helpers.MembershipChangedBusEventName, &membership.Model{
+		h.bus.Publish(helpers.MembershipChangedBusEventName, &membership.Model{
 			MemberNumber: selfOrder,
 			TotalMembers: len(instances),
 		})
@@ -293,16 +295,14 @@ func (h *cbMembership) Close() {
 	h.heartbeatTicker.Stop()
 }
 
-func (h *cbMembership) membershipChangedListener(event interface{}) {
-	model := event.(*membership.Model)
-
+func (h *cbMembership) membershipChangedListener(model *membership.Model) {
 	h.info = model
 	go func() {
 		h.infoChan <- model
 	}()
 }
 
-func NewCBMembership(config *config.Dcp, client Client, bus helpers.Bus) membership.Membership {
+func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) membership.Membership {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.Log.Error("cannot initialize couchbase membership, err: %v", err)
@@ -328,7 +328,11 @@ func NewCBMembership(config *config.Dcp, client Client, bus helpers.Bus) members
 	cbm.startHeartbeat()
 	cbm.startMonitor()
 
-	bus.Subscribe(helpers.MembershipChangedBusEventName, cbm.membershipChangedListener)
+	err := bus.Subscribe(helpers.MembershipChangedBusEventName, cbm.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("error while subscribe membership changed event: %v", err)
+		panic(err)
+	}
 
 	return cbm
 }

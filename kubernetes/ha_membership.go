@@ -4,6 +4,7 @@ import (
 	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/membership"
+	"github.com/asaskevich/EventBus"
 )
 
 type haMembership struct {
@@ -31,12 +32,12 @@ func (h *haMembership) membershipChangedListener(event interface{}) {
 	}()
 }
 
-func NewHaMembership(_ *config.Dcp, bus helpers.Bus) membership.Membership {
+func NewHaMembership(_ *config.Dcp, bus EventBus.Bus) membership.Membership {
 	ham := &haMembership{
 		infoChan: make(chan *membership.Model),
 	}
 
-	bus.Subscribe(helpers.MembershipChangedBusEventName, ham.membershipChangedListener)
+	bus.Publish(helpers.MembershipChangedBusEventName, ham.membershipChangedListener)
 
 	return ham
 }

@@ -3,6 +3,8 @@ package stream
 import (
 	"errors"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/kubernetes"
@@ -75,7 +77,7 @@ func (s *vBucketDiscovery) GetMetric() *VBucketDiscoveryMetric {
 func NewVBucketDiscovery(client couchbase.Client,
 	config *config.Dcp,
 	vBucketNumber int,
-	bus helpers.Bus,
+	bus EventBus.Bus,
 ) VBucketDiscovery {
 	var ms membership.Membership
 

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/wrapper"
 
 	"github.com/Trendyol/go-dcp/config"
@@ -34,7 +36,7 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
-	bus             helpers.Bus
+	bus             EventBus.Bus
 	leaderService   *Service
 	services        *wrapper.ConcurrentSwissMap[string, *Service]
 	heartbeatTicker *time.Ticker
@@ -197,11 +199,11 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 
 		logger.Log.Info("new info arrived for member: %v/%v", memberNumber, totalMembers)
 
-		s.bus.Emit(helpers.MembershipChangedBusEventName, newInfo)
+		s.bus.Publish(helpers.MembershipChangedBusEventName, newInfo)
 	}
 }
 
-func NewServiceDiscovery(config *config.Dcp, bus helpers.Bus) ServiceDiscovery {
+func NewServiceDiscovery(config *config.Dcp, bus EventBus.Bus) ServiceDiscovery {
 	return &serviceDiscovery{
 		services: wrapper.CreateConcurrentSwissMap[string, *Service](0),
 		bus:      bus,

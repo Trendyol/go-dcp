@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/membership"
@@ -80,9 +82,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 	}()
 }
 
-func (le *leaderElector) membershipChangedListener(event interface{}) {
-	model := event.(*membership.Model)
-
+func (le *leaderElector) membershipChangedListener(model *membership.Model) {
 	le.client.AddLabel(
 		le.leaseLockNamespace,
 		"member",
@@ -95,7 +95,7 @@ func NewLeaderElector(
 	config *config.Dcp,
 	myIdentity *models.Identity,
 	handler leaderelector.Handler,
-	bus helpers.Bus,
+	bus EventBus.Bus,
 ) leaderelector.LeaderElector {
 	var leaseLockName string
 	var leaseLockNamespace string
@@ -124,7 +124,11 @@ func NewLeaderElector(
 		leaseLockNamespace: leaseLockNamespace,
 	}
 
-	bus.Subscribe(helpers.MembershipChangedBusEventName, le.membershipChangedListener)
+	err := bus.Subscribe(helpers.MembershipChangedBusEventName, le.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
+		panic(err)
+	}
 
 	return le
 }

@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/ansrivas/fiberprometheus/v2 v2.6.1
+	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 	github.com/couchbase/gocbcore/v10 v10.2.9
 	github.com/gofiber/fiber/v2 v2.50.0
 	github.com/google/uuid v1.4.0

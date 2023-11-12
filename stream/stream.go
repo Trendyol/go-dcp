@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -48,7 +50,7 @@ type stream struct {
 	rollbackMitigation         couchbase.RollbackMitigation
 	observer                   couchbase.Observer
 	vBucketDiscovery           VBucketDiscovery
-	bus                        helpers.Bus
+	bus                        EventBus.Bus
 	eventHandler               models.EventHandler
 	stopCh                     chan struct{}
 	finishStreamWithCloseCh    chan struct{}
@@ -356,7 +358,7 @@ func NewStream(client couchbase.Client,
 	listener models.Listener,
 	collectionIDs map[uint32]string,
 	stopCh chan struct{},
-	bus helpers.Bus,
+	bus EventBus.Bus,
 	eventHandler models.EventHandler,
 ) Stream {
 	return &stream{

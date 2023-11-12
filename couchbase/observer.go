@@ -3,6 +3,8 @@ package couchbase
 import (
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/wrapper"
 
 	"github.com/Trendyol/go-dcp/logger"
@@ -60,7 +62,7 @@ func (om *ObserverMetric) AddExpiration() {
 }
 
 type observer struct {
-	bus                    helpers.Bus
+	bus                    EventBus.Bus
 	metrics                *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
 	listenerEndCh          models.ListenerEndCh
 	collectionIDs          map[uint32]string
@@ -79,9 +81,7 @@ func (so *observer) AddCatchup(vbID uint16, seqNo gocbcore.SeqNo) {
 	so.catchupNeededVbIDCount++
 }
 
-func (so *observer) persistSeqNoChangedListener(event interface{}) {
-	persistSeqNo := event.(models.PersistSeqNo)
-
+func (so *observer) persistSeqNoChangedListener(persistSeqNo models.PersistSeqNo) {
 	if persistSeqNo.SeqNo != 0 {
 		currentPersistSeqNo, _ := so.persistSeqNo.Load(persistSeqNo.VbID)
 
@@ -391,6 +391,11 @@ func (so *observer) Close() {
 		}
 	}()
 
+	err := so.bus.Unsubscribe(helpers.PersistSeqNoChangedBusEventName, so.persistSeqNoChangedListener)
+	if err != nil {
+		logger.Log.Error("error while unsubscribe: %v", err)
+	}
+
 	so.closed = true
 	close(so.listenerCh)
 
@@ -418,7 +423,7 @@ func (so *observer) CloseEnd() {
 func NewObserver(
 	config *dcp.Dcp,
 	collectionIDs map[uint32]string,
-	bus helpers.Bus,
+	bus EventBus.Bus,
 ) Observer {
 	observer := &observer{
 		currentSnapshots: wrapper.CreateConcurrentSwissMap[uint16, *models.SnapshotMarker](1024),
@@ -433,7 +438,11 @@ func NewObserver(
 		config:           config,
 	}
 
-	observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)
+	err := observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)
+	if err != nil {
+		logger.Log.Error("cannot subscribe to persistSeqNo changed event: %v", err)
+		panic(err)
+	}
 
 	return observer
 }

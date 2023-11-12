@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/leaderelector"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/Trendyol/go-dcp/logger"
 
-	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/servicediscovery"
 )
 
@@ -30,7 +31,7 @@ type LeaderElection interface {
 type leaderElection struct {
 	rpcServer        servicediscovery.Server
 	serviceDiscovery servicediscovery.ServiceDiscovery
-	bus              helpers.Bus
+	bus              EventBus.Bus
 	myIdentity       *models.Identity
 	config           *config.Dcp
 	newLeaderLock    *sync.Mutex
@@ -91,7 +92,7 @@ func (l *leaderElection) Stop() {
 func NewLeaderElection(
 	config *config.Dcp,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
-	bus helpers.Bus,
+	bus EventBus.Bus,
 ) LeaderElection {
 	return &leaderElection{
 		config:           config,

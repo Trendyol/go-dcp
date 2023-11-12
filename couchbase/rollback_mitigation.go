@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asaskevich/EventBus"
+
 	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -50,7 +52,7 @@ func (v *vbUUIDAndSeqNo) SetVbUUID(vbUUID gocbcore.VbUUID) {
 type rollbackMitigation struct {
 	client             Client
 	config             *config.Dcp
-	bus                helpers.Bus
+	bus                EventBus.Bus
 	configSnapshot     *gocbcore.ConfigSnapshot
 	persistedSeqNos    *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
 	vbUUIDMap          *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
@@ -289,7 +291,7 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 			replicas[replica].SetSeqNo(result.PersistSeqNo)
 			replicas[replica].SetVbUUID(result.VbUUID)
 
-			r.bus.Emit(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
+			r.bus.Publish(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
 				VbID:  vbID,
 				SeqNo: r.getMinSeqNo(vbID),
 			})
@@ -380,7 +382,7 @@ func (r *rollbackMitigation) Stop() {
 	logger.Log.Info("rollback mitigation stopped")
 }
 
-func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bus helpers.Bus) RollbackMitigation {
+func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bus EventBus.Bus) RollbackMitigation {
 	return &rollbackMitigation{
 		client:             client,
 		config:             config,

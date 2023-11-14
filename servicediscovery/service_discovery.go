@@ -59,11 +59,17 @@ func (s *serviceDiscovery) Remove(name string) {
 }
 
 func (s *serviceDiscovery) RemoveAll() {
+	var needToBeRemove []string
+
 	s.services.Range(func(name string, _ *Service) bool {
-		s.services.Delete(name)
+		needToBeRemove = append(needToBeRemove, name)
 
 		return true
 	})
+
+	for _, name := range needToBeRemove {
+		s.Remove(name)
+	}
 }
 
 func (s *serviceDiscovery) BeLeader() {
@@ -124,16 +130,21 @@ func (s *serviceDiscovery) StartHeartbeat() {
 				}
 			}
 
+			var needToBeRemove []string
+
 			s.services.Range(func(name string, service *Service) bool {
 				err := service.Client.Ping()
 				if err != nil {
-					s.Remove(name)
-
-					logger.Log.Info("client %s disconnected", name)
+					needToBeRemove = append(needToBeRemove, name)
 				}
 
 				return true
 			})
+
+			for _, name := range needToBeRemove {
+				s.Remove(name)
+				logger.Log.Info("client %s disconnected", name)
+			}
 		}
 	}()
 }

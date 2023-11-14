@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/membership"
 	"github.com/asaskevich/EventBus"
 )
@@ -23,9 +24,7 @@ func (h *haMembership) GetInfo() *membership.Model {
 func (h *haMembership) Close() {
 }
 
-func (h *haMembership) membershipChangedListener(event interface{}) {
-	model := event.(*membership.Model)
-
+func (h *haMembership) membershipChangedListener(model *membership.Model) {
 	h.info = model
 	go func() {
 		h.infoChan <- model
@@ -37,7 +36,11 @@ func NewHaMembership(_ *config.Dcp, bus EventBus.Bus) membership.Membership {
 		infoChan: make(chan *membership.Model),
 	}
 
-	bus.Publish(helpers.MembershipChangedBusEventName, ham.membershipChangedListener)
+	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, ham.membershipChangedListener, true)
+	if err != nil {
+		logger.Log.Error("error while subscribe membership changed event: %v", err)
+		panic(err)
+	}
 
 	return ham
 }

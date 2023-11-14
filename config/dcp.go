@@ -119,7 +119,7 @@ type Dcp struct {
 	Hosts                []string           `yaml:"hosts"`
 	Metric               Metric             `yaml:"metric"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
-	LeaderElection       LeaderElection     `yaml:"leaderElector"`
+	LeaderElection       LeaderElection     `yaml:"leaderElection"`
 	Dcp                  ExternalDcp        `yaml:"dcp"`
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`

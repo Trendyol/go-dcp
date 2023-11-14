@@ -124,7 +124,7 @@ func NewLeaderElector(
 		leaseLockNamespace: leaseLockNamespace,
 	}
 
-	err := bus.Subscribe(helpers.MembershipChangedBusEventName, le.membershipChangedListener)
+	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, le.membershipChangedListener, true)
 	if err != nil {
 		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
 		panic(err)

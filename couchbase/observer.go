@@ -391,6 +391,8 @@ func (so *observer) Close() {
 		}
 	}()
 
+	logger.Log.Debug("observer closing")
+
 	err := so.bus.Unsubscribe(helpers.PersistSeqNoChangedBusEventName, so.persistSeqNoChangedListener)
 	if err != nil {
 		logger.Log.Error("error while unsubscribe: %v", err)
@@ -403,6 +405,8 @@ func (so *observer) Close() {
 	closedListenerCh := make(models.ListenerCh)
 	close(closedListenerCh)
 	so.listenerCh = closedListenerCh
+
+	logger.Log.Debug("observer closed")
 }
 
 func (so *observer) SetVbUUID(vbID uint16, vbUUID gocbcore.VbUUID) {

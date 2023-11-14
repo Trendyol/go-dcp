@@ -141,7 +141,7 @@ func (s *dcp) Start() {
 
 	s.stream.Open()
 
-	err := bus.Subscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
+	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
 	if err != nil {
 		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
 		panic(err)

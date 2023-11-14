@@ -328,7 +328,7 @@ func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) member
 	cbm.startHeartbeat()
 	cbm.startMonitor()
 
-	err := bus.Subscribe(helpers.MembershipChangedBusEventName, cbm.membershipChangedListener)
+	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, cbm.membershipChangedListener, true)
 	if err != nil {
 		logger.Log.Error("error while subscribe membership changed event: %v", err)
 		panic(err)

@@ -96,7 +96,7 @@ $ go get github.com/Trendyol/go-dcp
 | `dcp.group.membership.config`            | map[string]string |    no    |  *not set  | Set key-values of config. `expirySeconds`,`heartbeatInterval`,`heartbeatToleranceDuration`,`monitorInterval`,`timeout` for `couchbase` type |
 | `leaderElection.enabled`                 |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                                              |
 | `leaderElection.type`                    |      string       |    no    | kubernetes | Leader Election types. `kubernetes`                                                                                                         |
-| `leaderElection.config`                  | map[string]string |    no    |  *not set  | Set lease key-values like `leaseLockName`,`leaseLockNamespace`.                                                                             |
+| `leaderElection.config`                  | map[string]string |    no    |  *not set  | Set key-values of config. `leaseLockName`,`leaseLockNamespace`, `leaseDuration`, `renewDeadline`, `retryPeriod` for `kubernetes` type.      |
 | `leaderElection.rpc.port`                |        int        |    no    |    8081    | This field is usable for `kubernetesStatefulSet` membership.                                                                                |
 | `checkpoint.type`                        |      string       |    no    |    auto    | Set checkpoint type `auto` or `manual`.                                                                                                     |
 | `checkpoint.autoReset`                   |      string       |    no    |  earliest  | Set checkpoint start point to `earliest` or `latest`.                                                                                       |
@@ -114,7 +114,6 @@ $ go get github.com/Trendyol/go-dcp
 | `api.disabled`                           |       bool        |    no    |   false    | Disable metric endpoints                                                                                                                    |
 | `api.port`                               |        int        |    no    |    8080    | Set API port                                                                                                                                |
 | `metric.path`                            |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                                                   |
-| `metric.averageWindowSec`                |      float64      |    no    |    10.0    | Set metric window range.                                                                                                                    |
 | `logging.level`                          |      string       |    no    |    info    | Set logging level.                                                                                                                          |
 
 ### Environment Variables
@@ -143,29 +142,27 @@ The client offers an API that handles different endpoints and expose several met
 The Client collects relevant metrics and makes them available at /metrics endpoint.
 In case you haven't configured a metric.path, the metrics will be exposed at the /metrics.
 
-You can adjust the average window time for the metrics by specifying the value of metric.averageWindowSec.
-
 ### Exposed metrics
 
-| Metric Name                          | Description                                                                           | Labels                  | Value Type |
-|--------------------------------------|---------------------------------------------------------------------------------------|-------------------------|------------|
-| cbgo_mutation_total                  | The total number of mutations on a specific vBucket                                   | vbId: ID of the vBucket | Counter    |
-| cbgo_deletion_total                  | The total number of deletions on a specific vBucket                                   | vbId: ID of the vBucket | Counter    |
-| cbgo_expiration_total                | The total number of expirations on a specific vBucket                                 | vbId: ID of the vBucket | Counter    |
-| cbgo_seq_no_current                  | The current sequence number on a specific vBucket                                     | vbId: ID of the vBucket | Gauge      |
-| cbgo_start_seq_no_current            | The starting sequence number on a specific vBucket                                    | vbId: ID of the vBucket | Gauge      |
-| cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket                                      | vbId: ID of the vBucket | Gauge      |
-| cbgo_persist_seq_no_current          | The persist sequence number on a specific vBucket                                     | vbId: ID of the vBucket | Gauge      |
-| cbgo_lag_current                     | The current lag on a specific vBucket                                                 | vbId: ID of the vBucket | Gauge      |
-| cbgo_process_latency_ms_current      | The average process latency in milliseconds for the last metric.averageWindowSec      | N/A                     | Gauge      |
-| cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds                               | N/A                     | Counter    |
-| cbgo_rebalance_current               | The number of total rebalance                                                         | N/A                     | Gauge      |
-| cbgo_active_stream_current           | The number of total active stream                                                     | N/A                     | Gauge      |
-| cbgo_total_members_current           | The total number of members in the cluster                                            | N/A                     | Gauge      |
-| cbgo_member_number_current           | The number of the current member                                                      | N/A                     | Gauge      |
-| cbgo_membership_type_current         | The type of membership of the current member                                          | Membership type         | Gauge      |
-| cbgo_offset_write_current            | The average number of the offset write for the last metric.averageWindowSec           | N/A                     | Gauge      |
-| cbgo_offset_write_latency_ms_current | The average offset write latency in milliseconds for the last metric.averageWindowSec | N/A                     | Gauge      |
+| Metric Name                          | Description                                             | Labels                  | Value Type |
+|--------------------------------------|---------------------------------------------------------|-------------------------|------------|
+| cbgo_mutation_total                  | The total number of mutations on a specific vBucket     | vbId: ID of the vBucket | Counter    |
+| cbgo_deletion_total                  | The total number of deletions on a specific vBucket     | vbId: ID of the vBucket | Counter    |
+| cbgo_expiration_total                | The total number of expirations on a specific vBucket   | vbId: ID of the vBucket | Counter    |
+| cbgo_seq_no_current                  | The current sequence number on a specific vBucket       | vbId: ID of the vBucket | Gauge      |
+| cbgo_start_seq_no_current            | The starting sequence number on a specific vBucket      | vbId: ID of the vBucket | Gauge      |
+| cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket        | vbId: ID of the vBucket | Gauge      |
+| cbgo_persist_seq_no_current          | The persist sequence number on a specific vBucket       | vbId: ID of the vBucket | Gauge      |
+| cbgo_lag_current                     | The current lag on a specific vBucket                   | vbId: ID of the vBucket | Gauge      |
+| cbgo_process_latency_ms_current      | The latest process latency in milliseconds              | N/A                     | Gauge      |
+| cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds | N/A                     | Counter    |
+| cbgo_rebalance_current               | The number of total rebalance                           | N/A                     | Gauge      |
+| cbgo_active_stream_current           | The number of total active stream                       | N/A                     | Gauge      |
+| cbgo_total_members_current           | The total number of members in the cluster              | N/A                     | Gauge      |
+| cbgo_member_number_current           | The number of the current member                        | N/A                     | Gauge      |
+| cbgo_membership_type_current         | The type of membership of the current member            | Membership type         | Gauge      |
+| cbgo_offset_write_current            | The latest number of the offset write                   | N/A                     | Gauge      |
+| cbgo_offset_write_latency_ms_current | The latest offset write latency in milliseconds         | N/A                     | Gauge      |
 
 ### Examples
 

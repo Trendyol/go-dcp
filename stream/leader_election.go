@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/asaskevich/EventBus"
@@ -35,6 +36,7 @@ type leaderElection struct {
 	myIdentity       *models.Identity
 	config           *config.Dcp
 	newLeaderLock    *sync.Mutex
+	elector          leaderelector.LeaderElector
 }
 
 func (l *leaderElection) OnBecomeLeader() {
@@ -60,7 +62,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *models.Identity) {
 		return
 	}
 
-	leaderService := servicediscovery.NewService(leaderClient, leaderIdentity.Name)
+	leaderService := servicediscovery.NewService(leaderClient, leaderIdentity.Name, leaderIdentity.ClusterJoinTime)
 
 	l.serviceDiscovery.AssignLeader(leaderService)
 
@@ -72,20 +74,29 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *models.Identity) {
 }
 
 func (l *leaderElection) Start() {
+	var kubernetesClient kubernetes.Client
+
+	if l.config.LeaderElection.Type == KubernetesLeaderElectionType {
+		kubernetesClient = kubernetes.NewClient()
+		l.myIdentity = kubernetesClient.GetIdentity()
+	} else {
+		err := errors.New("leader election type is not supported")
+		logger.Log.Error("leader election: %s, err: %v", l.config.LeaderElection.Type, err)
+		panic(err)
+	}
+
 	l.rpcServer = servicediscovery.NewServer(l.config.LeaderElection.RPC.Port, l.myIdentity, l.serviceDiscovery)
 	l.rpcServer.Listen()
 
-	var elector leaderelector.LeaderElector
-
 	if l.config.LeaderElection.Type == KubernetesLeaderElectionType {
-		kubernetesClient := kubernetes.NewClient(l.myIdentity)
-		elector = kubernetes.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.bus)
+		l.elector = kubernetes.NewLeaderElector(kubernetesClient, l.config, l.myIdentity, l, l.bus)
 	}
 
-	elector.Run(context.Background())
+	l.elector.Run(context.Background())
 }
 
 func (l *leaderElection) Stop() {
+	l.elector.Close()
 	l.rpcServer.Shutdown()
 }
 
@@ -98,7 +109,6 @@ func NewLeaderElection(
 		config:           config,
 		serviceDiscovery: serviceDiscovery,
 		newLeaderLock:    &sync.Mutex{},
-		myIdentity:       models.NewIdentityFromEnv(),
 		bus:              bus,
 	}
 }

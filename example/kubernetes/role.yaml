@@ -15,4 +15,5 @@ rules:
     resources:
       - pods
     verbs:
+      - get
       - patch

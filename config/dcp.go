@@ -12,23 +12,28 @@ import (
 )
 
 const (
-	DefaultScopeName                            = "_default"
-	DefaultCollectionName                       = "_default"
-	FileMetadataFileNameConfig                  = "fileName"
-	MetadataTypeCouchbase                       = "couchbase"
-	MetadataTypeFile                            = "file"
-	MembershipTypeCouchbase                     = "couchbase"
-	CouchbaseMetadataBucketConfig               = "bucket"
-	CouchbaseMetadataScopeConfig                = "scope"
-	CouchbaseMetadataCollectionConfig           = "collection"
-	CouchbaseMetadataConnectionBufferSizeConfig = "connectionBufferSize"
-	CouchbaseMetadataConnectionTimeoutConfig    = "connectionTimeout"
-	CheckpointTypeAuto                          = "auto"
-	CouchbaseMembershipExpirySecondsConfig      = "expirySeconds"
-	CouchbaseMembershipHeartbeatIntervalConfig  = "heartbeatInterval"
-	CouchbaseMembershipHeartbeatToleranceConfig = "heartbeatToleranceDuration"
-	CouchbaseMembershipMonitorIntervalConfig    = "monitorInterval"
-	CouchbaseMembershipTimeoutConfig            = "timeout"
+	DefaultScopeName                                = "_default"
+	DefaultCollectionName                           = "_default"
+	FileMetadataFileNameConfig                      = "fileName"
+	MetadataTypeCouchbase                           = "couchbase"
+	MetadataTypeFile                                = "file"
+	MembershipTypeCouchbase                         = "couchbase"
+	CouchbaseMetadataBucketConfig                   = "bucket"
+	CouchbaseMetadataScopeConfig                    = "scope"
+	CouchbaseMetadataCollectionConfig               = "collection"
+	CouchbaseMetadataConnectionBufferSizeConfig     = "connectionBufferSize"
+	CouchbaseMetadataConnectionTimeoutConfig        = "connectionTimeout"
+	CheckpointTypeAuto                              = "auto"
+	CouchbaseMembershipExpirySecondsConfig          = "expirySeconds"
+	CouchbaseMembershipHeartbeatIntervalConfig      = "heartbeatInterval"
+	CouchbaseMembershipHeartbeatToleranceConfig     = "heartbeatToleranceDuration"
+	CouchbaseMembershipMonitorIntervalConfig        = "monitorInterval"
+	CouchbaseMembershipTimeoutConfig                = "timeout"
+	KubernetesLeaderElectorLeaseLockNameConfig      = "leaseLockName"
+	KubernetesLeaderElectorLeaseLockNamespaceConfig = "leaseLockNamespace"
+	KubernetesLeaderElectorLeaseDurationConfig      = "leaseDuration"
+	KubernetesLeaderElectorRenewDeadlineConfig      = "renewDeadline"
+	KubernetesLeaderElectorRetryPeriodConfig        = "retryPeriod"
 )
 
 type DCPGroupMembership struct {
@@ -62,8 +67,7 @@ type API struct {
 }
 
 type Metric struct {
-	Path             string  `yaml:"path"`
-	AverageWindowSec float64 `yaml:"averageWindowSec"`
+	Path string `yaml:"path"`
 }
 
 type LeaderElection struct {
@@ -97,9 +101,9 @@ type RollbackMitigation struct {
 }
 
 type Metadata struct {
-	Config   map[string]any `yaml:"config"`
-	Type     string         `yaml:"type"`
-	ReadOnly bool           `json:"readOnly"`
+	Config   map[string]string `yaml:"config"`
+	Type     string            `yaml:"type"`
+	ReadOnly bool              `json:"readOnly"`
 }
 
 type Logging struct {
@@ -145,7 +149,7 @@ func (c *Dcp) GetFileMetadata() string {
 	var fileName string
 
 	if _, ok := c.Metadata.Config[FileMetadataFileNameConfig]; ok {
-		fileName = c.Metadata.Config[FileMetadataFileNameConfig].(string)
+		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
 	} else {
 		err := errors.New("file metadata file name is not set")
 		logger.Log.Error("failed to get metadata file name: %v", err)
@@ -231,6 +235,70 @@ func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	return &couchbaseMembership
 }
 
+type KubernetesLeaderElector struct {
+	LeaseLockName      string        `yaml:"leaseLockName"`
+	LeaseLockNamespace string        `yaml:"leaseLockNamespace"`
+	LeaseDuration      time.Duration `yaml:"leaseDuration"`
+	RenewDeadline      time.Duration `yaml:"renewDeadline"`
+	RetryPeriod        time.Duration `yaml:"retryPeriod"`
+}
+
+func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
+	kubernetesLeaderElector := KubernetesLeaderElector{
+		LeaseDuration: 8 * time.Second,
+		RenewDeadline: 5 * time.Second,
+		RetryPeriod:   1 * time.Second,
+	}
+
+	if leaseLockName, ok := c.LeaderElection.Config[KubernetesLeaderElectorLeaseLockNameConfig]; ok {
+		kubernetesLeaderElector.LeaseLockName = leaseLockName
+	} else {
+		err := errors.New("leaseLockName is not defined")
+		logger.Log.Error("error while creating leader elector: %v", err)
+		panic(err)
+	}
+
+	if leaseLockNamespace, ok := c.LeaderElection.Config[KubernetesLeaderElectorLeaseLockNamespaceConfig]; ok {
+		kubernetesLeaderElector.LeaseLockNamespace = leaseLockNamespace
+	} else {
+		err := errors.New("leaseLockNamespace is not defined")
+		logger.Log.Error("error while creating leader elector: %v", err)
+		panic(err)
+	}
+
+	if leaseDuration, ok := c.LeaderElection.Config[KubernetesLeaderElectorLeaseDurationConfig]; ok {
+		parsedLeaseDuration, err := time.ParseDuration(leaseDuration)
+		if err != nil {
+			logger.Log.Error("failed to parse leader election lease duration: %v", err)
+			panic(err)
+		}
+
+		kubernetesLeaderElector.LeaseDuration = parsedLeaseDuration
+	}
+
+	if renewDeadline, ok := c.LeaderElection.Config[KubernetesLeaderElectorRenewDeadlineConfig]; ok {
+		parsedRenewDeadline, err := time.ParseDuration(renewDeadline)
+		if err != nil {
+			logger.Log.Error("failed to parse leader election renew deadline: %v", err)
+			panic(err)
+		}
+
+		kubernetesLeaderElector.RenewDeadline = parsedRenewDeadline
+	}
+
+	if retryPeriod, ok := c.LeaderElection.Config[KubernetesLeaderElectorRetryPeriodConfig]; ok {
+		parsedRetryPeriod, err := time.ParseDuration(retryPeriod)
+		if err != nil {
+			logger.Log.Error("failed to parse leader election retry period: %v", err)
+			panic(err)
+		}
+
+		kubernetesLeaderElector.RetryPeriod = parsedRetryPeriod
+	}
+
+	return &kubernetesLeaderElector
+}
+
 type CouchbaseMetadata struct {
 	Bucket               string        `yaml:"bucket"`
 	Scope                string        `yaml:"scope"`
@@ -239,7 +307,7 @@ type CouchbaseMetadata struct {
 	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
 }
 
-func (c *Dcp) GetCouchbaseMetadata() CouchbaseMetadata {
+func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 	couchbaseMetadata := CouchbaseMetadata{
 		Bucket:               c.BucketName,
 		Scope:                DefaultScopeName,
@@ -249,15 +317,15 @@ func (c *Dcp) GetCouchbaseMetadata() CouchbaseMetadata {
 	}
 
 	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
-		couchbaseMetadata.Bucket = bucket.(string)
+		couchbaseMetadata.Bucket = bucket
 	}
 
 	if scope, ok := c.Metadata.Config[CouchbaseMetadataScopeConfig]; ok {
-		couchbaseMetadata.Scope = scope.(string)
+		couchbaseMetadata.Scope = scope
 	}
 
 	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
-		couchbaseMetadata.Collection = collection.(string)
+		couchbaseMetadata.Collection = collection
 	}
 
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
@@ -265,7 +333,7 @@ func (c *Dcp) GetCouchbaseMetadata() CouchbaseMetadata {
 	}
 
 	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
-		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout.(string))
+		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
 		if err != nil {
 			logger.Log.Error("failed to parse metadata connection timeout: %v", err)
 			panic(err)
@@ -274,7 +342,7 @@ func (c *Dcp) GetCouchbaseMetadata() CouchbaseMetadata {
 		couchbaseMetadata.ConnectionTimeout = parsedConnectionTimeout
 	}
 
-	return couchbaseMetadata
+	return &couchbaseMetadata
 }
 
 func (c *Dcp) ApplyDefaults() {
@@ -397,10 +465,6 @@ func (c *Dcp) applyDefaultConnectionBufferSize() {
 func (c *Dcp) applyDefaultMetrics() {
 	if c.Metric.Path == "" {
 		c.Metric.Path = "/metrics"
-	}
-
-	if c.Metric.AverageWindowSec == 0.0 {
-		c.Metric.AverageWindowSec = 10.0
 	}
 }
 

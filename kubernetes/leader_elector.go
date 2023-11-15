@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/asaskevich/EventBus"
 
@@ -23,40 +22,36 @@ import (
 )
 
 type leaderElector struct {
-	client             Client
-	myIdentity         *models.Identity
-	handler            leaderelector.Handler
-	leaseLockName      string
-	leaseLockNamespace string
+	client              Client
+	handler             leaderelector.Handler
+	bus                 EventBus.Bus
+	myIdentity          *models.Identity
+	leaderElectorConfig *config.KubernetesLeaderElector
 }
 
 func (le *leaderElector) Run(ctx context.Context) {
 	callback := leaderelection.LeaderCallbacks{
 		OnStartedLeading: func(c context.Context) {
-			logger.Log.Info("granted to leader")
+			logger.Log.Debug("granted to leader")
 
-			le.client.AddLabel(le.leaseLockNamespace, "role", "leader")
-
+			le.client.AddLabel("role", "leader")
 			le.handler.OnBecomeLeader()
 		},
 		OnStoppedLeading: func() {
-			logger.Log.Info("revoked from leader")
+			logger.Log.Debug("revoked from leader")
 
-			le.client.RemoveLabel(le.leaseLockNamespace, "role")
-
+			le.client.RemoveLabel("role")
 			le.handler.OnResignLeader()
 		},
 		OnNewLeader: func(leaderIdentityStr string) {
 			leaderIdentity := models.NewIdentityFromStr(leaderIdentityStr)
-
 			if le.myIdentity.Equal(leaderIdentity) {
 				return
 			}
 
-			logger.Log.Info("granted to follower for leader: %s", leaderIdentity.Name)
+			logger.Log.Debug("granted to follower for leader: %s", leaderIdentity.Name)
 
-			le.client.AddLabel(le.leaseLockNamespace, "role", "follower")
-
+			le.client.AddLabel("role", "follower")
 			le.handler.OnBecomeFollower(leaderIdentity)
 		},
 	}
@@ -65,8 +60,8 @@ func (le *leaderElector) Run(ctx context.Context) {
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock: &resourcelock.LeaseLock{
 				LeaseMeta: v1.ObjectMeta{
-					Name:      le.leaseLockName,
-					Namespace: le.leaseLockNamespace,
+					Name:      le.leaderElectorConfig.LeaseLockName,
+					Namespace: le.leaderElectorConfig.LeaseLockNamespace,
 				},
 				Client: le.client.CoordinationV1(),
 				LockConfig: resourcelock.ResourceLockConfig{
@@ -74,17 +69,23 @@ func (le *leaderElector) Run(ctx context.Context) {
 				},
 			},
 			ReleaseOnCancel: true,
-			LeaseDuration:   8 * time.Second,
-			RenewDeadline:   5 * time.Second,
-			RetryPeriod:     1 * time.Second,
+			LeaseDuration:   le.leaderElectorConfig.LeaseDuration,
+			RenewDeadline:   le.leaderElectorConfig.RenewDeadline,
+			RetryPeriod:     le.leaderElectorConfig.RetryPeriod,
 			Callbacks:       callback,
 		})
 	}()
 }
 
+func (le *leaderElector) Close() {
+	err := le.bus.Unsubscribe(helpers.MembershipChangedBusEventName, le.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("error while unsubscribe: %v", err)
+	}
+}
+
 func (le *leaderElector) membershipChangedListener(model *membership.Model) {
 	le.client.AddLabel(
-		le.leaseLockNamespace,
 		"member",
 		fmt.Sprintf("%v_%v", model.MemberNumber, model.TotalMembers),
 	)
@@ -97,31 +98,12 @@ func NewLeaderElector(
 	handler leaderelector.Handler,
 	bus EventBus.Bus,
 ) leaderelector.LeaderElector {
-	var leaseLockName string
-	var leaseLockNamespace string
-
-	if val, ok := config.LeaderElection.Config["leaseLockName"]; ok {
-		leaseLockName = val
-	} else {
-		err := fmt.Errorf("leaseLockName is not defined")
-		logger.Log.Error("error while creating leader elector: %v", err)
-		panic(err)
-	}
-
-	if val, ok := config.LeaderElection.Config["leaseLockNamespace"]; ok {
-		leaseLockNamespace = val
-	} else {
-		err := fmt.Errorf("leaseLockNamespace is not defined")
-		logger.Log.Error("error while creating leader elector: %v", err)
-		panic(err)
-	}
-
 	le := &leaderElector{
-		client:             client,
-		myIdentity:         myIdentity,
-		handler:            handler,
-		leaseLockName:      leaseLockName,
-		leaseLockNamespace: leaseLockNamespace,
+		client:              client,
+		myIdentity:          myIdentity,
+		handler:             handler,
+		leaderElectorConfig: config.GetKubernetesLeaderElector(),
+		bus:                 bus,
 	}
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, le.membershipChangedListener, true)

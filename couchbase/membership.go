@@ -291,6 +291,11 @@ func (h *cbMembership) startMonitor() {
 }
 
 func (h *cbMembership) Close() {
+	err := h.bus.Unsubscribe(helpers.MembershipChangedBusEventName, h.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("error while unsubscribe: %v", err)
+	}
+
 	h.monitorTicker.Stop()
 	h.heartbeatTicker.Stop()
 }

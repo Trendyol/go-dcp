@@ -14,8 +14,7 @@ spec:
       labels:
         app: dcp
     spec:
-      automountServiceAccountToken: true  # need for kubernetes leader election type
-      serviceAccount: dcp-sa
+      serviceAccountName: dcp-sa # need for kubernetes leader election type
       containers:
         - image: docker.io/trendyoltech/dcp:latest # change this to your image
           imagePullPolicy: Never
@@ -25,14 +24,3 @@ spec:
               name: rpc
             - containerPort: 8080
               name: http
-          env:
-            - name: POD_IP # need for kubernetes leader election type
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: status.podIP
-            - name: POD_NAME # need for kubernetes leader election type
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: metadata.name

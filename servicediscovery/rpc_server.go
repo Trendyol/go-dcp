@@ -42,10 +42,10 @@ func (rh *Handler) Register(payload Register, reply *bool) error {
 		return err
 	}
 
-	followerService := NewService(followerClient, payload.Identity.Name)
+	followerService := NewService(followerClient, payload.Identity.Name, payload.Identity.ClusterJoinTime)
 	rh.serviceDiscovery.Add(followerService)
 
-	logger.Log.Info("registered client %s", payload.Identity.Name)
+	logger.Log.Debug("registered client %s", payload.Identity.Name)
 
 	*reply = true
 

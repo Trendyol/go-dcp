@@ -1,16 +1,15 @@
 package models
 
 import (
-	"os"
-
 	"github.com/json-iterator/go"
 
 	"github.com/Trendyol/go-dcp/logger"
 )
 
 type Identity struct {
-	IP   string
-	Name string
+	IP              string
+	Name            string
+	ClusterJoinTime int64
 }
 
 func (k *Identity) String() string {
@@ -37,11 +36,4 @@ func NewIdentityFromStr(str string) *Identity {
 	}
 
 	return &identity
-}
-
-func NewIdentityFromEnv() *Identity {
-	return &Identity{
-		IP:   os.Getenv("POD_IP"),
-		Name: os.Getenv("POD_NAME"),
-	}
 }

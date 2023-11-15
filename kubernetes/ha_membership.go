@@ -11,6 +11,7 @@ import (
 type haMembership struct {
 	info     *membership.Model
 	infoChan chan *membership.Model
+	bus      EventBus.Bus
 }
 
 func (h *haMembership) GetInfo() *membership.Model {
@@ -22,6 +23,10 @@ func (h *haMembership) GetInfo() *membership.Model {
 }
 
 func (h *haMembership) Close() {
+	err := h.bus.Unsubscribe(helpers.MembershipChangedBusEventName, h.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("error while unsubscribe: %v", err)
+	}
 }
 
 func (h *haMembership) membershipChangedListener(model *membership.Model) {
@@ -34,6 +39,7 @@ func (h *haMembership) membershipChangedListener(model *membership.Model) {
 func NewHaMembership(_ *config.Dcp, bus EventBus.Bus) membership.Membership {
 	ham := &haMembership{
 		infoChan: make(chan *membership.Model),
+		bus:      bus,
 	}
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, ham.membershipChangedListener, true)

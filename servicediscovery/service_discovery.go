@@ -2,7 +2,6 @@ package servicediscovery
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/asaskevich/EventBus"
@@ -143,7 +142,7 @@ func (s *serviceDiscovery) StartHeartbeat() {
 
 			for _, name := range needToBeRemove {
 				s.Remove(name)
-				logger.Log.Info("client %s disconnected", name)
+				logger.Log.Debug("client %s disconnected", name)
 			}
 		}
 	}()
@@ -186,15 +185,23 @@ func (s *serviceDiscovery) StopMonitor() {
 }
 
 func (s *serviceDiscovery) GetAll() []string {
-	var names []string
+	var services []Service
 
-	s.services.Range(func(name string, _ *Service) bool {
-		names = append(names, name)
+	s.services.Range(func(name string, service *Service) bool {
+		services = append(services, *service)
 
 		return true
 	})
 
-	sort.Strings(names)
+	ServiceBy(func(s1, s2 *Service) bool {
+		return s1.ClusterJoinTime < s2.ClusterJoinTime
+	}).Sort(services)
+
+	var names []string
+
+	for _, service := range services {
+		names = append(names, service.Name)
+	}
 
 	return names
 }
@@ -208,7 +215,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 	if newInfo.IsChanged(s.info) {
 		s.info = newInfo
 
-		logger.Log.Info("new info arrived for member: %v/%v", memberNumber, totalMembers)
+		logger.Log.Debug("new info arrived for member: %v/%v", memberNumber, totalMembers)
 
 		s.bus.Publish(helpers.MembershipChangedBusEventName, newInfo)
 	}

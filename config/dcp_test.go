@@ -39,7 +39,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestGetCouchbaseMetadata(t *testing.T) {
 	dcp := &Dcp{
 		Metadata: Metadata{
-			Config: map[string]any{
+			Config: map[string]string{
 				CouchbaseMetadataBucketConfig: "mybucket",
 				CouchbaseMetadataScopeConfig:  "myscope",
 			},
@@ -124,7 +124,7 @@ func TestGetCouchbaseMembership(t *testing.T) {
 func TestDcp_GetFileMetadata(t *testing.T) {
 	dcp := &Dcp{
 		Metadata: Metadata{
-			Config: map[string]any{
+			Config: map[string]string{
 				FileMetadataFileNameConfig: "testfile.json",
 			},
 		},
@@ -257,10 +257,6 @@ func TestDcpApplyDefaultMetrics(t *testing.T) {
 
 	if c.Metric.Path != "/metrics" {
 		t.Errorf("Metric.Path is not set to expected value")
-	}
-
-	if c.Metric.AverageWindowSec != 10.0 {
-		t.Errorf("Metric.AverageWindowSec is not set to expected value")
 	}
 }
 

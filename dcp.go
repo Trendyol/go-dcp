@@ -45,7 +45,7 @@ type Dcp interface {
 }
 
 type dcp struct {
-	client            couchbase.Client
+	bus               EventBus.Bus
 	stream            stream.Stream
 	api               api.API
 	leaderElection    stream.LeaderElection
@@ -53,14 +53,15 @@ type dcp struct {
 	serviceDiscovery  servicediscovery.ServiceDiscovery
 	metadata          metadata.Metadata
 	eventHandler      models.EventHandler
+	client            couchbase.Client
 	apiShutdown       chan struct{}
-	stopCh            chan struct{}
 	healCheckFailedCh chan struct{}
 	config            *config.Dcp
 	healthCheckTicker *time.Ticker
 	listener          models.Listener
 	readyCh           chan struct{}
 	cancelCh          chan os.Signal
+	stopCh            chan struct{}
 	metricCollectors  []prometheus.Collector
 	closeWithCancel   bool
 }
@@ -119,29 +120,27 @@ func (s *dcp) Start() {
 
 	logger.Log.Info("using %v metadata", reflect.TypeOf(s.metadata))
 
-	bus := EventBus.New()
-
 	vBuckets := s.client.GetNumVBuckets()
 
-	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, bus)
+	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, s.bus)
 
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.vBucketDiscovery,
-		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, bus, s.eventHandler,
+		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, s.bus, s.eventHandler,
 	)
 
 	if s.config.LeaderElection.Enabled {
-		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, bus)
+		s.serviceDiscovery = servicediscovery.NewServiceDiscovery(s.config, s.bus)
 		s.serviceDiscovery.StartHeartbeat()
 		s.serviceDiscovery.StartMonitor()
 
-		s.leaderElection = stream.NewLeaderElection(s.config, s.serviceDiscovery, bus)
+		s.leaderElection = stream.NewLeaderElection(s.config, s.serviceDiscovery, s.bus)
 		s.leaderElection.Start()
 	}
 
 	s.stream.Open()
 
-	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
+	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
 	if err != nil {
 		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
 		panic(err)
@@ -191,6 +190,12 @@ func (s *dcp) Close() {
 	if s.config.Checkpoint.Type == stream.CheckpointTypeAuto {
 		s.stream.Save()
 	}
+
+	err := s.bus.Unsubscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
+	if err != nil {
+		logger.Log.Error("cannot while unsubscribe: %v", err)
+	}
+
 	s.stream.Close(s.closeWithCancel)
 
 	if s.config.LeaderElection.Enabled {
@@ -250,6 +255,7 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 		readyCh:           make(chan struct{}, 1),
 		metricCollectors:  []prometheus.Collector{},
 		eventHandler:      models.DefaultEventHandler,
+		bus:               EventBus.New(),
 	}, nil
 }
 

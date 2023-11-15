@@ -4,13 +4,15 @@ import (
 	"testing"
 )
 
+const key = "test"
+
 func TestIsMetadata_ReturnsTrue_WhenStructHasKeyPrefix(t *testing.T) {
 	type ts struct {
 		Key []byte
 	}
 
 	testData := ts{
-		Key: []byte(Prefix + "test"),
+		Key: []byte(Prefix + key),
 	}
 
 	if !IsMetadata(testData) {
@@ -24,7 +26,7 @@ func TestIsMetadata_ReturnsTrue_WhenKeyHasTxnPrefix(t *testing.T) {
 	}
 
 	testData := ts{
-		Key: []byte(TxnPrefix + "test"),
+		Key: []byte(TxnPrefix + key),
 	}
 
 	if !IsMetadata(testData) {
@@ -38,7 +40,7 @@ func TestIsMetadata_ReturnsFalse_WhenKeyHasNoPrefix(t *testing.T) {
 	}
 
 	testData := ts{
-		Key: []byte("test"),
+		Key: []byte(key),
 	}
 
 	if IsMetadata(testData) {

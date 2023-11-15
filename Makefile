@@ -4,8 +4,8 @@ default: init
 
 init:
 	go mod download
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.2
-	go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@v0.8.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
+	go install golang.org/x/tools/go/analysis/passes/fieldalignment/cmd/fieldalignment@v0.15.0
 
 clean:
 	rm -rf ./build
@@ -19,3 +19,6 @@ test:
 
 compose:
 	docker compose up --wait --build --force-recreate --remove-orphans
+
+docker-build:
+	docker build --progress=plain -t docker.io/trendyoltech/dcp .

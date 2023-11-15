@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"time"
@@ -84,27 +85,46 @@ func (le *client) setIdentity() {
 	}
 
 	var podIP string
-	for {
-		pod, err := le.clientSet.CoreV1().Pods(le.namespace).Get(context.Background(), hostname, metaV1.GetOptions{})
-		if err != nil {
-			logger.Log.Error("error while getting pod: %v", err)
-			panic(err)
-		}
 
-		if pod.Status.PodIP != "" {
-			podIP = pod.Status.PodIP
-			break
-		}
+	if podIPFromEnv := os.Getenv("POD_IP"); podIPFromEnv != "" {
+		podIP = podIPFromEnv
+	} else {
+		var tries int
 
-		time.Sleep(1 * time.Second)
+		for {
+			pod, err := le.clientSet.CoreV1().Pods(le.namespace).Get(
+				context.Background(),
+				hostname,
+				metaV1.GetOptions{},
+			)
+			if err != nil {
+				logger.Log.Error("error while getting pod: %v", err)
+				panic(err)
+			}
+
+			if pod.Status.PodIP != "" {
+				podIP = pod.Status.PodIP
+				break
+			}
+
+			tries++
+
+			if tries > 10 {
+				err := errors.New("after 10 tries, pod ip is still empty")
+				logger.Log.Error("failed to get pod ip: %v", err)
+				panic(err)
+			} else {
+				logger.Log.Debug("pod ip is empty, waiting...")
+			}
+
+			time.Sleep(time.Second)
+		}
 	}
-
-	now := time.Now().UnixNano()
 
 	le.myIdentity = &models.Identity{
 		IP:              podIP,
 		Name:            hostname,
-		ClusterJoinTime: now,
+		ClusterJoinTime: time.Now().UnixNano(),
 	}
 }
 

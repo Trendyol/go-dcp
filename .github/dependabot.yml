@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore: bump"
+    allow:
+      - dependency-name: github.com/couchbase/gocbcore/v10
+      - dependency-name: github.com/mhmtszr/concurrent-swiss-map
+      - dependency-name: github.com/asaskevich/EventBus
+      - dependency-name: github.com/json-iterator/go

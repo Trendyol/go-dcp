@@ -292,15 +292,12 @@ func (s *client) DcpConnect() error {
 			BufferSize:      helpers.ResolveUnionIntOrStringValue(s.config.Dcp.BufferSize),
 			UseExpiryOpcode: true,
 		},
+		IoConfig: gocbcore.IoConfig{
+			UseCollections: true,
+		},
 		KVConfig: gocbcore.KVConfig{
 			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrStringValue(s.config.Dcp.ConnectionBufferSize)),
 		},
-	}
-
-	if s.config.IsCollectionModeEnabled() {
-		agentConfig.IoConfig = gocbcore.IoConfig{
-			UseCollections: true,
-		}
 	}
 
 	client, err := gocbcore.CreateDcpAgent(
@@ -483,7 +480,9 @@ func (s *client) OpenStream(
 
 	openStreamOptions := gocbcore.OpenStreamOptions{}
 
-	if collectionIDs != nil && s.dcpAgent.HasCollectionsSupport() {
+	if s.dcpAgent.HasCollectionsSupport() {
+		openStreamOptions.ManifestOptions = &gocbcore.OpenStreamManifestOptions{ManifestUID: 0}
+
 		options := &gocbcore.OpenStreamFilterOptions{
 			CollectionIDs: []uint32{},
 		}
@@ -492,7 +491,9 @@ func (s *client) OpenStream(
 			options.CollectionIDs = append(options.CollectionIDs, id)
 		}
 
-		openStreamOptions.FilterOptions = options
+		if len(options.CollectionIDs) > 0 {
+			openStreamOptions.FilterOptions = options
+		}
 	}
 
 	ch := make(chan error)
@@ -589,7 +590,7 @@ func (s *client) getCollectionID(scopeName string, collectionName string) (uint3
 func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string {
 	collectionIDs := map[uint32]string{}
 
-	if s.config.IsCollectionModeEnabled() {
+	if s.dcpAgent.HasCollectionsSupport() {
 		for _, collectionName := range collectionNames {
 			collectionID, err := s.getCollectionID(scopeName, collectionName)
 			if err != nil {

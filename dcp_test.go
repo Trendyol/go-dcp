@@ -157,6 +157,8 @@ func BenchmarkDcp(b *testing.B) {
 	counter := 0
 	finish := make(chan struct{}, 1)
 
+	c.ApplyDefaults()
+
 	dcp, err := NewDcp(c, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
 			if counter == 0 {

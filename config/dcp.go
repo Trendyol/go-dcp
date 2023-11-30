@@ -133,10 +133,6 @@ type Dcp struct {
 	Debug                bool               `yaml:"debug"`
 }
 
-func (c *Dcp) IsCollectionModeEnabled() bool {
-	return !(c.ScopeName == DefaultScopeName && len(c.CollectionNames) == 1 && c.CollectionNames[0] == DefaultCollectionName)
-}
-
 func (c *Dcp) IsCouchbaseMetadata() bool {
 	return c.Metadata.Type == MetadataTypeCouchbase
 }

@@ -142,7 +142,9 @@ func (s *stream) listenEnd() {
 			logger.Log.Debug("end stream vbId: %v", endContext.Event.VbID)
 		}
 
-		if !s.closeWithCancel && endContext.Err != nil && errors.Is(endContext.Err, gocbcore.ErrSocketClosed) {
+		if !s.closeWithCancel && endContext.Err != nil &&
+			(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
+				errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed)) {
 			s.reopenStream(endContext.Event.VbID)
 		} else {
 			s.activeStreams--

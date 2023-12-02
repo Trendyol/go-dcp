@@ -53,12 +53,18 @@ type DCPListener struct {
 	BufferSize uint `yaml:"bufferSize"`
 }
 
+type ExternalDcpConfig struct {
+	DisableExpiryOpcode      bool `yaml:"disableExpiryOpcode"`
+	DisableStreamEndByClient bool `yaml:"disableStreamEndByClient"`
+}
+
 type ExternalDcp struct {
-	BufferSize           any           `yaml:"bufferSize"`
-	ConnectionBufferSize any           `yaml:"connectionBufferSize"`
-	Group                DCPGroup      `yaml:"group"`
-	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
-	Listener             DCPListener   `yaml:"listener"`
+	BufferSize           any               `yaml:"bufferSize"`
+	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
+	Group                DCPGroup          `yaml:"group"`
+	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
+	Listener             DCPListener       `yaml:"listener"`
+	Config               ExternalDcpConfig `yaml:"config"`
 }
 
 type API struct {

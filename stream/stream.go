@@ -135,7 +135,11 @@ func (s *stream) reopenStream(vbID uint16) {
 func (s *stream) listenEnd() {
 	for endContext := range s.observer.ListenEnd() {
 		if !s.closeWithCancel && endContext.Err != nil {
-			logger.Log.Error("end stream vbId: %v got error: %v", endContext.Event.VbID, endContext.Err)
+			if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
+				logger.Log.Error("end stream vbId: %v got error: %v", endContext.Event.VbID, endContext.Err)
+			} else {
+				logger.Log.Debug("end stream vbId: %v got error: %v", endContext.Event.VbID, endContext.Err)
+			}
 		}
 
 		if endContext.Err == nil {
@@ -260,7 +264,7 @@ func (s *stream) openAllStreams(vbIds []uint16) {
 	openWg.Wait()
 }
 
-func (s *stream) closeAllStreams() error {
+func (s *stream) closeAllStreams(internal bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -274,7 +278,11 @@ func (s *stream) closeAllStreams() error {
 		s.offsets.Range(func(vbID uint16, _ *models.Offset) bool {
 			go func(vbID uint16) {
 				defer wg.Done()
-				err = s.client.CloseStream(vbID)
+				if internal {
+					s.observer.End(models.DcpStreamEnd{VbID: vbID}, nil)
+				} else {
+					err = s.client.CloseStream(vbID)
+				}
 			}(vbID)
 			return true
 		})
@@ -316,7 +324,7 @@ func (s *stream) Close(closeWithCancel bool) {
 		s.checkpoint.StopSchedule()
 	}
 
-	err := s.closeAllStreams()
+	err := s.closeAllStreams(s.config.Dcp.Config.DisableStreamEndByClient)
 	if err != nil {
 		logger.Log.Error("cannot close all streams: %v", err)
 	}

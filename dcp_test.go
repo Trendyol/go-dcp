@@ -3,50 +3,111 @@ package dcp
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/logger"
 
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/couchbase"
-	"github.com/Trendyol/go-dcp/models"
-
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-var c = &config.Dcp{
-	Hosts:      []string{"localhost:8091"},
-	Username:   "user",
-	Password:   "password",
-	BucketName: "dcp-test",
-	Dcp: config.ExternalDcp{
-		Group: config.DCPGroup{
-			Name: "groupName",
-			Membership: config.DCPGroupMembership{
-				RebalanceDelay: 3 * time.Second,
-			},
-		},
-	},
-	Debug: true,
+func panicVersion(version string) {
+	panic(fmt.Sprintf("invalid version: %v", version))
 }
 
-func setupContainer(ctx context.Context) (testcontainers.Container, error) {
+func parseVersion(version string) (int, int, int) {
+	parse := strings.Split(version, ".")
+	if len(parse) < 3 {
+		panicVersion(version)
+	}
+
+	major, err := strconv.Atoi(parse[0])
+	if err != nil {
+		panicVersion(version)
+	}
+
+	minor, err := strconv.Atoi(parse[1])
+	if err != nil {
+		panicVersion(version)
+	}
+
+	patch, err := strconv.Atoi(parse[2])
+	if err != nil {
+		panicVersion(version)
+	}
+
+	return major, minor, patch
+}
+
+// true when version lower than 6.5.0
+func disableExpiryOpcode(c *config.Dcp, version string) {
+	major, minor, _ := parseVersion(version)
+
+	if major < 6 || (major == 6 && minor < 5) {
+		c.Dcp.Config.DisableExpiryOpcode = true
+	}
+}
+
+// true when version lower than 5.5.0
+func disableStreamEndByClient(c *config.Dcp, version string) {
+	major, minor, _ := parseVersion(version)
+
+	if major < 5 || (major == 5 && minor < 5) {
+		c.Dcp.Config.DisableStreamEndByClient = true
+	}
+}
+
+func isVersion5xx(version string) bool {
+	major, _, _ := parseVersion(version)
+	return major == 5
+}
+
+func getConfig() *config.Dcp {
+	return &config.Dcp{
+		Hosts:      []string{"localhost:8091"},
+		Username:   "user",
+		Password:   "password",
+		BucketName: "dcp-test",
+		Dcp: config.ExternalDcp{
+			Group: config.DCPGroup{
+				Name: "groupName",
+				Membership: config.DCPGroupMembership{
+					RebalanceDelay: 3 * time.Second,
+				},
+			},
+		},
+		Debug: true,
+	}
+}
+
+func setupContainer(c *config.Dcp, ctx context.Context, version string) (testcontainers.Container, error) {
+	var entrypoint string
+	if isVersion5xx(version) {
+		entrypoint = "scripts/entrypoint_5.sh"
+	} else {
+		entrypoint = "scripts/entrypoint.sh"
+	}
+
 	req := testcontainers.ContainerRequest{
-		Image:        "couchbase:6.5.1",
+		Image:        fmt.Sprintf("couchbase:%v", version),
 		ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
-		WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(20 * time.Second),
+		WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
 		Env: map[string]string{
 			"USERNAME":                  c.Username,
 			"PASSWORD":                  c.Password,
 			"BUCKET_NAME":               c.BucketName,
 			"BUCKET_TYPE":               "couchbase",
 			"BUCKET_RAMSIZE":            "1024",
-			"SERVICES":                  "data,index,query,fts,analytics,eventing",
 			"CLUSTER_RAMSIZE":           "1024",
 			"CLUSTER_INDEX_RAMSIZE":     "512",
 			"CLUSTER_EVENTING_RAMSIZE":  "256",
@@ -66,7 +127,7 @@ func setupContainer(ctx context.Context) (testcontainers.Container, error) {
 		},
 		Files: []testcontainers.ContainerFile{
 			{
-				HostFilePath:      "scripts/entrypoint.sh",
+				HostFilePath:      entrypoint,
 				ContainerFilePath: "/config-entrypoint.sh",
 				FileMode:          600,
 			},
@@ -79,14 +140,14 @@ func setupContainer(ctx context.Context) (testcontainers.Container, error) {
 	})
 }
 
-func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize int) {
+func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize int, bulkSize int) {
 	logger.Log.Info("mock data stream started with iteration=%v", iteration)
 
 	client := couchbase.NewClient(c)
 
 	err := client.Connect()
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
 	var iter int
@@ -114,13 +175,13 @@ func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize 
 					err = opm.Wait(op, err)
 
 					if err != nil {
-						b.Error(err)
+						t.Error(err)
 					}
 
 					err = <-ch
 
 					if err != nil {
-						b.Error(err)
+						t.Error(err)
 					}
 
 					wg.Done()
@@ -139,32 +200,32 @@ func insertDataToContainer(b *testing.B, iteration int, chunkSize int, bulkSize 
 }
 
 //nolint:funlen
-func BenchmarkDcp(b *testing.B) {
+func test(t *testing.T, version string) {
 	chunkSize := 4
 	bulkSize := 1024
-	iteration := 24
+	iteration := 96
 	mockDataSize := iteration * bulkSize * chunkSize
 	totalNotify := 10
 	notifySize := mockDataSize / totalNotify
 
+	c := getConfig()
+	c.ApplyDefaults()
+
+	disableExpiryOpcode(c, version)
+	disableStreamEndByClient(c, version)
+
 	ctx := context.Background()
 
-	container, err := setupContainer(ctx)
+	container, err := setupContainer(c, ctx, version)
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
 	counter := 0
 	finish := make(chan struct{}, 1)
 
-	c.ApplyDefaults()
-
 	dcp, err := NewDcp(c, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
-			if counter == 0 {
-				b.ResetTimer()
-			}
-
 			ctx.Ack()
 
 			counter++
@@ -179,12 +240,12 @@ func BenchmarkDcp(b *testing.B) {
 		}
 	})
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
 	}
 
 	go func() {
 		<-dcp.WaitUntilReady()
-		insertDataToContainer(b, iteration, chunkSize, bulkSize)
+		insertDataToContainer(c, t, iteration, chunkSize, bulkSize)
 	}()
 
 	go func() {
@@ -196,6 +257,25 @@ func BenchmarkDcp(b *testing.B) {
 
 	err = container.Terminate(ctx)
 	if err != nil {
-		b.Fatal(err)
+		t.Fatal(err)
+	}
+}
+
+func TestDcp(t *testing.T) {
+	for _, version := range []string{
+		"5.0.1",
+		"5.1.0",
+		"5.5.0",
+		"6.0.0",
+		"6.5.0",
+		"6.6.0",
+		"7.0.0",
+		"7.1.0",
+		"7.2.0",
+		"7.2.3",
+	} {
+		t.Run(version, func(t *testing.T) {
+			test(t, version)
+		})
 	}
 }

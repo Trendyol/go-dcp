@@ -94,6 +94,8 @@ $ go get github.com/Trendyol/go-dcp
 | `dcp.group.membership.totalMembers`      |        int        |    no    |     1      | Set this if membership is `static` or `kubernetesStatefulSet`. Other methods will ignore this field.                                        |
 | `dcp.group.membership.rebalanceDelay`    |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                                                  |
 | `dcp.group.membership.config`            | map[string]string |    no    |  *not set  | Set key-values of config. `expirySeconds`,`heartbeatInterval`,`heartbeatToleranceDuration`,`monitorInterval`,`timeout` for `couchbase` type |
+| `dcp.config.disableExpiryOpcode`         |       bool        |    no    |   false    | Set this to true if Couchbase Server lower then 6.5.0                                                                                       |
+| `dcp.config.disableStreamEndByClient`    |       bool        |    no    |   false    | Set this to true if Couchbase Server lower then 5.5.0                                                                                       |
 | `leaderElection.enabled`                 |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                                              |
 | `leaderElection.type`                    |      string       |    no    | kubernetes | Leader Election types. `kubernetes`                                                                                                         |
 | `leaderElection.config`                  | map[string]string |    no    |  *not set  | Set key-values of config. `leaseLockName`,`leaseLockNamespace`, `leaseDuration`, `renewDeadline`, `retryPeriod` for `kubernetes` type.      |
@@ -163,6 +165,13 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 | cbgo_membership_type_current         | The type of membership of the current member            | Membership type         | Gauge      |
 | cbgo_offset_write_current            | The latest number of the offset write                   | N/A                     | Gauge      |
 | cbgo_offset_write_latency_ms_current | The latest offset write latency in milliseconds         | N/A                     | Gauge      |
+
+### Compatibility
+
+| Go DCP Version | Minimum Couchbase Server Version |
+|----------------|----------------------------------|
+| x<1.1.16       | 6.5.x                            |
+| 1.1.16>=x      | 5.x.x                            |
 
 ### Examples
 

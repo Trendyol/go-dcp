@@ -11,15 +11,3 @@ services:
       interval: 2s
       timeout: 3s
       retries: 60
-    environment:
-      - USERNAME=admin
-      - PASSWORD=password
-
-
- # test:
- #   build:
- #     context:  "test/integration"
- #   depends_on:
- #     - couchbase
- #   links:
- #     - couchbase

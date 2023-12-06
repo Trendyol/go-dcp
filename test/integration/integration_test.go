@@ -2,17 +2,20 @@ package integration
 
 import (
 	"context"
-	"github.com/Trendyol/go-dcp"
-	"github.com/Trendyol/go-dcp/models"
 	"log"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Trendyol/go-dcp"
+	"github.com/Trendyol/go-dcp/models"
 )
 
-var mutationCount = 0
-var deletionCount = 0
-var expirationCount = 0
+var (
+	mutationCount   = 0
+	deletionCount   = 0
+	expirationCount = 0
+)
 
 func listener(ctx *models.ListenerContext) {
 	switch ctx.Event.(type) {
@@ -27,6 +30,7 @@ func listener(ctx *models.ListenerContext) {
 }
 
 func TestCouchbase(t *testing.T) {
+	time.Sleep(10 * time.Second)
 	newDcp, err := dcp.NewDcp("config.yml", listener)
 	if err != nil {
 		log.Fatalf("couldn't create dcp err: %v", err)
@@ -40,7 +44,6 @@ func TestCouchbase(t *testing.T) {
 	}()
 
 	go func() {
-		time.Sleep(5 * time.Second)
 		ctx, _ := context.WithTimeout(context.Background(), 20*time.Second)
 		for {
 			select {
@@ -51,13 +54,12 @@ func TestCouchbase(t *testing.T) {
 					newDcp.Close()
 					return
 				}
-				time.Sleep(1 * time.Second)
+				time.Sleep(time.Second)
 			}
 		}
 	}()
 
-	time.Sleep(500 * time.Second)
+	time.Sleep(time.Second)
 
 	wg.Wait()
-	t.Log("done")
 }

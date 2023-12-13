@@ -3,6 +3,7 @@ package dcp
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -262,20 +263,13 @@ func test(t *testing.T, version string) {
 }
 
 func TestDcp(t *testing.T) {
-	for _, version := range []string{
-		"5.0.1",
-		"5.1.0",
-		"5.5.0",
-		"6.0.0",
-		"6.5.0",
-		"6.6.0",
-		"7.0.0",
-		"7.1.0",
-		"7.2.0",
-		"7.2.3",
-	} {
-		t.Run(version, func(t *testing.T) {
-			test(t, version)
-		})
+	version := os.Getenv("CB_VERSION")
+
+	if version == "" {
+		t.Skip("Skipping test")
 	}
+
+	t.Run(version, func(t *testing.T) {
+		test(t, version)
+	})
 }

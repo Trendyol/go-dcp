@@ -37,3 +37,223 @@ jobs:
 
       - name: Test
         run: go test -parallel 1 -v ./...
+  dcp_test_v501:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 5.0.1
+  dcp_test_v510:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 5.1.0
+  dcp_test_v550:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 5.5.0
+  dcp_test_v600:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 6.0.0
+  dcp_test_v650:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 6.5.0
+  dcp_test_v660:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 6.6.0
+  dcp_test_v700:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 7.0.0
+  dcp_test_v710:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 7.1.0
+  dcp_test_v720:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 7.2.0
+  dcp_test_v723:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: 7.2.3

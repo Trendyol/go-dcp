@@ -56,6 +56,7 @@ type DCPListener struct {
 type ExternalDcpConfig struct {
 	DisableExpiryOpcode      bool `yaml:"disableExpiryOpcode"`
 	DisableStreamEndByClient bool `yaml:"disableStreamEndByClient"`
+	EnableChangeStreams      bool `yaml:"enableChangeStreams"`
 }
 
 type ExternalDcp struct {

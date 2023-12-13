@@ -289,8 +289,9 @@ func (s *client) DcpConnect() error {
 			Enabled: true,
 		},
 		DCPConfig: gocbcore.DCPConfig{
-			BufferSize:      helpers.ResolveUnionIntOrStringValue(s.config.Dcp.BufferSize),
-			UseExpiryOpcode: !s.config.Dcp.Config.DisableExpiryOpcode,
+			BufferSize:       helpers.ResolveUnionIntOrStringValue(s.config.Dcp.BufferSize),
+			UseExpiryOpcode:  !s.config.Dcp.Config.DisableExpiryOpcode,
+			UseChangeStreams: s.config.Dcp.Config.EnableChangeStreams,
 		},
 		IoConfig: gocbcore.IoConfig{
 			UseCollections: true,

@@ -1,4 +1,4 @@
-name: Build
+name: DCP
 
 on:
   push:
@@ -7,8 +7,11 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  dcp:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [ "5.0.1", "5.1.0", "5.5.0", "6.0.0", "6.5.0", "6.6.0", "7.0.0", "7.1.0", "7.2.0", "7.2.3" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -20,16 +23,10 @@ jobs:
         with:
           go-version: '1.20'
 
-      - name: Lint
-        run: |
-          make init
-          make lint
-
       - name: Install dependencies
         run: go get .
 
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test
-        run: go test -parallel 1 -v ./...
+      - name: Test DCP
+        run: go test -run "^\QTestDcp\E$"
+        env:
+          CB_VERSION: ${{ matrix.version }}

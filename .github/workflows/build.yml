@@ -5,6 +5,7 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -32,7 +33,7 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -parallel 1 -v ./...
+        run: go test -v ./...
 
   security-gates:
     uses: Trendyol/security-actions/.github/workflows/security-gates.yml@main

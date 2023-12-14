@@ -48,6 +48,15 @@ type InternalDcpSeqNoAdvance struct {
 	Offset *Offset
 }
 
+type PingResult struct {
+	MemdEndpoint string
+	MgmtEndpoint string
+}
+
+type PoolsResult struct {
+	ImplementationVersion string `json:"implementationVersion"`
+}
+
 func (i *InternalDcpMutation) IsCreated() bool {
 	return i.RevNo == 1
 }

@@ -59,7 +59,7 @@ func (s *api) UnregisterMetricCollectors() {
 }
 
 func (s *api) status(c *fiber.Ctx) error {
-	if err := s.client.Ping(); err != nil {
+	if _, err := s.client.Ping(); err != nil {
 		return err
 	}
 

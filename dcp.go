@@ -71,7 +71,7 @@ func (s *dcp) startHealthCheck() {
 
 	go func() {
 		for range s.healthCheckTicker.C {
-			if err := s.client.Ping(); err != nil {
+			if _, err := s.client.Ping(); err != nil {
 				logger.Log.Error("health check failed: %v", err)
 				s.healthCheckTicker.Stop()
 				s.healCheckFailedCh <- struct{}{}
@@ -237,6 +237,12 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	version, err := client.GetVersion()
+	if err != nil {
+		return nil, err
+	}
+	logger.Log.Info("connected to couchbase server version: %v", version)
 
 	err = client.DcpConnect()
 

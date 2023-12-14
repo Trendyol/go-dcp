@@ -3,10 +3,14 @@ package couchbase
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
+	"github.com/valyala/fasthttp"
 
 	"github.com/Trendyol/go-dcp/helpers"
 
@@ -24,7 +28,8 @@ import (
 )
 
 type Client interface {
-	Ping() error
+	GetVersion() (string, error)
+	Ping() (*models.PingResult, error)
 	GetAgent() *gocbcore.Agent
 	GetMetaAgent() *gocbcore.Agent
 	Connect() error
@@ -47,13 +52,49 @@ type client struct {
 	config    *config.Dcp
 }
 
-func (s *client) Ping() error {
+func (s *client) GetVersion() (string, error) {
+	pingResult, err := s.Ping()
+	if err != nil {
+		return "", err
+	}
+
+	freq := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(freq)
+
+	fres := fasthttp.AcquireResponse()
+	defer fasthttp.ReleaseResponse(fres)
+
+	uri := fmt.Sprintf("%v/pools", pingResult.MgmtEndpoint)
+	freq.SetRequestURI(uri)
+	freq.Header.SetMethod("GET")
+	freq.Header.Set(
+		"Authorization",
+		"Basic "+base64.StdEncoding.EncodeToString([]byte(s.config.Username+":"+s.config.Password)),
+	)
+
+	client := &fasthttp.Client{}
+	err = client.Do(freq, fres)
+	if err != nil {
+		return "", err
+	}
+
+	var result models.PoolsResult
+	err = jsoniter.Unmarshal(fres.Body(), &result)
+	if err != nil {
+		return "", err
+	}
+
+	return result.ImplementationVersion, nil
+}
+
+func (s *client) Ping() (*models.PingResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.HealthCheck.Timeout)
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
 
 	errorCh := make(chan error)
+	var pingResult models.PingResult
 
 	op, err := s.agent.Ping(gocbcore.PingOptions{
 		ServiceTypes: []gocbcore.ServiceType{gocbcore.MemdService, gocbcore.MgmtService},
@@ -66,6 +107,7 @@ func (s *client) Ping() error {
 				for _, memdServiceResult := range memdServiceResults {
 					if memdServiceResult.Error == nil && memdServiceResult.State == gocbcore.PingStateOK {
 						memdSuccess = true
+						pingResult.MemdEndpoint = memdServiceResult.Endpoint
 						break
 					}
 				}
@@ -75,6 +117,7 @@ func (s *client) Ping() error {
 				for _, mgmtServiceResult := range mgmtServiceResults {
 					if mgmtServiceResult.Error == nil && mgmtServiceResult.State == gocbcore.PingStateOK {
 						mgmtSuccess = true
+						pingResult.MgmtEndpoint = mgmtServiceResult.Endpoint
 						break
 					}
 				}
@@ -95,10 +138,10 @@ func (s *client) Ping() error {
 	err = opm.Wait(op, err)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return <-errorCh
+	return &pingResult, <-errorCh
 }
 
 func (s *client) GetAgent() *gocbcore.Agent {

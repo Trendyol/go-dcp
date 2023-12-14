@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -273,38 +272,27 @@ func (s *stream) openAllStreams(vbIds []uint16) {
 	openWg.Wait()
 }
 
-func (s *stream) closeAllStreams(internal bool) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+func (s *stream) closeAllStreams(internal bool) {
+	var wg sync.WaitGroup
+	wg.Add(s.offsets.Count())
 
-	errCh := make(chan error, 1)
-
-	go func() {
-		var err error
-
-		var wg sync.WaitGroup
-		wg.Add(s.offsets.Count())
-		s.offsets.Range(func(vbID uint16, _ *models.Offset) bool {
-			go func(vbID uint16) {
-				defer wg.Done()
-				if internal {
-					s.observer.End(models.DcpStreamEnd{VbID: vbID}, nil)
-				} else {
-					err = s.client.CloseStream(vbID)
+	s.offsets.Range(func(vbID uint16, _ *models.Offset) bool {
+		go func(vbID uint16) {
+			defer wg.Done()
+			if internal {
+				// todo: this is not a good way to close stream
+				s.observer.End(models.DcpStreamEnd{VbID: vbID}, nil)
+			} else {
+				err := s.client.CloseStream(vbID)
+				if err != nil {
+					logger.Log.Error("cannot close stream, vbID: %d, err: %v", vbID, err)
 				}
-			}(vbID)
-			return true
-		})
-		wg.Wait()
-		errCh <- err
-	}()
+			}
+		}(vbID)
+		return true
+	})
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-errCh:
-		return err
-	}
+	wg.Wait()
 }
 
 func (s *stream) wait() {
@@ -333,10 +321,7 @@ func (s *stream) Close(closeWithCancel bool) {
 		s.checkpoint.StopSchedule()
 	}
 
-	err := s.closeAllStreams(s.config.Dcp.Config.DisableStreamEndByClient)
-	if err != nil {
-		logger.Log.Error("cannot close all streams: %v", err)
-	}
+	s.closeAllStreams(s.config.Dcp.Config.DisableStreamEndByClient)
 
 	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()

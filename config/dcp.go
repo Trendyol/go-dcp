@@ -110,7 +110,7 @@ type RollbackMitigation struct {
 type Metadata struct {
 	Config   map[string]string `yaml:"config"`
 	Type     string            `yaml:"type"`
-	ReadOnly bool              `json:"readOnly"`
+	ReadOnly bool              `yaml:"readOnly"`
 }
 
 type Logging struct {

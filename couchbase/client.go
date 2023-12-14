@@ -3,14 +3,10 @@ package couchbase
 import (
 	"context"
 	"crypto/x509"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
 	"time"
-
-	jsoniter "github.com/json-iterator/go"
-	"github.com/valyala/fasthttp"
 
 	"github.com/Trendyol/go-dcp/helpers"
 
@@ -28,7 +24,6 @@ import (
 )
 
 type Client interface {
-	GetVersion() (string, error)
 	Ping() (*models.PingResult, error)
 	GetAgent() *gocbcore.Agent
 	GetMetaAgent() *gocbcore.Agent
@@ -52,39 +47,17 @@ type client struct {
 	config    *config.Dcp
 }
 
-func (s *client) GetVersion() (string, error) {
-	pingResult, err := s.Ping()
-	if err != nil {
-		return "", err
+func getServiceEndpoint(result *gocbcore.PingResult, serviceType gocbcore.ServiceType) string {
+	if serviceResults, ok := result.Services[serviceType]; ok {
+		for _, serviceResult := range serviceResults {
+			if serviceResult.Error == nil &&
+				serviceResult.State == gocbcore.PingStateOK {
+				return serviceResult.Endpoint
+			}
+		}
 	}
 
-	freq := fasthttp.AcquireRequest()
-	defer fasthttp.ReleaseRequest(freq)
-
-	fres := fasthttp.AcquireResponse()
-	defer fasthttp.ReleaseResponse(fres)
-
-	uri := fmt.Sprintf("%v/pools", pingResult.MgmtEndpoint)
-	freq.SetRequestURI(uri)
-	freq.Header.SetMethod("GET")
-	freq.Header.Set(
-		"Authorization",
-		"Basic "+base64.StdEncoding.EncodeToString([]byte(s.config.Username+":"+s.config.Password)),
-	)
-
-	client := &fasthttp.Client{}
-	err = client.Do(freq, fres)
-	if err != nil {
-		return "", err
-	}
-
-	var result models.PoolsResult
-	err = jsoniter.Unmarshal(fres.Body(), &result)
-	if err != nil {
-		return "", err
-	}
-
-	return result.ImplementationVersion, nil
+	return ""
 }
 
 func (s *client) Ping() (*models.PingResult, error) {
@@ -92,51 +65,29 @@ func (s *client) Ping() (*models.PingResult, error) {
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
-
 	errorCh := make(chan error)
+
 	var pingResult models.PingResult
 
 	op, err := s.agent.Ping(gocbcore.PingOptions{
 		ServiceTypes: []gocbcore.ServiceType{gocbcore.MemdService, gocbcore.MgmtService},
 	}, func(result *gocbcore.PingResult, err error) {
-		memdSuccess := false
-		mgmtSuccess := false
-
 		if err == nil {
-			if memdServiceResults, ok := result.Services[gocbcore.MemdService]; ok {
-				for _, memdServiceResult := range memdServiceResults {
-					if memdServiceResult.Error == nil && memdServiceResult.State == gocbcore.PingStateOK {
-						memdSuccess = true
-						pingResult.MemdEndpoint = memdServiceResult.Endpoint
-						break
-					}
-				}
-			}
-
-			if mgmtServiceResults, ok := result.Services[gocbcore.MgmtService]; ok {
-				for _, mgmtServiceResult := range mgmtServiceResults {
-					if mgmtServiceResult.Error == nil && mgmtServiceResult.State == gocbcore.PingStateOK {
-						mgmtSuccess = true
-						pingResult.MgmtEndpoint = mgmtServiceResult.Endpoint
-						break
-					}
-				}
-			}
+			pingResult.MemdEndpoint = getServiceEndpoint(result, gocbcore.MemdService)
+			pingResult.MgmtEndpoint = getServiceEndpoint(result, gocbcore.MgmtService)
 		}
 
-		if !memdSuccess || !mgmtSuccess {
+		if pingResult.MemdEndpoint == "" || pingResult.MgmtEndpoint == "" {
 			if err == nil {
 				err = errors.New("some services are not healthy")
 			}
 		}
 
 		opm.Resolve()
-
 		errorCh <- err
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return nil, err
 	}

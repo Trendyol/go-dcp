@@ -219,11 +219,26 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 		return nil, err
 	}
 
-	version, err := client.GetVersion()
+	httpClient := couchbase.NewHTTPClient(config, client)
+
+	err = httpClient.Connect()
 	if err != nil {
 		return nil, err
 	}
+
+	version, err := httpClient.GetVersion()
+	if err != nil {
+		return nil, err
+	}
+
 	logger.Log.Info("connected to couchbase server version: %v", version)
+
+	bucketInformation, err := httpClient.GetBucketInformation()
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Log.Info("bucket type: %v, storage backend: %v", bucketInformation.BucketType, bucketInformation.StorageBackend)
 
 	err = client.DcpConnect()
 

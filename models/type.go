@@ -53,10 +53,6 @@ type PingResult struct {
 	MgmtEndpoint string
 }
 
-type PoolsResult struct {
-	ImplementationVersion string `json:"implementationVersion"`
-}
-
 func (i *InternalDcpMutation) IsCreated() bool {
 	return i.RevNo == 1
 }

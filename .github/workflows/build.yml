@@ -33,3 +33,11 @@ jobs:
 
       - name: Test
         run: go test -parallel 1 -v ./...
+
+  security-gates:
+    uses: Trendyol/security-actions/.github/workflows/security-gates.yml@main
+    needs: build
+    permissions:
+      actions: read
+      contents: read
+      security-events: write

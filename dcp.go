@@ -38,6 +38,7 @@ type Dcp interface {
 	Close()
 	Commit()
 	GetConfig() *config.Dcp
+	GetVersion() *couchbase.Version
 	SetMetadata(metadata metadata.Metadata)
 	SetMetricCollectors(collectors ...prometheus.Collector)
 	SetEventHandler(handler models.EventHandler)
@@ -56,6 +57,8 @@ type dcp struct {
 	apiShutdown       chan struct{}
 	healCheckFailedCh chan struct{}
 	config            *config.Dcp
+	version           *couchbase.Version
+	bucketInfo        *couchbase.BucketInfo
 	healthCheck       couchbase.HealthCheck
 	listener          models.Listener
 	readyCh           chan struct{}
@@ -105,7 +108,7 @@ func (s *dcp) Start() {
 	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, s.bus)
 
 	s.stream = stream.NewStream(
-		s.client, s.metadata, s.config, s.vBucketDiscovery,
+		s.client, s.metadata, s.config, s.version, s.bucketInfo, s.vBucketDiscovery,
 		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, s.bus, s.eventHandler,
 	)
 
@@ -207,6 +210,10 @@ func (s *dcp) GetConfig() *config.Dcp {
 	return s.config
 }
 
+func (s *dcp) GetVersion() *couchbase.Version {
+	return s.version
+}
+
 func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	config.ApplyDefaults()
 	copyOfConfig := config
@@ -231,16 +238,23 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 		return nil, err
 	}
 
-	logger.Log.Info("connected to couchbase server version: %v", version)
-
-	bucketInformation, err := httpClient.GetBucketInformation()
+	bucketInfo, err := httpClient.GetBucketInfo()
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Log.Info("bucket type: %v, storage backend: %v", bucketInformation.BucketType, bucketInformation.StorageBackend)
+	var useExpiryOpcode bool
+	var useChangeStreams bool
 
-	err = client.DcpConnect()
+	if version.Higher(couchbase.SrvVer650) || version.Equal(couchbase.SrvVer650) {
+		useExpiryOpcode = true
+	}
+
+	if bucketInfo.IsMagma() && (version.Higher(couchbase.SrvVer720) || version.Equal(couchbase.SrvVer720)) {
+		useChangeStreams = true
+	}
+
+	err = client.DcpConnect(useExpiryOpcode, useChangeStreams)
 
 	if err != nil {
 		return nil, err
@@ -250,6 +264,8 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 		client:            client,
 		listener:          listener,
 		config:            config,
+		version:           version,
+		bucketInfo:        bucketInfo,
 		apiShutdown:       make(chan struct{}, 1),
 		cancelCh:          make(chan os.Signal, 1),
 		stopCh:            make(chan struct{}, 1),

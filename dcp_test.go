@@ -50,24 +50,6 @@ func parseVersion(version string) (int, int, int) {
 	return major, minor, patch
 }
 
-// true when version lower than 6.5.0
-func disableExpiryOpcode(c *config.Dcp, version string) {
-	major, minor, _ := parseVersion(version)
-
-	if major < 6 || (major == 6 && minor < 5) {
-		c.Dcp.Config.DisableExpiryOpcode = true
-	}
-}
-
-// true when version lower than 5.5.0
-func disableStreamEndByClient(c *config.Dcp, version string) {
-	major, minor, _ := parseVersion(version)
-
-	if major < 5 || (major == 5 && minor < 5) {
-		c.Dcp.Config.DisableStreamEndByClient = true
-	}
-}
-
 func isVersion5xx(version string) bool {
 	major, _, _ := parseVersion(version)
 	return major == 5
@@ -211,9 +193,6 @@ func test(t *testing.T, version string) {
 
 	c := getConfig()
 	c.ApplyDefaults()
-
-	disableExpiryOpcode(c, version)
-	disableStreamEndByClient(c, version)
 
 	ctx := context.Background()
 

@@ -57,6 +57,8 @@ type stream struct {
 	dirtyOffsets               *wrapper.ConcurrentSwissMap[uint16, bool]
 	stopCh                     chan struct{}
 	config                     *config.Dcp
+	version                    *couchbase.Version
+	bucketInfo                 *couchbase.BucketInfo
 	metric                     *Metric
 	finishStreamWithCloseCh    chan struct{}
 	collectionIDs              map[uint32]string
@@ -169,8 +171,13 @@ func (s *stream) Open() {
 	vbIds := s.vBucketDiscovery.Get()
 
 	if !s.config.RollbackMitigation.Disabled {
-		s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
-		s.rollbackMitigation.Start()
+		if s.bucketInfo.IsEphemeral() {
+			logger.Log.Info("rollback mitigation is disabled for ephemeral bucket")
+			s.config.RollbackMitigation.Disabled = true
+		} else {
+			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
+			s.rollbackMitigation.Start()
+		}
 	}
 
 	s.activeStreams = len(vbIds)
@@ -321,7 +328,8 @@ func (s *stream) Close(closeWithCancel bool) {
 		s.checkpoint.StopSchedule()
 	}
 
-	s.closeAllStreams(s.config.Dcp.Config.DisableStreamEndByClient)
+	disableStreamEndByClient := s.version.Lower(couchbase.SrvVer550)
+	s.closeAllStreams(disableStreamEndByClient)
 
 	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
@@ -358,6 +366,8 @@ func (s *stream) UnmarkDirtyOffsets() {
 func NewStream(client couchbase.Client,
 	metadata metadata.Metadata,
 	config *config.Dcp,
+	version *couchbase.Version,
+	bucketInfo *couchbase.BucketInfo,
 	vBucketDiscovery VBucketDiscovery,
 	listener models.Listener,
 	collectionIDs map[uint32]string,
@@ -370,6 +380,8 @@ func NewStream(client couchbase.Client,
 		metadata:                   metadata,
 		listener:                   listener,
 		config:                     config,
+		version:                    version,
+		bucketInfo:                 bucketInfo,
 		vBucketDiscovery:           vBucketDiscovery,
 		collectionIDs:              collectionIDs,
 		finishStreamWithCloseCh:    make(chan struct{}, 1),

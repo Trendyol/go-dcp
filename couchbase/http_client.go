@@ -14,15 +14,23 @@ type PoolsResult struct {
 	ImplementationVersion string `json:"implementationVersion"`
 }
 
-type BucketResult struct {
+type BucketInfo struct {
 	BucketType     string `json:"bucketType"`
 	StorageBackend string `json:"storageBackend"`
 }
 
+func (b *BucketInfo) IsEphemeral() bool {
+	return b.BucketType == "ephemeral"
+}
+
+func (b *BucketInfo) IsMagma() bool {
+	return b.StorageBackend == "magma"
+}
+
 type HTTPClient interface {
 	Connect() error
-	GetVersion() (string, error)
-	GetBucketInformation() (*BucketResult, error)
+	GetVersion() (*Version, error)
+	GetBucketInfo() (*BucketInfo, error)
 }
 
 type httpClient struct {
@@ -65,7 +73,7 @@ func (h *httpClient) doRequest(req *fasthttp.Request, v interface{}) error {
 	return nil
 }
 
-func (h *httpClient) GetVersion() (string, error) {
+func (h *httpClient) GetVersion() (*Version, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
@@ -75,20 +83,25 @@ func (h *httpClient) GetVersion() (string, error) {
 	var result PoolsResult
 	err := h.doRequest(req, &result)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return result.ImplementationVersion, nil
+	version, err := nodeVersionFromString(result.ImplementationVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return version, nil
 }
 
-func (h *httpClient) GetBucketInformation() (*BucketResult, error) {
+func (h *httpClient) GetBucketInfo() (*BucketInfo, error) {
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 
 	req.SetRequestURI(fmt.Sprintf("%v/pools/default/buckets/%v", h.baseURL, h.config.BucketName))
 	req.Header.SetMethod("GET")
 
-	var result BucketResult
+	var result BucketInfo
 	err := h.doRequest(req, &result)
 	if err != nil {
 		return nil, err

@@ -29,7 +29,7 @@ type Client interface {
 	GetMetaAgent() *gocbcore.Agent
 	Connect() error
 	Close()
-	DcpConnect() error
+	DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error
 	DcpClose()
 	GetVBucketSeqNos() (map[uint16]uint64, error)
 	GetNumVBuckets() int
@@ -272,7 +272,7 @@ func (s *client) Close() {
 	logger.Log.Info("connections closed %s", s.config.Hosts)
 }
 
-func (s *client) DcpConnect() error {
+func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 	agentConfig := &gocbcore.DCPAgentConfig{
 		BucketName: s.config.BucketName,
 		SeedConfig: gocbcore.SeedConfig{
@@ -284,8 +284,8 @@ func (s *client) DcpConnect() error {
 		},
 		DCPConfig: gocbcore.DCPConfig{
 			BufferSize:       helpers.ResolveUnionIntOrStringValue(s.config.Dcp.BufferSize),
-			UseExpiryOpcode:  !s.config.Dcp.Config.DisableExpiryOpcode,
-			UseChangeStreams: s.config.Dcp.Config.EnableChangeStreams,
+			UseExpiryOpcode:  useExpiryOpcode,
+			UseChangeStreams: useChangeStreams,
 		},
 		IoConfig: gocbcore.IoConfig{
 			UseCollections: true,

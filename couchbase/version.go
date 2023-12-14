@@ -16,16 +16,9 @@ type Version struct {
 }
 
 var (
-	SrvVer501 = &Version{5, 0, 1, 0}
-	SrvVer510 = &Version{5, 1, 0, 0}
 	SrvVer550 = &Version{5, 5, 0, 0}
-	SrvVer600 = &Version{6, 0, 0, 0}
 	SrvVer650 = &Version{6, 5, 0, 0}
-	SrvVer660 = &Version{6, 6, 0, 0}
-	SrvVer700 = &Version{7, 0, 0, 0}
-	SrvVer710 = &Version{7, 1, 0, 0}
 	SrvVer720 = &Version{7, 2, 0, 0}
-	SrvVer723 = &Version{7, 2, 3, 0}
 )
 
 func (v *Version) Equal(ov *Version) bool {

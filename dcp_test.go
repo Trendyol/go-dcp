@@ -59,7 +59,7 @@ func getConfig() *config.Dcp {
 	return &config.Dcp{
 		Hosts:      []string{"localhost:8091"},
 		Username:   "user",
-		Password:   "password",
+		Password:   "123456",
 		BucketName: "dcp-test",
 		Dcp: config.ExternalDcp{
 			Group: config.DCPGroup{
@@ -69,7 +69,6 @@ func getConfig() *config.Dcp {
 				},
 			},
 		},
-		Debug: true,
 	}
 }
 
@@ -82,7 +81,7 @@ func setupContainer(c *config.Dcp, ctx context.Context, version string) (testcon
 	}
 
 	req := testcontainers.ContainerRequest{
-		Image:        fmt.Sprintf("couchbase:%v", version),
+		Image:        fmt.Sprintf("couchbase/server:%v", version),
 		ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
 		WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
 		Env: map[string]string{
@@ -186,7 +185,7 @@ func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize
 func test(t *testing.T, version string) {
 	chunkSize := 4
 	bulkSize := 1024
-	iteration := 96
+	iteration := 512
 	mockDataSize := iteration * bulkSize * chunkSize
 	totalNotify := 10
 	notifySize := mockDataSize / totalNotify
@@ -239,6 +238,8 @@ func test(t *testing.T, version string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	logger.Log.Info("mock data stream finished with totalSize=%v", counter)
 }
 
 func TestDcp(t *testing.T) {

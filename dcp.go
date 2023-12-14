@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"reflect"
 	"syscall"
-	"time"
 
 	"github.com/asaskevich/EventBus"
 
@@ -57,32 +56,13 @@ type dcp struct {
 	apiShutdown       chan struct{}
 	healCheckFailedCh chan struct{}
 	config            *config.Dcp
-	healthCheckTicker *time.Ticker
+	healthCheck       couchbase.HealthCheck
 	listener          models.Listener
 	readyCh           chan struct{}
 	cancelCh          chan os.Signal
 	stopCh            chan struct{}
 	metricCollectors  []prometheus.Collector
 	closeWithCancel   bool
-}
-
-func (s *dcp) startHealthCheck() {
-	s.healthCheckTicker = time.NewTicker(s.config.HealthCheck.Interval)
-
-	go func() {
-		for range s.healthCheckTicker.C {
-			if _, err := s.client.Ping(); err != nil {
-				logger.Log.Error("health check failed: %v", err)
-				s.healthCheckTicker.Stop()
-				s.healCheckFailedCh <- struct{}{}
-				break
-			}
-		}
-	}()
-}
-
-func (s *dcp) stopHealthCheck() {
-	s.healthCheckTicker.Stop()
 }
 
 func (s *dcp) SetMetadata(metadata metadata.Metadata) {
@@ -162,7 +142,8 @@ func (s *dcp) Start() {
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)
 
 	if !s.config.HealthCheck.Disabled {
-		s.startHealthCheck()
+		s.healthCheck = couchbase.NewHealthCheck(&s.config.HealthCheck, s.client)
+		s.healthCheck.Start(s.healCheckFailedCh)
 	}
 
 	logger.Log.Info("dcp stream started")
@@ -183,7 +164,7 @@ func (s *dcp) WaitUntilReady() chan struct{} {
 
 func (s *dcp) Close() {
 	if !s.config.HealthCheck.Disabled {
-		s.stopHealthCheck()
+		s.healthCheck.Stop()
 	}
 	s.vBucketDiscovery.Close()
 

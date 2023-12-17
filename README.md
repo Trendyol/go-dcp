@@ -172,6 +172,12 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 | x<1.1.16       | 6.5.x                            |
 | 1.1.16>=x      | 5.x.x                            |
 
+## Breaking Changes
+
+| Date taking effect | Version | Change                                                                                 | How to check        |
+|--------------------|---------|----------------------------------------------------------------------------------------|---------------------| 
+| December 14, 2023  | v1.1.19 | dcp.config.[DisableExpiryOpcode,DisableStreamEndByClient, EnableChangeStreams] removed | Review your configs |
+
 ### Examples
 
 - [example with couchbase membership](example/main.go)

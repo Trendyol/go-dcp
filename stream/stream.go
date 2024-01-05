@@ -222,7 +222,9 @@ func (s *stream) Rebalance() {
 
 	if !s.balancing {
 		s.balancing = true
-		s.Save()
+		if !s.config.Checkpoint.DisableAutoCommitWhenRebalance {
+			s.Save()
+		}
 		s.Close(false)
 	}
 

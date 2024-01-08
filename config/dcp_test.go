@@ -171,10 +171,6 @@ func TestDcpApplyDefaultCheckpoint(t *testing.T) {
 	if c.Checkpoint.AutoReset != "earliest" {
 		t.Errorf("Checkpoint.AutoReset is not set to expected value")
 	}
-
-	if c.Checkpoint.DisableAutoCommitWhenRebalance != false {
-		t.Errorf("Checkpoint.DisableAutoCommitWhenRebalance is not set to expected value")
-	}
 }
 
 func TestDcpApplyDefaultHealthCheck(t *testing.T) {

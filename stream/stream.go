@@ -154,7 +154,10 @@ func (s *stream) listenEnd() {
 
 		if !s.closeWithCancel && endContext.Err != nil &&
 			(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed)) {
+				errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed) ||
+				errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
+				errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
+				errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
 			s.reopenStream(endContext.Event.VbID)
 		} else {
 			s.activeStreams--

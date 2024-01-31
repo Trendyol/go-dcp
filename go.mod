@@ -3,8 +3,8 @@ module github.com/Trendyol/go-dcp
 go 1.20
 
 retract (
-    v1.2.16
-    v1.2.17
+	v1.2.17
+	v1.2.16
 )
 
 require (

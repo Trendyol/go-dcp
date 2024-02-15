@@ -4,7 +4,7 @@ const Name = "cbgo"
 
 const (
 	Prefix    string = "_connector:" + Name + ":"
-	TxnPrefix string = Prefix + "_txn:"
+	TxnPrefix string = "_txn:"
 
 	MembershipChangedBusEventName   string = "membershipChanged"
 	PersistSeqNoChangedBusEventName string = "persistSeqNoChanged"

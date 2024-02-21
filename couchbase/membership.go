@@ -81,7 +81,7 @@ func (h *cbMembership) register() {
 
 	payload, _ := jsoniter.Marshal(instance)
 
-	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds)
+	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds, nil)
 
 	var kvErr *gocbcore.KeyValueError
 	if err != nil && errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
@@ -97,7 +97,7 @@ func (h *cbMembership) register() {
 		)
 
 		if err == nil {
-			err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds)
+			err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds, nil)
 		}
 	}
 
@@ -139,7 +139,7 @@ func (h *cbMembership) heartbeat() {
 
 	payload, _ := jsoniter.Marshal(instance)
 
-	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds)
+	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds, nil)
 	if err != nil {
 		logger.Log.Error("error while heartbeat: %v", err)
 		return
@@ -163,7 +163,7 @@ func (h *cbMembership) monitor() {
 
 	all := map[string]int64{}
 
-	err = jsoniter.Unmarshal(data, &all)
+	err = jsoniter.Unmarshal(data.Value, &all)
 	if err != nil {
 		logger.Log.Error("error while monitor try to unmarshal index: %v", err)
 		return
@@ -198,10 +198,10 @@ func (h *cbMembership) monitor() {
 
 			copyID := id
 			instance := &Instance{ID: &copyID}
-			err = jsoniter.Unmarshal(doc, instance)
+			err = jsoniter.Unmarshal(doc.Value, instance)
 
 			if err != nil {
-				logger.Log.Error("error while monitor try to unmarshal instance %v, err: %v", string(doc), err)
+				logger.Log.Error("error while monitor try to unmarshal instance %v, err: %v", string(doc.Value), err)
 				panic(err)
 			}
 
@@ -223,11 +223,11 @@ func (h *cbMembership) monitor() {
 
 	if h.isClusterChanged(filteredInstances) {
 		h.rebalance(filteredInstances)
-		h.updateIndex(ctx)
+		h.updateIndex(ctx, data.Cas)
 	}
 }
 
-func (h *cbMembership) updateIndex(ctx context.Context) {
+func (h *cbMembership) updateIndex(ctx context.Context, cas gocbcore.Cas) {
 	all := map[string]int64{}
 
 	for _, instance := range h.lastActiveInstances {
@@ -236,7 +236,7 @@ func (h *cbMembership) updateIndex(ctx context.Context) {
 
 	payload, _ := jsoniter.Marshal(all)
 
-	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, payload, 0)
+	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, payload, 0, &cas)
 	if err != nil {
 		logger.Log.Error("error while update instances: %v", err)
 		return

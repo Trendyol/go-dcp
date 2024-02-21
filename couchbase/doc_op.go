@@ -53,6 +53,7 @@ func UpdateDocument(ctx context.Context,
 	id []byte,
 	value []byte,
 	expiry uint32,
+	cas *gocbcore.Cas,
 ) error {
 	opm := NewAsyncOp(ctx)
 
@@ -60,7 +61,7 @@ func UpdateDocument(ctx context.Context,
 
 	ch := make(chan error)
 
-	op, err := agent.MutateIn(gocbcore.MutateInOptions{
+	mutateInOptions := gocbcore.MutateInOptions{
 		Key: id,
 		Ops: []gocbcore.SubDocOp{
 			{
@@ -72,7 +73,11 @@ func UpdateDocument(ctx context.Context,
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
-	}, func(result *gocbcore.MutateInResult, err error) {
+	}
+	if cas != nil {
+		mutateInOptions.Cas = *cas
+	}
+	op, err := agent.MutateIn(mutateInOptions, func(result *gocbcore.MutateInResult, err error) {
 		opm.Resolve()
 
 		ch <- err
@@ -203,13 +208,13 @@ func GetXattrs(ctx context.Context, agent *gocbcore.Agent, scopeName string, col
 	return document, err
 }
 
-func Get(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectionName string, id []byte) ([]byte, error) {
+func Get(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectionName string, id []byte) (*gocbcore.GetResult, error) {
 	opm := NewAsyncOp(context.Background())
 
 	deadline, _ := ctx.Deadline()
 
 	errorCh := make(chan error)
-	documentCh := make(chan []byte)
+	documentCh := make(chan *gocbcore.GetResult)
 
 	op, err := agent.Get(gocbcore.GetOptions{
 		Key:            id,
@@ -220,7 +225,7 @@ func Get(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectio
 		opm.Resolve()
 
 		if err == nil {
-			documentCh <- result.Value
+			documentCh <- result
 		} else {
 			documentCh <- nil
 		}

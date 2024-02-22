@@ -222,7 +222,7 @@ func (h *cbMembership) monitor() {
 	}
 
 	if h.isClusterChanged(filteredInstances) {
-		err = h.updateIndex(ctx, data.Cas)
+		err = h.updateIndex(ctx, filteredInstances, data.Cas)
 		if err == nil {
 			h.rebalance(filteredInstances)
 		} else if errors.Is(err, gocbcore.ErrCasMismatch) {
@@ -231,10 +231,10 @@ func (h *cbMembership) monitor() {
 	}
 }
 
-func (h *cbMembership) updateIndex(ctx context.Context, cas gocbcore.Cas) error {
+func (h *cbMembership) updateIndex(ctx context.Context, instances []Instance, cas gocbcore.Cas) error {
 	all := map[string]int64{}
 
-	for _, instance := range h.lastActiveInstances {
+	for _, instance := range instances {
 		all[*instance.ID] = instance.ClusterJoinTime
 	}
 

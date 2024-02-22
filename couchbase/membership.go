@@ -223,11 +223,10 @@ func (h *cbMembership) monitor() {
 
 	if h.isClusterChanged(filteredInstances) {
 		err = h.updateIndex(ctx, data.Cas)
-		if errors.Is(err, gocbcore.ErrCasMismatch) {
-			h.monitor()
-		}
 		if err == nil {
 			h.rebalance(filteredInstances)
+		} else if errors.Is(err, gocbcore.ErrCasMismatch) {
+			h.monitor()
 		}
 	}
 }

@@ -69,6 +69,9 @@ func getConfig() *config.Dcp {
 				},
 			},
 		},
+		RollbackMitigation: config.RollbackMitigation{
+			Disabled: true,
+		},
 	}
 }
 

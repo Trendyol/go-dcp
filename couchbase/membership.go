@@ -222,12 +222,17 @@ func (h *cbMembership) monitor() {
 	}
 
 	if h.isClusterChanged(filteredInstances) {
-		h.rebalance(filteredInstances)
-		h.updateIndex(ctx, data.Cas)
+		err = h.updateIndex(ctx, data.Cas)
+		if errors.Is(err, gocbcore.ErrCasMismatch) {
+			h.monitor()
+		}
+		if err == nil {
+			h.rebalance(filteredInstances)
+		}
 	}
 }
 
-func (h *cbMembership) updateIndex(ctx context.Context, cas gocbcore.Cas) {
+func (h *cbMembership) updateIndex(ctx context.Context, cas gocbcore.Cas) error {
 	all := map[string]int64{}
 
 	for _, instance := range h.lastActiveInstances {
@@ -239,8 +244,9 @@ func (h *cbMembership) updateIndex(ctx context.Context, cas gocbcore.Cas) {
 	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, payload, 0, &cas)
 	if err != nil {
 		logger.Log.Error("error while update instances: %v", err)
-		return
+		return err
 	}
+	return nil
 }
 
 func (h *cbMembership) rebalance(instances []Instance) {

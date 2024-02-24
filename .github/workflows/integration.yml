@@ -10,6 +10,9 @@ on:
 jobs:
   integration:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [ "7.1.6", "7.2.4" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -22,11 +25,16 @@ jobs:
           go-version: '1.20'
 
       - uses: actions/checkout@v3
-      - name: Start containers
-        run: make compose
+      - name: Start cluster
+        run: make create-cluster version=${{ matrix.version }}
 
       - name: Integration Test
         run: go test -v test/integration/integration_test.go
         env:
           INPUT_PUBLISH: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/checkout@v3
+      - name: Delete cluster
+        if: always()
+        run: make delete-cluster

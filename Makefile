@@ -19,8 +19,11 @@ lint:
 test:
 	go test ./... -bench .
 
-compose:
-	docker compose up --wait --build --force-recreate --remove-orphans
+create-cluster:
+	bash scripts/create_cluster.sh --version $(version)
+
+delete-cluster:
+	bash scripts/delete_cluster.sh
 
 docker-build:
 	docker build --progress=plain -t docker.io/trendyoltech/dcp .

@@ -30,7 +30,6 @@ func listener(ctx *models.ListenerContext) {
 }
 
 func TestCouchbase(t *testing.T) {
-	time.Sleep(10 * time.Second)
 	newDcp, err := dcp.NewDcp("config.yml", listener)
 	if err != nil {
 		log.Fatalf("couldn't create dcp err: %v", err)
@@ -44,11 +43,11 @@ func TestCouchbase(t *testing.T) {
 	}()
 
 	go func() {
-		ctx, _ := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 		for {
 			select {
 			case <-ctx.Done():
-				t.Fatalf("could not process events in 20 seconds")
+				t.Fatalf("could not process events in 30 seconds")
 			default:
 				if mutationCount == 31591 {
 					newDcp.Close()
@@ -58,8 +57,6 @@ func TestCouchbase(t *testing.T) {
 			}
 		}
 	}()
-
-	time.Sleep(time.Second)
 
 	wg.Wait()
 }

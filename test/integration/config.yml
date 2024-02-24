@@ -1,12 +1,8 @@
 hosts:
-  - localhost:8091
+  - 13.37.11.2:8091
 username: user
 password: 123456
-bucketName: dcp-test
-rollbackMitigation:
-  disabled: true
-checkpoint:
-  type: manual
+bucketName: travel-sample
 dcp:
   group:
     name: groupName
@@ -16,4 +12,4 @@ metadata:
   type: couchbase
   readOnly: true
   config:
-    bucket: dcp-test
+    bucket: travel-sample

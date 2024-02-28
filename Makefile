@@ -19,6 +19,11 @@ lint:
 test:
 	go test ./... -bench .
 
+tidy:
+	go mod tidy
+	cd example && go mod tidy && cd ..
+	cd test/integration && go mod tidy && cd ../..
+
 create-cluster:
 	bash scripts/create_cluster.sh --version $(version)
 

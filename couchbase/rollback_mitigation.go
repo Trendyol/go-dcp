@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/asaskevich/EventBus"
@@ -55,6 +57,7 @@ type rollbackMitigation struct {
 	bus                EventBus.Bus
 	configSnapshot     *gocbcore.ConfigSnapshot
 	persistedSeqNos    *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
+	observeCount       *atomic.Uint32
 	vbUUIDMap          *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
 	configWatchTimer   *time.Ticker
 	observeTimer       *time.Ticker
@@ -193,6 +196,9 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 	for {
 		select {
 		case <-r.observeTimer.C:
+			wg := &sync.WaitGroup{}
+			wg.Add(int(r.observeCount.Load()))
+
 			r.persistedSeqNos.Range(func(vbID uint16, replicas []*vbUUIDAndSeqNo) bool {
 				for idx, replica := range replicas {
 					if replica.IsAbsent() {
@@ -205,11 +211,13 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 					}
 
 					vbUUID, _ := r.vbUUIDMap.Load(vbID)
-					r.observe(vbID, idx, groupID, vbUUID)
+					r.observe(vbID, idx, groupID, vbUUID, wg)
 				}
 
 				return true
 			})
+
+			wg.Wait()
 		case <-r.observeCloseCh:
 			logger.Log.Debug("observe close triggered")
 			r.observeCloseDoneCh <- struct{}{}
@@ -266,8 +274,10 @@ func (r *rollbackMitigation) reconfigure() {
 	go r.startObserve(r.activeGroupID)
 }
 
-func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUUID gocbcore.VbUUID) {
+func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUUID gocbcore.VbUUID, wg *sync.WaitGroup) {
 	r.observeVbID(vbID, replica, vbUUID, func(result *gocbcore.ObserveVbResult, err error) {
+		wg.Done()
+
 		if r.closed || r.activeGroupID != groupID {
 			logger.Log.Debug("closed(%v) or groupID(%v!=%v) changed on observe", r.closed, r.activeGroupID, groupID)
 			return
@@ -313,14 +323,19 @@ func (r *rollbackMitigation) reset() {
 
 	r.persistedSeqNos = wrapper.CreateConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo](1024)
 
+	var observeCount int
 	for _, vbID := range r.vbIds {
-		replicaArr := make([]*vbUUIDAndSeqNo, replicas+1)
+		arrLen := replicas + 1
+		replicaArr := make([]*vbUUIDAndSeqNo, arrLen)
 		for j := 0; j <= replicas; j++ {
 			replicaArr[j] = &vbUUIDAndSeqNo{}
 		}
 
+		observeCount += arrLen
 		r.persistedSeqNos.Store(vbID, replicaArr)
 	}
+
+	r.observeCount.Swap(uint32(observeCount))
 }
 
 func (r *rollbackMitigation) waitFirstConfig() error {
@@ -388,6 +403,7 @@ func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bu
 		config:             config,
 		vbIds:              vbIds,
 		bus:                bus,
+		observeCount:       &atomic.Uint32{},
 		observeCloseCh:     make(chan struct{}, 1),
 		observeCloseDoneCh: make(chan struct{}, 1),
 	}

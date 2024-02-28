@@ -210,7 +210,7 @@ func (s *checkpoint) GetMetric() *CheckpointMetric {
 }
 
 func getBucketUUID(client couchbase.Client) string {
-	snapshot, err := client.GetConfigSnapshot()
+	snapshot, err := client.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		logger.Log.Error("failed to get config snapshot: %v", err)
 		panic(err)

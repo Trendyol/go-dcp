@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/Trendyol/go-dcp/helpers"
-
 	"github.com/couchbase/gocbcore/v10/connstr"
 
 	"github.com/Trendyol/go-dcp/config"
@@ -37,7 +37,9 @@ type Client interface {
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
-	GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
+	GetAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
+	GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
+	GetAgentQueues() []*models.AgentQueue
 }
 
 type client struct {
@@ -330,13 +332,62 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 	return nil
 }
 
+func (s *client) GetAgentQueues() []*models.AgentQueue {
+	var configSnapshots []*gocbcore.ConfigSnapshot
+	var dcp *gocbcore.ConfigSnapshot
+
+	agentConfigSnapshot, err := s.GetAgentConfigSnapshot()
+	if err == nil {
+		configSnapshots = append(configSnapshots, agentConfigSnapshot)
+	}
+	dcpAgentConfigSnapshot, err := s.GetDcpAgentConfigSnapshot()
+	if err == nil {
+		dcp = dcpAgentConfigSnapshot
+		configSnapshots = append(configSnapshots, dcp)
+	}
+
+	clientQueue := make([]*models.AgentQueue, 0)
+
+	for i := range configSnapshots {
+		configSnapshot := configSnapshots[i]
+		var isDcp bool
+		if configSnapshot == dcp {
+			isDcp = true
+		}
+
+		snapshot := reflect.ValueOf(configSnapshot).Elem()
+		state := snapshot.FieldByName("state").Elem()
+		pipelines := state.FieldByName("pipelines")
+		pipelineLen := pipelines.Len()
+
+		for i := 0; i < pipelineLen; i++ {
+			pipeline := pipelines.Index(i).Elem()
+
+			address := pipeline.FieldByName("address").String()
+			queue := pipeline.FieldByName("queue").Elem()
+			max := pipeline.FieldByName("maxItems").Int()
+			items := queue.FieldByName("items").Elem()
+			current := items.FieldByName("len").Int()
+
+			clientQueue = append(clientQueue, &models.AgentQueue{
+				Address: address,
+				IsDcp:   isDcp,
+				Current: int(current),
+				Max:     int(max),
+			})
+		}
+	}
+
+	return clientQueue
+}
+
 func (s *client) DcpClose() {
 	_ = s.dcpAgent.Close()
 	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
 func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
-	snapshot, err := s.GetConfigSnapshot()
+	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +428,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 }
 
 func (s *client) GetNumVBuckets() int {
-	snapshot, err := s.GetConfigSnapshot()
+	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		logger.Log.Error("failed to get config snapshot: %v", err)
 		panic(err)
@@ -392,7 +443,11 @@ func (s *client) GetNumVBuckets() int {
 	return vBuckets
 }
 
-func (s *client) GetConfigSnapshot() (*gocbcore.ConfigSnapshot, error) { //nolint:unused
+func (s *client) GetAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) { //nolint:unused
+	return s.agent.ConfigSnapshot()
+}
+
+func (s *client) GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) { //nolint:unused
 	return s.dcpAgent.ConfigSnapshot()
 }
 

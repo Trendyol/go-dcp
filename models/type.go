@@ -29,6 +29,10 @@ type InternalDcpMutation struct {
 	CollectionName string
 }
 
+func (i *InternalDcpMutation) IsCreated() bool {
+	return i.RevNo == 1
+}
+
 type InternalDcpDeletion struct {
 	EventTime time.Time
 	*gocbcore.DcpDeletion
@@ -53,8 +57,11 @@ type PingResult struct {
 	MgmtEndpoint string
 }
 
-func (i *InternalDcpMutation) IsCreated() bool {
-	return i.RevNo == 1
+type AgentQueue struct {
+	Address string
+	IsDcp   bool
+	Current int
+	Max     int
 }
 
 type (

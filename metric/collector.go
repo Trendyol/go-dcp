@@ -23,6 +23,9 @@ type metricCollector struct {
 	deletion   *prometheus.Desc
 	expiration *prometheus.Desc
 
+	agentQueueCurrent *prometheus.Desc
+	agentQueueMax     *prometheus.Desc
+
 	currentSeqNo *prometheus.Desc
 	startSeqNo   *prometheus.Desc
 	endSeqNo     *prometheus.Desc
@@ -94,6 +97,27 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 		return true
 	})
+
+	queues := s.client.GetAgentQueues()
+	for i := range queues {
+		queue := queues[i]
+
+		ch <- prometheus.MustNewConstMetric(
+			s.agentQueueCurrent,
+			prometheus.GaugeValue,
+			float64(queue.Current),
+			queue.Address,
+			strconv.FormatBool(queue.IsDcp),
+		)
+
+		ch <- prometheus.MustNewConstMetric(
+			s.agentQueueMax,
+			prometheus.GaugeValue,
+			float64(queue.Max),
+			queue.Address,
+			strconv.FormatBool(queue.IsDcp),
+		)
+	}
 
 	offsets, _, _ := s.stream.GetOffsets()
 
@@ -256,6 +280,18 @@ func NewMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 			prometheus.BuildFQName(helpers.Name, "expiration", "total"),
 			"Expiration count",
 			[]string{"vbId"},
+			nil,
+		),
+		agentQueueCurrent: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "agent_queue", "current"),
+			"Client queue current",
+			[]string{"address", "is_dcp"},
+			nil,
+		),
+		agentQueueMax: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "agent_queue", "max"),
+			"Client queue max",
+			[]string{"address", "is_dcp"},
 			nil,
 		),
 		currentSeqNo: prometheus.NewDesc(

@@ -79,7 +79,7 @@ func (r *rollbackMitigation) getRevEpochAndID(snapshot *gocbcore.ConfigSnapshot)
 }
 
 func (r *rollbackMitigation) configWatch() {
-	snapshot, err := r.client.GetConfigSnapshot()
+	snapshot, err := r.client.GetDcpAgentConfigSnapshot()
 
 	if err == nil && (r.configSnapshot == nil || r.isConfigSnapshotNewerThan(snapshot)) {
 		r.configSnapshot = snapshot

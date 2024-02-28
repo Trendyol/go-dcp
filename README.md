@@ -145,25 +145,27 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 
 ### Exposed metrics
 
-| Metric Name                          | Description                                             | Labels                  | Value Type |
-|--------------------------------------|---------------------------------------------------------|-------------------------|------------|
-| cbgo_mutation_total                  | The total number of mutations on a specific vBucket     | vbId: ID of the vBucket | Counter    |
-| cbgo_deletion_total                  | The total number of deletions on a specific vBucket     | vbId: ID of the vBucket | Counter    |
-| cbgo_expiration_total                | The total number of expirations on a specific vBucket   | vbId: ID of the vBucket | Counter    |
-| cbgo_seq_no_current                  | The current sequence number on a specific vBucket       | vbId: ID of the vBucket | Gauge      |
-| cbgo_start_seq_no_current            | The starting sequence number on a specific vBucket      | vbId: ID of the vBucket | Gauge      |
-| cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket        | vbId: ID of the vBucket | Gauge      |
-| cbgo_persist_seq_no_current          | The persist sequence number on a specific vBucket       | vbId: ID of the vBucket | Gauge      |
-| cbgo_lag_current                     | The current lag on a specific vBucket                   | vbId: ID of the vBucket | Gauge      |
-| cbgo_process_latency_ms_current      | The latest process latency in milliseconds              | N/A                     | Gauge      |
-| cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds | N/A                     | Counter    |
-| cbgo_rebalance_current               | The number of total rebalance                           | N/A                     | Gauge      |
-| cbgo_active_stream_current           | The number of total active stream                       | N/A                     | Gauge      |
-| cbgo_total_members_current           | The total number of members in the cluster              | N/A                     | Gauge      |
-| cbgo_member_number_current           | The number of the current member                        | N/A                     | Gauge      |
-| cbgo_membership_type_current         | The type of membership of the current member            | Membership type         | Gauge      |
-| cbgo_offset_write_current            | The latest number of the offset write                   | N/A                     | Gauge      |
-| cbgo_offset_write_latency_ms_current | The latest offset write latency in milliseconds         | N/A                     | Gauge      |
+| Metric Name                          | Description                                             | Labels                                   | Value Type |
+|--------------------------------------|---------------------------------------------------------|------------------------------------------|------------|
+| cbgo_mutation_total                  | The total number of mutations on a specific vBucket     | vbId: ID of the vBucket                  | Counter    |
+| cbgo_deletion_total                  | The total number of deletions on a specific vBucket     | vbId: ID of the vBucket                  | Counter    |
+| cbgo_expiration_total                | The total number of expirations on a specific vBucket   | vbId: ID of the vBucket                  | Counter    |
+| cbgo_agent_queue_current             | The current number of agent queue                       | address: Couchbase, is dcp: Is Dcp Agent | Gauge      |
+| cbgo_agent_queue_max                 | The max number of agent queue                           | address: Couchbase, is dcp: Is Dcp Agent | Gauge      |
+| cbgo_seq_no_current                  | The current sequence number on a specific vBucket       | vbId: ID of the vBucket                  | Gauge      |
+| cbgo_start_seq_no_current            | The starting sequence number on a specific vBucket      | vbId: ID of the vBucket                  | Gauge      |
+| cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket        | vbId: ID of the vBucket                  | Gauge      |
+| cbgo_persist_seq_no_current          | The persist sequence number on a specific vBucket       | vbId: ID of the vBucket                  | Gauge      |
+| cbgo_lag_current                     | The current lag on a specific vBucket                   | vbId: ID of the vBucket                  | Gauge      |
+| cbgo_process_latency_ms_current      | The latest process latency in milliseconds              | N/A                                      | Gauge      |
+| cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds | N/A                                      | Counter    |
+| cbgo_rebalance_current               | The number of total rebalance                           | N/A                                      | Counter    |
+| cbgo_active_stream_current           | The number of total active stream                       | N/A                                      | Gauge      |
+| cbgo_total_members_current           | The total number of members in the cluster              | N/A                                      | Gauge      |
+| cbgo_member_number_current           | The number of the current member                        | N/A                                      | Gauge      |
+| cbgo_membership_type_current         | The type of membership of the current member            | Membership type                          | Gauge      |
+| cbgo_offset_write_current            | The latest number of the offset write                   | N/A                                      | Gauge      |
+| cbgo_offset_write_latency_ms_current | The latest offset write latency in milliseconds         | N/A                                      | Gauge      |
 
 ### Compatibility
 

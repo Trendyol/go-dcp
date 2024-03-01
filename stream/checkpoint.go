@@ -135,7 +135,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		}
 
 		dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
-			currentSeqNo := seqNoMap[vbID]
+			currentSeqNo, _ := seqNoMap.Load(vbID)
 
 			if currentSeqNo != 0 {
 				dirtyOffsets.Store(vbID, true)

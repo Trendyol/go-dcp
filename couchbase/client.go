@@ -9,6 +9,10 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/Trendyol/go-dcp/wrapper"
+
+	"golang.org/x/sync/errgroup"
+
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/couchbase/gocbcore/v10/connstr"
 
@@ -31,7 +35,7 @@ type Client interface {
 	Close()
 	DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error
 	DcpClose()
-	GetVBucketSeqNos() (map[uint16]uint64, error)
+	GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
 	GetNumVBuckets() int
 	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
@@ -173,7 +177,6 @@ func CreateAgent(httpAddresses []string, bucketName string,
 			ch <- err
 		},
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +320,6 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 			ch <- err
 		},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -386,7 +388,7 @@ func (s *client) DcpClose() {
 	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
-func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
+func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		return nil, err
@@ -397,31 +399,36 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 		return nil, err
 	}
 
-	seqNos := make(map[uint16]uint64)
+	eg := errgroup.Group{}
+
+	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
 
 	for i := 1; i <= numNodes; i++ {
-		opm := NewAsyncOp(context.Background())
+		numNode := i
+		eg.Go(func() error {
+			opm := NewAsyncOp(context.Background())
 
-		op, err := s.dcpAgent.GetVbucketSeqnos(
-			i,
-			memd.VbucketStateActive,
-			gocbcore.GetVbucketSeqnoOptions{},
-			func(entries []gocbcore.VbSeqNoEntry, err error) {
-				for _, en := range entries {
-					seqNos[en.VbID] = uint64(en.SeqNo)
-				}
+			op, err := s.dcpAgent.GetVbucketSeqnos(
+				numNode,
+				memd.VbucketStateActive,
+				gocbcore.GetVbucketSeqnoOptions{},
+				func(entries []gocbcore.VbSeqNoEntry, err error) {
+					for _, en := range entries {
+						seqNos.Store(en.VbID, uint64(en.SeqNo))
+					}
+					opm.Resolve()
+				},
+			)
+			if err != nil {
+				return err
+			}
+			return opm.Wait(op, err)
+		})
+	}
 
-				opm.Resolve()
-			},
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		err = opm.Wait(op, err)
-		if err != nil {
-			return nil, err
-		}
+	err = eg.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	return seqNos, nil
@@ -575,7 +582,6 @@ func (s *client) OpenStream(
 	}
 
 	err = <-ch
-
 	if err != nil {
 		if rollbackErr, ok := err.(gocbcore.DCPRollbackError); ok {
 			logger.Log.Info("need to rollback for vbID: %d, vbUUID: %d", vbID, offset.VbUUID)
@@ -602,7 +608,6 @@ func (s *client) CloseStream(vbID uint16) error {
 	)
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return err
 	}

@@ -145,8 +145,10 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 		var lag float64
 
-		if seqNoMap[vbID] > offset.SeqNo {
-			lag = float64(seqNoMap[vbID] - offset.SeqNo)
+		seqNo, _ := seqNoMap.Load(vbID)
+
+		if seqNo > offset.SeqNo {
+			lag = float64(seqNo - offset.SeqNo)
 		}
 
 		if err != nil {

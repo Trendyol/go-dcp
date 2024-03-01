@@ -38,7 +38,6 @@ func CreateDocument(ctx context.Context,
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return err
 	}
@@ -84,7 +83,6 @@ func UpdateDocument(ctx context.Context,
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return err
 	}
@@ -113,7 +111,6 @@ func DeleteDocument(ctx context.Context, agent *gocbcore.Agent, scopeName string
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return err
 	}
@@ -157,7 +154,6 @@ func UpsertXattrs(ctx context.Context,
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return err
 	}
@@ -197,7 +193,6 @@ func GetXattrs(ctx context.Context, agent *gocbcore.Agent, scopeName string, col
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +229,6 @@ func Get(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectio
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +274,6 @@ func CreatePath(ctx context.Context,
 	})
 
 	err = opm.Wait(op, err)
-
 	if err != nil {
 		return err
 	}

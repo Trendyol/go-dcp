@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/Trendyol/go-dcp/wrapper"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Trendyol/go-dcp/helpers"
@@ -33,7 +35,7 @@ type Client interface {
 	Close()
 	DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error
 	DcpClose()
-	GetVBucketSeqNos() (map[uint16]uint64, error)
+	GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
 	GetNumVBuckets() int
 	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
@@ -386,7 +388,7 @@ func (s *client) DcpClose() {
 	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
-func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
+func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		return nil, err
@@ -399,7 +401,7 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 
 	eg := errgroup.Group{}
 
-	seqNos := make(map[uint16]uint64, 1024)
+	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
 
 	for i := 1; i <= numNodes; i++ {
 		numNode := i
@@ -412,9 +414,8 @@ func (s *client) GetVBucketSeqNos() (map[uint16]uint64, error) {
 				gocbcore.GetVbucketSeqnoOptions{},
 				func(entries []gocbcore.VbSeqNoEntry, err error) {
 					for _, en := range entries {
-						seqNos[en.VbID] = uint64(en.SeqNo)
+						seqNos.Store(en.VbID, uint64(en.SeqNo))
 					}
-
 					opm.Resolve()
 				},
 			)

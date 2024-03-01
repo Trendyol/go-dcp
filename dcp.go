@@ -255,7 +255,6 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	}
 
 	err = client.DcpConnect(useExpiryOpcode, useChangeStreams)
-
 	if err != nil {
 		return nil, err
 	}

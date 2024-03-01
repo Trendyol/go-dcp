@@ -155,13 +155,11 @@ func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize
 					})
 
 					err = opm.Wait(op, err)
-
 					if err != nil {
 						t.Error(err)
 					}
 
 					err = <-ch
-
 					if err != nil {
 						t.Error(err)
 					}

@@ -199,7 +199,6 @@ func (h *cbMembership) monitor() {
 			copyID := id
 			instance := &Instance{ID: &copyID}
 			err = jsoniter.Unmarshal(doc.Value, instance)
-
 			if err != nil {
 				logger.Log.Error("error while monitor try to unmarshal instance %v, err: %v", string(doc.Value), err)
 				panic(err)

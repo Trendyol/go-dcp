@@ -3,6 +3,7 @@ package dcp
 import (
 	"errors"
 	"fmt"
+	"github.com/Trendyol/go-dcp/tracing"
 	"os"
 	"os/signal"
 	"reflect"
@@ -65,6 +66,7 @@ type dcp struct {
 	cancelCh          chan os.Signal
 	stopCh            chan struct{}
 	metricCollectors  []prometheus.Collector
+	tracer            tracing.Tracer
 	closeWithCancel   bool
 }
 
@@ -214,12 +216,12 @@ func (s *dcp) GetVersion() *couchbase.Version {
 	return s.version
 }
 
-func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
+func newDcp(config *config.Dcp, listener models.Listener, tracer tracing.Tracer) (Dcp, error) {
 	config.ApplyDefaults()
 	copyOfConfig := config
 	printConfiguration(*copyOfConfig)
 
-	client := couchbase.NewClient(config)
+	client := couchbase.NewClient(config, tracer)
 
 	err := client.Connect()
 	if err != nil {
@@ -281,25 +283,40 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 //
 // config: path to a configuration file or a configuration struct
 // listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(cfg any, listener models.Listener) (Dcp, error) {
+func NewDcp(cfg any, listener models.Listener, tracer ...tracing.Tracer) (Dcp, error) {
+	t, err := getTracerIfPresent(tracer)
+	if err != nil {
+		return nil, err
+	}
 	switch v := cfg.(type) {
 	case *config.Dcp:
-		return newDcp(v, listener)
+		return newDcp(v, listener, t)
 	case config.Dcp:
-		return newDcp(&v, listener)
+		return newDcp(&v, listener, t)
 	case string:
-		return newDcpWithPath(v, listener)
+		return newDcpWithPath(v, listener, t)
 	default:
 		return nil, errors.New("invalid config")
 	}
 }
 
-func newDcpWithPath(path string, listener models.Listener) (Dcp, error) {
+func getTracerIfPresent(tracer []tracing.Tracer) (tracing.Tracer, error) {
+	if len(tracer) > 1 {
+		return nil, errors.New("there should be only one tracer")
+	}
+	var t tracing.Tracer
+	if len(tracer) == 1 {
+		t = tracer[0]
+	}
+	return t, nil
+}
+
+func newDcpWithPath(path string, listener models.Listener, tracer tracing.Tracer) (Dcp, error) {
 	c, err := newDcpConfig(path)
 	if err != nil {
 		return nil, err
 	}
-	return newDcp(&c, listener)
+	return newDcp(&c, listener, tracer)
 }
 
 func newDcpConfig(path string) (config.Dcp, error) {
@@ -315,11 +332,11 @@ func newDcpConfig(path string) (config.Dcp, error) {
 	return c, nil
 }
 
-func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger) (Dcp, error) {
+func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger, tracer tracing.Tracer) (Dcp, error) {
 	logger.Log = &logger.Loggers{
 		Logrus: logrus,
 	}
-	return NewDcp(cfg, listener)
+	return NewDcp(cfg, listener, tracer)
 }
 
 func printConfiguration(config config.Dcp) {

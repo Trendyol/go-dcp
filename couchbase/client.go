@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/Trendyol/go-dcp/tracing"
 	"os"
 	"time"
 
@@ -44,6 +45,7 @@ type client struct {
 	agent     *gocbcore.Agent
 	metaAgent *gocbcore.Agent
 	dcpAgent  *gocbcore.DCPAgent
+	tracer    tracing.Tracer
 	config    *config.Dcp
 }
 
@@ -136,7 +138,7 @@ func CreateSecurityConfig(username string, password string, secureConnection boo
 
 func CreateAgent(httpAddresses []string, bucketName string,
 	username string, password string, secureConnection bool, rootCAPath string,
-	connectionBufferSize uint, connectionTimeout time.Duration,
+	connectionBufferSize uint, connectionTimeout time.Duration, tracer tracing.Tracer,
 ) (*gocbcore.Agent, error) {
 	agent, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
@@ -153,6 +155,10 @@ func CreateAgent(httpAddresses []string, bucketName string,
 			},
 			KVConfig: gocbcore.KVConfig{
 				ConnectionBufferSize: connectionBufferSize,
+			},
+			TracerConfig: gocbcore.TracerConfig{
+				Tracer:           tracer,
+				NoRootTraceSpans: false,
 			},
 		},
 	)
@@ -184,7 +190,7 @@ func CreateAgent(httpAddresses []string, bucketName string,
 }
 
 func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
-	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, connectionBufferSize, connectionTimeout) //nolint:lll
+	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, connectionBufferSize, connectionTimeout, s.tracer) //nolint:lll
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {
@@ -600,10 +606,11 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) ma
 	return collectionIDs
 }
 
-func NewClient(config *config.Dcp) Client {
+func NewClient(config *config.Dcp, tracer tracing.Tracer) Client {
 	return &client{
 		agent:    nil,
 		dcpAgent: nil,
+		tracer:   tracer,
 		config:   config,
 	}
 }

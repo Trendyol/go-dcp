@@ -157,6 +157,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 | cbgo_end_seq_no_current              | The ending sequence number on a specific vBucket        | vbId: ID of the vBucket                  | Gauge      |
 | cbgo_persist_seq_no_current          | The persist sequence number on a specific vBucket       | vbId: ID of the vBucket                  | Gauge      |
 | cbgo_lag_current                     | The current lag on a specific vBucket                   | vbId: ID of the vBucket                  | Gauge      |
+| cbgo_total_lag_current               | The current total lag                                   | N/A                                      | Gauge      |
 | cbgo_process_latency_ms_current      | The latest process latency in milliseconds              | N/A                                      | Gauge      |
 | cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds | N/A                                      | Counter    |
 | cbgo_rebalance_current               | The number of total rebalance                           | N/A                                      | Counter    |

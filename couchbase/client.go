@@ -403,27 +403,48 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 
 	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
 
-	for i := 1; i <= numNodes; i++ {
-		numNode := i
-		eg.Go(func() error {
-			opm := NewAsyncOp(context.Background())
+	hasCollectionSupport := s.dcpAgent.HasCollectionsSupport()
+	var collectionIDs []uint32
+	for collectionID := range s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames) {
+		collectionIDs = append(collectionIDs, collectionID)
+	}
+	collectionIDSize := len(collectionIDs)
+	if !hasCollectionSupport {
+		collectionIDSize = 1
+	}
 
-			op, err := s.dcpAgent.GetVbucketSeqnos(
-				numNode,
-				memd.VbucketStateActive,
-				gocbcore.GetVbucketSeqnoOptions{},
-				func(entries []gocbcore.VbSeqNoEntry, err error) {
-					for _, en := range entries {
-						seqNos.Store(en.VbID, uint64(en.SeqNo))
+	for i := 1; i <= numNodes; i++ {
+		for j := 0; j < collectionIDSize; j++ {
+			eg.Go(func(i int, j int) func() error {
+				return func() error {
+					opm := NewAsyncOp(context.Background())
+
+					opts := gocbcore.GetVbucketSeqnoOptions{}
+					if hasCollectionSupport {
+						opts.FilterOptions = &gocbcore.GetVbucketSeqnoFilterOptions{
+							CollectionID: collectionIDs[j],
+						}
 					}
-					opm.Resolve()
-				},
-			)
-			if err != nil {
-				return err
-			}
-			return opm.Wait(op, err)
-		})
+
+					op, err := s.dcpAgent.GetVbucketSeqnos(
+						i, memd.VbucketStateActive, opts,
+						func(entries []gocbcore.VbSeqNoEntry, err error) {
+							for _, entry := range entries {
+								if seqNo, exist := seqNos.Load(entry.VbID); !exist || (exist && uint64(entry.SeqNo) > seqNo) {
+									seqNos.Store(entry.VbID, uint64(entry.SeqNo))
+								}
+							}
+
+							opm.Resolve()
+						},
+					)
+					if err != nil {
+						return err
+					}
+					return opm.Wait(op, err)
+				}
+			}(i, j))
+		}
 	}
 
 	err = eg.Wait()

@@ -117,6 +117,18 @@ func (s *stream) listen() {
 			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
 		case models.DcpSeqNoAdvanced:
 			s.setOffset(v.VbID, v.Offset, true)
+		case models.DcpCollectionCreation:
+			s.setOffset(v.VbID, v.Offset, true)
+		case models.DcpCollectionDeletion:
+			s.setOffset(v.VbID, v.Offset, true)
+		case models.DcpCollectionFlush:
+			s.setOffset(v.VbID, v.Offset, true)
+		case models.DcpScopeCreation:
+			s.setOffset(v.VbID, v.Offset, true)
+		case models.DcpScopeDeletion:
+			s.setOffset(v.VbID, v.Offset, true)
+		case models.DcpCollectionModification:
+			s.setOffset(v.VbID, v.Offset, true)
 		default:
 		}
 	}

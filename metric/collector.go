@@ -35,7 +35,8 @@ type metricCollector struct {
 	dcpLatency     *prometheus.Desc
 	rebalance      *prometheus.Desc
 
-	lag *prometheus.Desc
+	lag      *prometheus.Desc
+	totalLag *prometheus.Desc
 
 	activeStream      *prometheus.Desc
 	totalMembers      *prometheus.Desc
@@ -121,6 +122,8 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 	offsets, _, _ := s.stream.GetOffsets()
 
+	var totalLag float64
+
 	offsets.Range(func(vbID uint16, offset *models.Offset) bool {
 		ch <- prometheus.MustNewConstMetric(
 			s.currentSeqNo,
@@ -157,6 +160,8 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 				err,
 			)
 		} else {
+			totalLag += lag
+
 			ch <- prometheus.MustNewConstMetric(
 				s.lag,
 				prometheus.GaugeValue,
@@ -167,6 +172,13 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 
 		return true
 	})
+
+	ch <- prometheus.MustNewConstMetric(
+		s.totalLag,
+		prometheus.GaugeValue,
+		totalLag,
+		[]string{}...,
+	)
 
 	streamMetric, activeStream := s.stream.GetMetric()
 
@@ -324,6 +336,12 @@ func NewMetricCollector(client couchbase.Client, stream stream.Stream, vBucketDi
 			prometheus.BuildFQName(helpers.Name, "lag", "current"),
 			"Lag",
 			[]string{"vbId"},
+			nil,
+		),
+		totalLag: prometheus.NewDesc(
+			prometheus.BuildFQName(helpers.Name, "total_lag", "current"),
+			"Total Lag",
+			[]string{},
 			nil,
 		),
 		processLatency: prometheus.NewDesc(

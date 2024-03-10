@@ -52,6 +52,45 @@ type InternalDcpSeqNoAdvance struct {
 	Offset *Offset
 }
 
+type InternalDcpCollectionCreation struct {
+	*gocbcore.DcpCollectionCreation
+	Offset         *Offset
+	CollectionName string
+}
+
+type InternalDcpCollectionDeletion struct {
+	*gocbcore.DcpCollectionDeletion
+	Offset         *Offset
+	CollectionName string
+}
+
+type InternalDcpCollectionFlush struct {
+	*gocbcore.DcpCollectionFlush
+	Offset         *Offset
+	CollectionName string
+}
+
+type InternalDcpScopeCreation struct {
+	*gocbcore.DcpScopeCreation
+	Offset *Offset
+}
+
+type InternalDcpScopeDeletion struct {
+	*gocbcore.DcpScopeDeletion
+	Offset *Offset
+}
+
+type InternalDcpCollectionModification struct {
+	*gocbcore.DcpCollectionModification
+	Offset         *Offset
+	CollectionName string
+}
+
+type InternalDcpOSOSnapshot struct {
+	*gocbcore.DcpOSOSnapshot
+	Offset *Offset
+}
+
 type PingResult struct {
 	MemdEndpoint string
 	MgmtEndpoint string
@@ -70,12 +109,12 @@ type (
 	DcpDeletion               = InternalDcpDeletion
 	DcpExpiration             = InternalDcpExpiration
 	DcpStreamEnd              = gocbcore.DcpStreamEnd
-	DcpCollectionCreation     = gocbcore.DcpCollectionCreation
-	DcpCollectionDeletion     = gocbcore.DcpCollectionDeletion
-	DcpCollectionFlush        = gocbcore.DcpCollectionFlush
-	DcpScopeCreation          = gocbcore.DcpScopeCreation
-	DcpScopeDeletion          = gocbcore.DcpScopeDeletion
-	DcpCollectionModification = gocbcore.DcpCollectionModification
+	DcpCollectionCreation     = InternalDcpCollectionCreation
+	DcpCollectionDeletion     = InternalDcpCollectionDeletion
+	DcpCollectionFlush        = InternalDcpCollectionFlush
+	DcpScopeCreation          = InternalDcpScopeCreation
+	DcpScopeDeletion          = InternalDcpScopeDeletion
+	DcpCollectionModification = InternalDcpCollectionModification
 	DcpOSOSnapshot            = gocbcore.DcpOSOSnapshot
 	DcpSeqNoAdvanced          = InternalDcpSeqNoAdvance
 )

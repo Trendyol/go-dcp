@@ -1,8 +1,9 @@
 package dcp
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"reflect"
@@ -323,6 +324,12 @@ func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger) 
 
 func printConfiguration(config config.Dcp) {
 	config.Password = "*****"
-	configJSON, _ := jsoniter.MarshalIndent(config, "", "  ")
-	fmt.Printf("using config: %v", string(configJSON))
+	configJSON, _ := jsoniter.Marshal(config)
+
+	dst := &bytes.Buffer{}
+	if err := json.Compact(dst, configJSON); err != nil {
+		panic(err)
+	}
+
+	logger.Log.Info("using config: %v", dst.String())
 }

@@ -23,12 +23,12 @@ type Observer interface {
 	Deletion(deletion gocbcore.DcpDeletion)
 	Expiration(expiration gocbcore.DcpExpiration)
 	End(dcpEnd models.DcpStreamEnd, err error)
-	CreateCollection(creation models.DcpCollectionCreation)
-	DeleteCollection(deletion models.DcpCollectionDeletion)
-	FlushCollection(flush models.DcpCollectionFlush)
-	CreateScope(creation models.DcpScopeCreation)
-	DeleteScope(deletion models.DcpScopeDeletion)
-	ModifyCollection(modification models.DcpCollectionModification)
+	CreateCollection(creation gocbcore.DcpCollectionCreation)
+	DeleteCollection(deletion gocbcore.DcpCollectionDeletion)
+	FlushCollection(flush gocbcore.DcpCollectionFlush)
+	CreateScope(creation gocbcore.DcpScopeCreation)
+	DeleteScope(deletion gocbcore.DcpScopeDeletion)
+	ModifyCollection(modification gocbcore.DcpCollectionModification)
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
 	GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
@@ -275,67 +275,137 @@ func (so *observer) End(event models.DcpStreamEnd, err error) {
 	}
 }
 
-func (so *observer) CreateCollection(event models.DcpCollectionCreation) {
+func (so *observer) CreateCollection(event gocbcore.DcpCollectionCreation) {
 	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
-	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
-	})
+	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
+		vbUUID, _ := so.uuIDMap.Load(event.VbID)
+
+		so.sendOrSkip(models.ListenerArgs{
+			Event: models.InternalDcpCollectionCreation{
+				DcpCollectionCreation: &event,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
+					VbUUID:         vbUUID,
+					SeqNo:          event.SeqNo,
+				},
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+			},
+		})
+	}
 }
 
-func (so *observer) DeleteCollection(event models.DcpCollectionDeletion) {
+func (so *observer) DeleteCollection(event gocbcore.DcpCollectionDeletion) {
 	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
-	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
-	})
+	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
+		vbUUID, _ := so.uuIDMap.Load(event.VbID)
+
+		so.sendOrSkip(models.ListenerArgs{
+			Event: models.InternalDcpCollectionDeletion{
+				DcpCollectionDeletion: &event,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
+					VbUUID:         vbUUID,
+					SeqNo:          event.SeqNo,
+				},
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+			},
+		})
+	}
 }
 
-func (so *observer) FlushCollection(event models.DcpCollectionFlush) {
+func (so *observer) FlushCollection(event gocbcore.DcpCollectionFlush) {
 	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
-	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
-	})
+	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
+		vbUUID, _ := so.uuIDMap.Load(event.VbID)
+
+		so.sendOrSkip(models.ListenerArgs{
+			Event: models.InternalDcpCollectionFlush{
+				DcpCollectionFlush: &event,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
+					VbUUID:         vbUUID,
+					SeqNo:          event.SeqNo,
+				},
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+			},
+		})
+	}
 }
 
-func (so *observer) CreateScope(event models.DcpScopeCreation) {
+func (so *observer) CreateScope(event gocbcore.DcpScopeCreation) {
 	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
-	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
-	})
+	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
+		vbUUID, _ := so.uuIDMap.Load(event.VbID)
+
+		so.sendOrSkip(models.ListenerArgs{
+			Event: models.InternalDcpScopeCreation{
+				DcpScopeCreation: &event,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
+					VbUUID:         vbUUID,
+					SeqNo:          event.SeqNo,
+				},
+			},
+		})
+	}
 }
 
-func (so *observer) DeleteScope(event models.DcpScopeDeletion) {
+func (so *observer) DeleteScope(event gocbcore.DcpScopeDeletion) {
 	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
-	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
-	})
+	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
+		vbUUID, _ := so.uuIDMap.Load(event.VbID)
+
+		so.sendOrSkip(models.ListenerArgs{
+			Event: models.InternalDcpScopeDeletion{
+				DcpScopeDeletion: &event,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
+					VbUUID:         vbUUID,
+					SeqNo:          event.SeqNo,
+				},
+			},
+		})
+	}
 }
 
-func (so *observer) ModifyCollection(event models.DcpCollectionModification) {
+func (so *observer) ModifyCollection(event gocbcore.DcpCollectionModification) {
 	if !so.canForward(event.VbID, event.SeqNo) {
 		return
 	}
 
-	so.sendOrSkip(models.ListenerArgs{
-		Event: event,
-	})
+	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
+		vbUUID, _ := so.uuIDMap.Load(event.VbID)
+
+		so.sendOrSkip(models.ListenerArgs{
+			Event: models.InternalDcpCollectionModification{
+				DcpCollectionModification: &event,
+				Offset: &models.Offset{
+					SnapshotMarker: currentSnapshot,
+					VbUUID:         vbUUID,
+					SeqNo:          event.SeqNo,
+				},
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+			},
+		})
+	}
 }
 
-func (so *observer) OSOSnapshot(event models.DcpOSOSnapshot) {
+func (so *observer) OSOSnapshot(event gocbcore.DcpOSOSnapshot) {
 	so.sendOrSkip(models.ListenerArgs{
 		Event: event,
 	})

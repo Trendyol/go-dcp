@@ -514,6 +514,20 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		vbID, failedSeqNo, rollbackSeqNo,
 	)
 
+	failoverLogs, err := s.GetFailoverLogs(vbID)
+	if err != nil {
+		return err
+	}
+
+	var targetUUID gocbcore.VbUUID = 0
+
+	for i := len(failoverLogs) - 1; i >= 0; i-- {
+		log := failoverLogs[i]
+		if rollbackSeqNo > log.SeqNo {
+			targetUUID = log.VbUUID
+		}
+	}
+
 	opm := NewAsyncOp(context.Background())
 
 	ch := make(chan error)
@@ -521,7 +535,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
 		0,
-		0,
+		targetUUID,
 		rollbackSeqNo,
 		0xffffffffffffffff,
 		rollbackSeqNo,

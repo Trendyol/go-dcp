@@ -61,3 +61,67 @@ func TestIsMetadata_ReturnsFalse_WhenStructHasNoKeyPrefix(t *testing.T) {
 		t.Errorf("IsMetadata() = %v, want %v", IsMetadata(testData), false)
 	}
 }
+
+func TestChunkSliceWithSize(t *testing.T) {
+	size := 1001
+	slice := make([]int, size)
+	for i := 0; i < size; i++ {
+		slice[i] = 0
+	}
+
+	chunks := ChunkSliceWithSize[int](slice, 5)
+
+	if len(chunks) != 201 {
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+
+	for idx, chunk := range chunks {
+		if len(chunk) == 5 {
+			continue
+		}
+
+		if idx+1 == 201 && len(chunk) == 1 {
+			continue
+		}
+
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+
+	chunks = ChunkSliceWithSize[int]([]int{0, 0, 0, 0}, 5)
+
+	if len(chunks) != 1 {
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+
+	for _, chunk := range chunks {
+		if len(chunk) == 4 {
+			continue
+		}
+
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+
+	chunks = ChunkSliceWithSize[int]([]int{0, 0, 0, 0, 0, 0, 0, 0, 0}, 5)
+
+	if len(chunks) != 2 {
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+
+	for idx, chunk := range chunks {
+		if len(chunk) == 5 {
+			continue
+		}
+
+		if idx+1 == 2 && len(chunk) == 4 {
+			continue
+		}
+
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+
+	chunks = ChunkSliceWithSize[int]([]int{}, 5)
+
+	if len(chunks) != 0 {
+		t.Errorf("ChunkSliceWithSize failed")
+	}
+}

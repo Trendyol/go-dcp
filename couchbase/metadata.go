@@ -36,7 +36,7 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.Checkpoint.Timeout)
 	defer cancel()
 
-	eg, _ := errgroup.WithContext(ctx)
+	eg, ctx := errgroup.WithContext(ctx)
 
 	for vbID := range state {
 		if dirtyOffsets[vbID] {

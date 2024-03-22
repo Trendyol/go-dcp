@@ -21,7 +21,7 @@ func CreateDocument(ctx context.Context,
 
 	deadline, _ := ctx.Deadline()
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	op, err := agent.Set(gocbcore.SetOptions{
 		Key:            id,
@@ -58,7 +58,7 @@ func UpdateDocument(ctx context.Context,
 
 	deadline, _ := ctx.Deadline()
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	mutateInOptions := gocbcore.MutateInOptions{
 		Key: id,
@@ -97,7 +97,7 @@ func DeleteDocument(ctx context.Context, agent *gocbcore.Agent, scopeName string
 
 	deadline, _ := ctx.Deadline()
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	op, err := agent.Delete(gocbcore.DeleteOptions{
 		Key:            id,
@@ -131,7 +131,7 @@ func UpsertXattrs(ctx context.Context,
 
 	deadline, _ := ctx.Deadline()
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	op, err := agent.MutateIn(gocbcore.MutateInOptions{
 		Key: id,
@@ -166,8 +166,8 @@ func UpsertXattrs(ctx context.Context,
 func GetXattrs(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectionName string, id []byte, path string) ([]byte, error) { //nolint:lll
 	opm := NewAsyncOp(ctx)
 
-	errorCh := make(chan error)
-	documentCh := make(chan []byte)
+	errorCh := make(chan error, 1)
+	documentCh := make(chan []byte, 1)
 
 	op, err := agent.LookupIn(gocbcore.LookupInOptions{
 		Key: id,
@@ -204,12 +204,12 @@ func GetXattrs(ctx context.Context, agent *gocbcore.Agent, scopeName string, col
 }
 
 func Get(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectionName string, id []byte) (*gocbcore.GetResult, error) {
-	opm := NewAsyncOp(context.Background())
+	opm := NewAsyncOp(ctx)
 
 	deadline, _ := ctx.Deadline()
 
-	errorCh := make(chan error)
-	documentCh := make(chan *gocbcore.GetResult)
+	errorCh := make(chan error, 1)
+	documentCh := make(chan *gocbcore.GetResult, 1)
 
 	op, err := agent.Get(gocbcore.GetOptions{
 		Key:            id,
@@ -252,7 +252,7 @@ func CreatePath(ctx context.Context,
 
 	deadline, _ := ctx.Deadline()
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	op, err := agent.MutateIn(gocbcore.MutateInOptions{
 		Key:   id,

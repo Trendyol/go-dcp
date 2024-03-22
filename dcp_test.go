@@ -141,7 +141,7 @@ func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize
 
 			for id := 0; id < bulkSize; id++ {
 				go func(id int, chunk int) {
-					ch := make(chan error)
+					ch := make(chan error, 1)
 
 					opm := couchbase.NewAsyncOp(context.Background())
 

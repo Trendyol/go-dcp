@@ -71,7 +71,7 @@ func (s *client) Ping() (*models.PingResult, error) {
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
-	errorCh := make(chan error)
+	errorCh := make(chan error, 1)
 
 	var pingResult models.PingResult
 
@@ -166,7 +166,7 @@ func CreateAgent(httpAddresses []string, bucketName string,
 		return nil, err
 	}
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	_, err = agent.WaitUntilReady(
 		time.Now().Add(connectionTimeout),
@@ -309,7 +309,7 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		return err
 	}
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	_, err = client.WaitUntilReady(
 		time.Now().Add(s.config.Dcp.ConnectionTimeout),
@@ -417,7 +417,10 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 		for j := 0; j < collectionIDSize; j++ {
 			eg.Go(func(i int, j int) func() error {
 				return func() error {
-					opm := NewAsyncOp(context.Background())
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+					defer cancel()
+
+					opm := NewAsyncOp(ctx)
 
 					opts := gocbcore.GetVbucketSeqnoOptions{}
 					if hasCollectionSupport {
@@ -480,8 +483,12 @@ func (s *client) GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) {
 }
 
 func (s *client) GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) {
-	opm := NewAsyncOp(context.Background())
-	ch := make(chan error)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	opm := NewAsyncOp(ctx)
+
+	ch := make(chan error, 1)
 
 	var failoverLogs []gocbcore.FailoverEntry
 
@@ -528,9 +535,12 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		}
 	}
 
-	opm := NewAsyncOp(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
-	ch := make(chan error)
+	opm := NewAsyncOp(ctx)
+
+	ch := make(chan error, 1)
 
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
@@ -568,7 +578,10 @@ func (s *client) OpenStream(
 	offset *models.Offset,
 	observer Observer,
 ) error {
-	opm := NewAsyncOp(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	opm := NewAsyncOp(ctx)
 
 	openStreamOptions := gocbcore.OpenStreamOptions{}
 
@@ -588,7 +601,7 @@ func (s *client) OpenStream(
 		}
 	}
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
@@ -628,9 +641,12 @@ func (s *client) OpenStream(
 }
 
 func (s *client) CloseStream(vbID uint16) error {
-	opm := NewAsyncOp(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
-	ch := make(chan error)
+	opm := NewAsyncOp(ctx)
+
+	ch := make(chan error, 1)
 
 	op, err := s.dcpAgent.CloseStream(
 		vbID,
@@ -650,10 +666,10 @@ func (s *client) CloseStream(vbID uint16) error {
 	return <-ch
 }
 
-func (s *client) getCollectionID(scopeName string, collectionName string) (uint32, error) {
-	opm := NewAsyncOp(context.Background())
+func (s *client) getCollectionID(ctx context.Context, scopeName string, collectionName string) (uint32, error) {
+	opm := NewAsyncOp(ctx)
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	var collectionID uint32
 	op, err := s.agent.GetCollectionID(
 		scopeName,
@@ -678,11 +694,14 @@ func (s *client) getCollectionID(scopeName string, collectionName string) (uint3
 }
 
 func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
 	collectionIDs := map[uint32]string{}
 
 	if s.dcpAgent.HasCollectionsSupport() {
 		for _, collectionName := range collectionNames {
-			collectionID, err := s.getCollectionID(scopeName, collectionName)
+			collectionID, err := s.getCollectionID(ctx, scopeName, collectionName)
 			if err != nil {
 				logger.Log.Error("cannot get collection ids: %v", err)
 				panic(err)

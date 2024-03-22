@@ -114,6 +114,7 @@ func (r *rollbackMitigation) observeVbID(
 		VbID:       vbID,
 		ReplicaIdx: replica,
 		VbUUID:     vbUUID,
+		Deadline:   time.Now().Add(time.Second * 5),
 	}, callback)
 	if err != nil {
 		logger.Log.Error("observeVBID error for vbId: %v, replica:%v, vbUUID: %v, err: %v", vbID, replica, vbUUID, err)
@@ -284,7 +285,13 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 		}
 
 		if err != nil {
-			if errors.Is(err, gocbcore.ErrTemporaryFailure) {
+			if errors.Is(err, gocbcore.ErrUnambiguousTimeout) {
+				logger.Log.Debug("timeout while observe: %v", err)
+				return
+			}
+
+			if errors.Is(err, gocbcore.ErrTemporaryFailure) ||
+				errors.Is(err, gocbcore.ErrBusy) {
 				logger.Log.Error("error while observe: %v", err)
 				return
 			} else {
@@ -341,7 +348,7 @@ func (r *rollbackMitigation) reset() {
 func (r *rollbackMitigation) waitFirstConfig() error {
 	opm := NewAsyncOp(context.Background())
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 
 	op, err := r.client.GetAgent().WaitForConfigSnapshot(
 		time.Now().Add(r.config.ConnectionTimeout),

@@ -153,13 +153,13 @@ func (c *Dcp) GetFileMetadata() string {
 		fileName = c.Metadata.Config[FileMetadataFileNameConfig]
 	} else {
 		err := errors.New("file metadata file name is not set")
-		logger.Log.Error("failed to get metadata file name: %v", err)
+		logger.Log.Error("error while get metadata file name, err: %v", err)
 		panic(err)
 	}
 
 	if fileName == "" {
 		err := errors.New("file metadata file name is empty")
-		logger.Log.Error("failed to get metadata file name: %v", err)
+		logger.Log.Error("error while get metadata file name, err: %v", err)
 		panic(err)
 	}
 
@@ -186,7 +186,7 @@ func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	if expirySeconds, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipExpirySecondsConfig]; ok {
 		parsedExpirySeconds, err := strconv.ParseUint(expirySeconds, 10, 32)
 		if err != nil {
-			logger.Log.Error("failed to parse membership expiry seconds: %v", err)
+			logger.Log.Error("error while parse membership expiry seconds, err: %v", err)
 			panic(err)
 		}
 
@@ -196,7 +196,7 @@ func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	if heartbeatInterval, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipHeartbeatIntervalConfig]; ok {
 		parsedHeartbeatInterval, err := time.ParseDuration(heartbeatInterval)
 		if err != nil {
-			logger.Log.Error("failed to parse membership heartbeat interval: %v", err)
+			logger.Log.Error("error while parse membership heartbeat interval, err: %v", err)
 			panic(err)
 		}
 
@@ -206,7 +206,7 @@ func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	if heartbeatToleranceDuration, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipHeartbeatToleranceConfig]; ok {
 		parsedHeartbeatToleranceDuration, err := time.ParseDuration(heartbeatToleranceDuration)
 		if err != nil {
-			logger.Log.Error("failed to parse membership heartbeat tolerance duration: %v", err)
+			logger.Log.Error("error while parse membership heartbeat tolerance duration, err: %v", err)
 			panic(err)
 		}
 
@@ -216,7 +216,7 @@ func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	if monitorInterval, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipMonitorIntervalConfig]; ok {
 		parsedMonitorInterval, err := time.ParseDuration(monitorInterval)
 		if err != nil {
-			logger.Log.Error("failed to parse membership monitor interval: %v", err)
+			logger.Log.Error("error while parse membership monitor interval, err: %v", err)
 			panic(err)
 		}
 
@@ -226,7 +226,7 @@ func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	if timeout, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipTimeoutConfig]; ok {
 		parsedTimeout, err := time.ParseDuration(timeout)
 		if err != nil {
-			logger.Log.Error("failed to parse membership timeout: %v", err)
+			logger.Log.Error("error while parse membership timeout, err: %v", err)
 			panic(err)
 		}
 
@@ -255,7 +255,7 @@ func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
 		kubernetesLeaderElector.LeaseLockName = leaseLockName
 	} else {
 		err := errors.New("leaseLockName is not defined")
-		logger.Log.Error("error while creating leader elector: %v", err)
+		logger.Log.Error("error while creating leader elector, err: %v", err)
 		panic(err)
 	}
 
@@ -263,14 +263,14 @@ func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
 		kubernetesLeaderElector.LeaseLockNamespace = leaseLockNamespace
 	} else {
 		err := errors.New("leaseLockNamespace is not defined")
-		logger.Log.Error("error while creating leader elector: %v", err)
+		logger.Log.Error("error while creating leader elector, err: %v", err)
 		panic(err)
 	}
 
 	if leaseDuration, ok := c.LeaderElection.Config[KubernetesLeaderElectorLeaseDurationConfig]; ok {
 		parsedLeaseDuration, err := time.ParseDuration(leaseDuration)
 		if err != nil {
-			logger.Log.Error("failed to parse leader election lease duration: %v", err)
+			logger.Log.Error("error while parse leader election lease duration, err: %v", err)
 			panic(err)
 		}
 
@@ -280,7 +280,7 @@ func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
 	if renewDeadline, ok := c.LeaderElection.Config[KubernetesLeaderElectorRenewDeadlineConfig]; ok {
 		parsedRenewDeadline, err := time.ParseDuration(renewDeadline)
 		if err != nil {
-			logger.Log.Error("failed to parse leader election renew deadline: %v", err)
+			logger.Log.Error("error while parse leader election renew deadline, err: %v", err)
 			panic(err)
 		}
 
@@ -290,7 +290,7 @@ func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
 	if retryPeriod, ok := c.LeaderElection.Config[KubernetesLeaderElectorRetryPeriodConfig]; ok {
 		parsedRetryPeriod, err := time.ParseDuration(retryPeriod)
 		if err != nil {
-			logger.Log.Error("failed to parse leader election retry period: %v", err)
+			logger.Log.Error("error while parse leader election retry period, err: %v", err)
 			panic(err)
 		}
 
@@ -336,7 +336,7 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 	if connectionTimeout, ok := c.Metadata.Config[CouchbaseMetadataConnectionTimeoutConfig]; ok {
 		parsedConnectionTimeout, err := time.ParseDuration(connectionTimeout)
 		if err != nil {
-			logger.Log.Error("failed to parse metadata connection timeout: %v", err)
+			logger.Log.Error("error while parse metadata connection timeout, err: %v", err)
 			panic(err)
 		}
 
@@ -421,7 +421,9 @@ func (c *Dcp) applyDefaultGroupMembership() {
 	if totalMembersFromEnvVariable := os.Getenv("GO_DCP__DCP_GROUP_MEMBERSHIP_TOTALMEMBERS"); totalMembersFromEnvVariable != "" {
 		t, err := strconv.Atoi(totalMembersFromEnvVariable)
 		if err != nil {
-			panic("a non-integer environment variable was entered for 'totalMembers'")
+			err := errors.New("a non-integer environment variable was entered for 'totalMembers'")
+			logger.Log.Error("error while membership configuration, err: %v", err)
+			panic(err)
 		}
 		c.Dcp.Group.Membership.TotalMembers = t
 	}
@@ -429,7 +431,9 @@ func (c *Dcp) applyDefaultGroupMembership() {
 	if memberNumberFromEnvVariable := os.Getenv("GO_DCP__DCP_GROUP_MEMBERSHIP_MEMBERNUMBER"); memberNumberFromEnvVariable != "" {
 		t, err := strconv.Atoi(memberNumberFromEnvVariable)
 		if err != nil {
-			panic("a non-integer environment variable was entered for 'memberNumber'")
+			err := errors.New("a non-integer environment variable was entered for 'memberNumber'")
+			logger.Log.Error("error while membership configuration, err: %v", err)
+			panic(err)
 		}
 		c.Dcp.Group.Membership.MemberNumber = t
 	}

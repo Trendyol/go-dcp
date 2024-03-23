@@ -231,6 +231,7 @@ func (r *rollbackMitigation) loadVbUUIDMap() {
 	r.persistedSeqNos.Range(func(vbID uint16, _ []*vbUUIDAndSeqNo) bool {
 		failoverLogs, err := r.client.GetFailoverLogs(vbID)
 		if err != nil {
+			logger.Log.Error("error while get failover logs, err: %v", err)
 			panic(err)
 		}
 
@@ -269,6 +270,7 @@ func (r *rollbackMitigation) reconfigure() {
 	r.reset()
 	err := r.markAbsentInstances()
 	if err != nil {
+		logger.Log.Error("error while mark absent instances, err: %v", err)
 		panic(err)
 	}
 
@@ -290,9 +292,10 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 				return
 			}
 
+			logger.Log.Error("error while observe, err: %v", err)
+
 			if errors.Is(err, gocbcore.ErrTemporaryFailure) ||
 				errors.Is(err, gocbcore.ErrBusy) {
-				logger.Log.Error("error while observe: %v", err)
 				return
 			} else {
 				panic(err)
@@ -325,6 +328,7 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 func (r *rollbackMitigation) reset() {
 	replicas, err := r.configSnapshot.NumReplicas()
 	if err != nil {
+		logger.Log.Error("error while reset rollback mitigation, err: %v", err)
 		panic(err)
 	}
 
@@ -375,7 +379,7 @@ func (r *rollbackMitigation) Start() {
 
 	err := r.waitFirstConfig()
 	if err != nil {
-		logger.Log.Error("cannot get first config: %v", err)
+		logger.Log.Error("error while get first config, err: %v", err)
 		panic(err)
 	}
 
@@ -391,14 +395,15 @@ func (r *rollbackMitigation) Start() {
 
 func (r *rollbackMitigation) Stop() {
 	r.closed = true
+
+	if r.configWatchTimer != nil {
+		r.configWatchTimer.Stop()
+	}
+
 	if r.observeTimer != nil {
 		r.observeTimer.Stop()
 		r.observeCloseCh <- struct{}{}
 		<-r.observeCloseDoneCh
-	}
-
-	if r.configWatchTimer != nil {
-		r.configWatchTimer.Stop()
 	}
 
 	logger.Log.Info("rollback mitigation stopped")

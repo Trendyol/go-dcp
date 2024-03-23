@@ -65,13 +65,13 @@ func (s *server) Listen() {
 
 	err := server.Register(s.handler)
 	if err != nil {
-		logger.Log.Error("error while registering rpc handler: %s", err)
+		logger.Log.Error("error while registering rpc handler, err: %s", err)
 		panic(err)
 	}
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
-		logger.Log.Error("error while listening rpc server: %s", err)
+		logger.Log.Error("error while listening rpc server, err: %s", err)
 		panic(err)
 	}
 

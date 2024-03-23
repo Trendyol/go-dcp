@@ -117,7 +117,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	if err == nil {
 		logger.Log.Debug("loaded checkpoint")
 	} else {
-		logger.Log.Error("error while loading checkpoint document: %v", err)
+		logger.Log.Error("error while loading checkpoint document, err: %v", err)
 		panic(err)
 	}
 
@@ -130,7 +130,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 
 		seqNoMap, err := s.client.GetVBucketSeqNos()
 		if err != nil {
-			logger.Log.Error("error while getting vbucket seqNos: %v", err)
+			logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
 			panic(err)
 		}
 
@@ -212,7 +212,7 @@ func (s *checkpoint) GetMetric() *CheckpointMetric {
 func getBucketUUID(client couchbase.Client) string {
 	snapshot, err := client.GetDcpAgentConfigSnapshot()
 	if err != nil {
-		logger.Log.Error("failed to get config snapshot: %v", err)
+		logger.Log.Error("error while get config snapshot, err: %v", err)
 		panic(err)
 	}
 

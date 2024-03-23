@@ -108,7 +108,7 @@ func NewLeaderElector(
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, le.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
+		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
 		panic(err)
 	}
 

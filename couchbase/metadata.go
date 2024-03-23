@@ -101,7 +101,7 @@ func (s *cbMetadata) Load(
 			if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 				state.Store(vbID, doc)
 			} else {
-				logger.Log.Error("cannot load checkpoint, vbID: %d, err: %v", vbID, err)
+				logger.Log.Error("error while load checkpoint, vbID: %d, err: %v", vbID, err)
 				panic(err)
 			}
 
@@ -133,7 +133,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
-		logger.Log.Error("cannot initialize couchbase metadata: %v", err)
+		logger.Log.Error("error while initialize couchbase metadata, err: %v", err)
 		panic(err)
 	}
 
@@ -150,7 +150,9 @@ func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 func getCheckpointID(vbID uint16, groupName string) []byte {
 	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
 	if strings.Contains(groupName, ".") {
-		panic("can not get checkpoint id. unsupported group name includes dot")
+		err := errors.New("unsupported group name includes dot")
+		logger.Log.Error("error while get checkpoint id, err: %v", err)
+		panic(err)
 	}
 	return []byte(helpers.Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbID)))
 }

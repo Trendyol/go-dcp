@@ -92,7 +92,7 @@ func NewVBucketDiscovery(client couchbase.Client,
 		ms = kubernetes.NewHaMembership(config, bus)
 	default:
 		err := errors.New("unknown membership")
-		logger.Log.Error("membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)
+		logger.Log.Error("error while try to use membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)
 		panic(err)
 	}
 

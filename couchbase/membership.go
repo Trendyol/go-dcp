@@ -67,7 +67,7 @@ func (h *cbMembership) register() {
 
 	err := h.createIndex(ctx, now)
 	if err != nil {
-		logger.Log.Error("error while create index: %v", err)
+		logger.Log.Error("error while create index, err: %v", err)
 		panic(err)
 	}
 
@@ -102,7 +102,7 @@ func (h *cbMembership) register() {
 	}
 
 	if err != nil {
-		logger.Log.Error("error while register: %v", err)
+		logger.Log.Error("error while register, err: %v", err)
 		panic(err)
 	}
 }
@@ -191,7 +191,7 @@ func (h *cbMembership) monitor() {
 				if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 					return
 				} else {
-					logger.Log.Error("error while monitor try to get instance: %v", err)
+					logger.Log.Error("error while monitor try to get instance, err: %v", err)
 					panic(err)
 				}
 			}
@@ -314,7 +314,7 @@ func (h *cbMembership) membershipChangedListener(model *membership.Model) {
 func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) membership.Membership {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
-		logger.Log.Error("cannot initialize couchbase membership, err: %v", err)
+		logger.Log.Error("error while initialize couchbase membership, err: %v", err)
 		panic(err)
 	}
 
@@ -339,7 +339,7 @@ func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) member
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, cbm.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe membership changed event: %v", err)
+		logger.Log.Error("error while subscribe membership changed event, err: %v", err)
 		panic(err)
 	}
 

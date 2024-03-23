@@ -68,7 +68,7 @@ func (l *leaderElection) OnBecomeFollower(leaderIdentity *models.Identity) {
 
 	err = leaderClient.Register()
 	if err != nil {
-		logger.Log.Error("error while registering leader client: %v", err)
+		logger.Log.Error("error while registering leader client, err: %v", err)
 		panic(err)
 	}
 }
@@ -81,7 +81,7 @@ func (l *leaderElection) Start() {
 		l.myIdentity = kubernetesClient.GetIdentity()
 	} else {
 		err := errors.New("leader election type is not supported")
-		logger.Log.Error("leader election: %s, err: %v", l.config.LeaderElection.Type, err)
+		logger.Log.Error("error while leader election: %s, err: %v", l.config.LeaderElection.Type, err)
 		panic(err)
 	}
 

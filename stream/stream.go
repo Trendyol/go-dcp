@@ -283,7 +283,7 @@ func (s *stream) openAllStreams(vbIds []uint16) {
 		go func(innerVbId uint16) {
 			err := s.openStream(innerVbId)
 			if err != nil {
-				logger.Log.Error("cannot open stream, vbID: %d, err: %v", innerVbId, err)
+				logger.Log.Error("error while open stream, vbID: %d, err: %v", innerVbId, err)
 				panic(err)
 			}
 			openWg.Done()

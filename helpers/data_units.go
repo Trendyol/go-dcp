@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/Trendyol/go-dcp/logger"
 )
 
 func ResolveUnionIntOrStringValue(input any) int {
@@ -20,6 +22,7 @@ func ResolveUnionIntOrStringValue(input any) int {
 
 		result, err := convertSizeUnitToByte(value)
 		if err != nil {
+			logger.Log.Error("error while convert size unit to byte, err: %v", err)
 			panic(err)
 		}
 

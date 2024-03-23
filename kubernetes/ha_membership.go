@@ -44,7 +44,7 @@ func NewHaMembership(_ *config.Dcp, bus EventBus.Bus) membership.Membership {
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, ham.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe membership changed event: %v", err)
+		logger.Log.Error("error while subscribe membership changed event, err: %v", err)
 		panic(err)
 	}
 

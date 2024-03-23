@@ -94,7 +94,9 @@ func (s *dcp) Start() {
 		case s.config.IsFileMetadata():
 			s.metadata = metadata.NewFSMetadata(s.config)
 		default:
-			panic(errors.New("invalid metadata type"))
+			err := errors.New("invalid metadata type")
+			logger.Log.Error("error while dcp start, err: %v", err)
+			panic(err)
 		}
 	}
 
@@ -126,7 +128,7 @@ func (s *dcp) Start() {
 
 	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("cannot subscribe to membership changed event: %v", err)
+		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
 		panic(err)
 	}
 
@@ -328,6 +330,7 @@ func printConfiguration(config config.Dcp) {
 
 	dst := &bytes.Buffer{}
 	if err := json.Compact(dst, configJSON); err != nil {
+		logger.Log.Error("error while print configuration, err: %v", err)
 		panic(err)
 	}
 

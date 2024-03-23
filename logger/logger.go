@@ -57,12 +57,6 @@ func (loggers *Loggers) Log(level string, message string, args ...interface{}) {
 func InitDefaultLogger(logLevel string) {
 	logger := logrus.New()
 
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		panic(err)
-	}
-	logger.SetLevel(level)
-
 	formatter := &logrus.JSONFormatter{
 		FieldMap: logrus.FieldMap{
 			logrus.FieldKeyMsg: "message",
@@ -70,6 +64,14 @@ func InitDefaultLogger(logLevel string) {
 	}
 
 	logger.SetFormatter(formatter)
+
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		logger.Errorf("error while logger parse level, err: %v", err)
+		panic(err)
+	}
+	logger.SetLevel(level)
+
 	Log = &Loggers{
 		Logrus: logger,
 	}

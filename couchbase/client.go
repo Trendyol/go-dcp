@@ -112,7 +112,7 @@ func (s *client) GetMetaAgent() *gocbcore.Agent {
 func CreateTLSRootCaProvider(rootCAPath string) func() *x509.CertPool {
 	cert, err := os.ReadFile(os.ExpandEnv(rootCAPath))
 	if err != nil {
-		logger.Log.Error("error while reading cert file: %v", err)
+		logger.Log.Error("error while reading cert file, err: %v", err)
 		panic(err)
 	}
 
@@ -196,12 +196,16 @@ func resolveHostsAsHTTP(hosts []string) []string {
 	if len(hosts) == 1 {
 		parsedConnStr, err := connstr.Parse(hosts[0])
 		if err != nil {
-			panic("error parsing connection string " + hosts[0] + " " + err.Error())
+			err := errors.New(hosts[0] + " " + err.Error())
+			logger.Log.Error("error while parsing connection string, err: %v", err)
+			panic(err)
 		}
 
 		out, err := connstr.Resolve(parsedConnStr)
 		if err != nil {
-			panic("error resolving connection string " + parsedConnStr.String() + " " + err.Error())
+			err := errors.New(parsedConnStr.String() + " " + err.Error())
+			logger.Log.Error("error while resolving connection string, err: %v", err)
+			panic(err)
 		}
 
 		var httpHosts []string
@@ -461,13 +465,13 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 func (s *client) GetNumVBuckets() int {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
-		logger.Log.Error("failed to get config snapshot: %v", err)
+		logger.Log.Error("error while get config snapshot, err: %v", err)
 		panic(err)
 	}
 
 	vBuckets, err := snapshot.NumVbuckets()
 	if err != nil {
-		logger.Log.Error("failed to get number of vbucket: %v", err)
+		logger.Log.Error("error while get number of vBucket, err: %v", err)
 		panic(err)
 	}
 
@@ -703,7 +707,7 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) ma
 		for _, collectionName := range collectionNames {
 			collectionID, err := s.getCollectionID(ctx, scopeName, collectionName)
 			if err != nil {
-				logger.Log.Error("cannot get collection ids: %v", err)
+				logger.Log.Error("error while get collection ids, err: %v", err)
 				panic(err)
 			}
 

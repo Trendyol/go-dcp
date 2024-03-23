@@ -49,7 +49,7 @@ func (s *api) Listen() {
 func (s *api) Shutdown() {
 	err := s.app.Shutdown()
 	if err != nil {
-		logger.Log.Error("api cannot be shutdown, err: %v", err)
+		logger.Log.Error("error while api cannot be shutdown, err: %v", err)
 		panic(err)
 	}
 }

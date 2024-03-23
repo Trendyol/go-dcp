@@ -80,7 +80,7 @@ func getNamespace() string {
 func (le *client) setIdentity() {
 	hostname, err := os.Hostname()
 	if err != nil {
-		logger.Log.Error("error while getting hostname: %v", err)
+		logger.Log.Error("error while getting hostname, err: %v", err)
 		panic(err)
 	}
 
@@ -98,7 +98,7 @@ func (le *client) setIdentity() {
 				metaV1.GetOptions{},
 			)
 			if err != nil {
-				logger.Log.Error("error while getting pod: %v", err)
+				logger.Log.Error("error while getting pod, err: %v", err)
 				panic(err)
 			}
 
@@ -111,7 +111,7 @@ func (le *client) setIdentity() {
 
 			if tries > 10 {
 				err := errors.New("after 10 tries, pod ip is still empty")
-				logger.Log.Error("failed to get pod ip: %v", err)
+				logger.Log.Error("error while get pod ip, err: %v", err)
 				panic(err)
 			} else {
 				logger.Log.Debug("pod ip is empty, waiting...")
@@ -135,7 +135,7 @@ func (le *client) GetIdentity() *models.Identity {
 func NewClient() Client {
 	kubernetesConfig, err := rest.InClusterConfig()
 	if err != nil {
-		logger.Log.Error("failed to get kubernetes config: %v", err)
+		logger.Log.Error("error while get kubernetes config, err: %v", err)
 		panic(err)
 	}
 

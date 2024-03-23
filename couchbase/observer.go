@@ -514,7 +514,7 @@ func NewObserver(
 
 	err := observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)
 	if err != nil {
-		logger.Log.Error("cannot subscribe to persistSeqNo changed event: %v", err)
+		logger.Log.Error("error while subscribe to persistSeqNo changed event, err: %v", err)
 		panic(err)
 	}
 

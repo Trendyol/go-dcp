@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/asaskevich/EventBus"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -227,31 +229,46 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 	}
 }
 
-func (r *rollbackMitigation) loadVbUUIDMap() {
-	r.persistedSeqNos.Range(func(vbID uint16, _ []*vbUUIDAndSeqNo) bool {
-		failoverLogs, err := r.client.GetFailoverLogs(vbID)
-		if err != nil {
-			logger.Log.Error("error while get failover logs, err: %v", err)
-			panic(err)
-		}
+func (r *rollbackMitigation) loadVbUUID(vbID uint16) error {
+	failoverLogs, err := r.client.GetFailoverLogs(vbID)
+	if err != nil {
+		return err
+	}
 
-		r.vbUUIDMap.Store(vbID, failoverLogs[0].VbUUID)
+	r.vbUUIDMap.Store(vbID, failoverLogs[0].VbUUID)
 
-		var failoverInfos []string
-		for index, failoverLog := range failoverLogs {
-			failoverInfos = append(
-				failoverInfos,
-				fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failoverLog.VbUUID, failoverLog.SeqNo),
-			)
-		}
-
-		logger.Log.Debug(
-			"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
-			vbID, failoverLogs[0].VbUUID, strings.Join(failoverInfos, ", "),
+	var failoverInfos []string
+	for index, failoverLog := range failoverLogs {
+		failoverInfos = append(
+			failoverInfos,
+			fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failoverLog.VbUUID, failoverLog.SeqNo),
 		)
+	}
+
+	logger.Log.Debug(
+		"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
+		vbID, failoverLogs[0].VbUUID, strings.Join(failoverInfos, ", "),
+	)
+
+	return nil
+}
+
+func (r *rollbackMitigation) loadVbUUIDMap() {
+	eg, _ := errgroup.WithContext(context.Background())
+
+	r.persistedSeqNos.Range(func(vbID uint16, _ []*vbUUIDAndSeqNo) bool {
+		eg.Go(func() error {
+			return r.loadVbUUID(vbID)
+		})
 
 		return true
 	})
+
+	err := eg.Wait()
+	if err != nil {
+		logger.Log.Error("error while get load vbuuid map, err: %v", err)
+		panic(err)
+	}
 }
 
 func (r *rollbackMitigation) reconfigure() {

@@ -158,9 +158,12 @@ func (s *dcp) Start() {
 
 	select {
 	case <-s.stopCh:
+		logger.Log.Info("stop channel triggered")
 	case <-s.cancelCh:
+		logger.Log.Info("cancel channel triggered")
 		s.closeWithCancel = true
 	case <-s.healCheckFailedCh:
+		logger.Log.Info("health check channel triggered")
 	}
 }
 

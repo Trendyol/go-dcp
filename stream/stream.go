@@ -43,31 +43,34 @@ type Metric struct {
 }
 
 type stream struct {
-	client                     couchbase.Client
-	metadata                   metadata.Metadata
-	checkpoint                 Checkpoint
-	rollbackMitigation         couchbase.RollbackMitigation
-	observer                   couchbase.Observer
-	vBucketDiscovery           VBucketDiscovery
-	bus                        EventBus.Bus
-	eventHandler               models.EventHandler
-	listener                   models.Listener
-	finishStreamWithEndEventCh chan struct{}
-	rebalanceTimer             *time.Timer
-	dirtyOffsets               *wrapper.ConcurrentSwissMap[uint16, bool]
-	stopCh                     chan struct{}
-	config                     *config.Dcp
-	version                    *couchbase.Version
-	bucketInfo                 *couchbase.BucketInfo
-	metric                     *Metric
-	collectionIDs              map[uint32]string
-	offsets                    *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
-	vbIds                      *wrapper.ConcurrentSwissMap[uint16, struct{}]
-	activeStreams              int
-	rebalanceLock              sync.Mutex
-	anyDirtyOffset             bool
-	balancing                  bool
-	closeWithCancel            bool
+	client                       couchbase.Client
+	metadata                     metadata.Metadata
+	checkpoint                   Checkpoint
+	rollbackMitigation           couchbase.RollbackMitigation
+	observer                     couchbase.Observer
+	vBucketDiscovery             VBucketDiscovery
+	bus                          EventBus.Bus
+	eventHandler                 models.EventHandler
+	config                       *config.Dcp
+	metric                       *Metric
+	vbIds                        *wrapper.ConcurrentSwissMap[uint16, struct{}]
+	rebalanceTimer               *time.Timer
+	dirtyOffsets                 *wrapper.ConcurrentSwissMap[uint16, bool]
+	stopCh                       chan struct{}
+	listener                     models.Listener
+	version                      *couchbase.Version
+	bucketInfo                   *couchbase.BucketInfo
+	finishStreamWithEndEventCh   chan struct{}
+	finishStreamWithCloseCh      chan struct{}
+	offsets                      *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
+	collectionIDs                map[uint32]string
+	activeStreams                int
+	rebalanceLock                sync.Mutex
+	streamFinishedWithCloseCh    bool
+	streamFinishedWithEndEventCh bool
+	anyDirtyOffset               bool
+	balancing                    bool
+	closeWithCancel              bool
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -135,18 +138,33 @@ func (s *stream) listen() {
 
 func (s *stream) reopenStream(vbID uint16) {
 	go func(innerVbID uint16) {
+		retry := 3
+
 		for {
 			err := s.openStream(innerVbID)
 			if err == nil {
 				logger.Log.Info("re-open stream, vbID: %d", innerVbID)
 				break
 			} else {
-				logger.Log.Error("cannot re-open stream, vbID: %d, err: %v", innerVbID, err)
+				logger.Log.Warn("cannot re-open stream, vbID: %d, err: %v", innerVbID, err)
 			}
 
-			time.Sleep(time.Second)
+			retry--
+			if retry == 0 {
+				s.decreaseStream()
+				break
+			}
+
+			time.Sleep(time.Second * 5)
 		}
 	}(vbID)
+}
+
+func (s *stream) decreaseStream() {
+	s.activeStreams--
+	if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
+		s.finishStreamWithEndEventCh <- struct{}{}
+	}
 }
 
 func (s *stream) listenEnd() {
@@ -171,15 +189,15 @@ func (s *stream) listenEnd() {
 				errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
 			s.reopenStream(endContext.Event.VbID)
 		} else {
-			s.activeStreams--
-			if s.activeStreams == 0 {
-				s.finishStreamWithEndEventCh <- struct{}{}
-			}
+			s.decreaseStream()
 		}
 	}
 }
 
 func (s *stream) Open() {
+	s.streamFinishedWithCloseCh = false
+	s.streamFinishedWithEndEventCh = false
+
 	s.eventHandler.BeforeStreamStart()
 
 	vbIds := s.vBucketDiscovery.Get()
@@ -316,7 +334,12 @@ func (s *stream) closeAllStreams(internal bool) {
 }
 
 func (s *stream) wait() {
-	<-s.finishStreamWithEndEventCh
+	select {
+	case <-s.finishStreamWithCloseCh:
+		s.streamFinishedWithCloseCh = true
+	case <-s.finishStreamWithEndEventCh:
+		s.streamFinishedWithEndEventCh = true
+	}
 
 	if !s.balancing {
 		close(s.stopCh)
@@ -340,6 +363,10 @@ func (s *stream) Close(closeWithCancel bool) {
 
 	disableStreamEndByClient := s.version.Lower(couchbase.SrvVer550)
 	s.closeAllStreams(disableStreamEndByClient)
+
+	if !s.streamFinishedWithEndEventCh {
+		s.finishStreamWithCloseCh <- struct{}{}
+	}
 
 	s.observer.CloseEnd()
 	s.observer = nil
@@ -393,6 +420,7 @@ func NewStream(client couchbase.Client,
 		bucketInfo:                 bucketInfo,
 		vBucketDiscovery:           vBucketDiscovery,
 		collectionIDs:              collectionIDs,
+		finishStreamWithCloseCh:    make(chan struct{}, 1),
 		finishStreamWithEndEventCh: make(chan struct{}, 1),
 		stopCh:                     stopCh,
 		bus:                        bus,

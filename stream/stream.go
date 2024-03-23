@@ -60,7 +60,6 @@ type stream struct {
 	version                    *couchbase.Version
 	bucketInfo                 *couchbase.BucketInfo
 	metric                     *Metric
-	finishStreamWithCloseCh    chan struct{}
 	collectionIDs              map[uint32]string
 	offsets                    *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	vbIds                      *wrapper.ConcurrentSwissMap[uint16, struct{}]
@@ -317,10 +316,7 @@ func (s *stream) closeAllStreams(internal bool) {
 }
 
 func (s *stream) wait() {
-	select {
-	case <-s.finishStreamWithCloseCh:
-	case <-s.finishStreamWithEndEventCh:
-	}
+	<-s.finishStreamWithEndEventCh
 
 	if !s.balancing {
 		close(s.stopCh)
@@ -345,7 +341,6 @@ func (s *stream) Close(closeWithCancel bool) {
 	disableStreamEndByClient := s.version.Lower(couchbase.SrvVer550)
 	s.closeAllStreams(disableStreamEndByClient)
 
-	s.finishStreamWithCloseCh <- struct{}{}
 	s.observer.CloseEnd()
 	s.observer = nil
 
@@ -398,7 +393,6 @@ func NewStream(client couchbase.Client,
 		bucketInfo:                 bucketInfo,
 		vBucketDiscovery:           vBucketDiscovery,
 		collectionIDs:              collectionIDs,
-		finishStreamWithCloseCh:    make(chan struct{}, 1),
 		finishStreamWithEndEventCh: make(chan struct{}, 1),
 		stopCh:                     stopCh,
 		bus:                        bus,

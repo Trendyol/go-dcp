@@ -8,7 +8,7 @@ import (
 )
 
 type HealthCheck interface {
-	Start(ch chan struct{})
+	Start()
 	Stop()
 }
 
@@ -18,16 +18,14 @@ type healthCheck struct {
 	client Client
 }
 
-func (h *healthCheck) Start(ch chan struct{}) {
+func (h *healthCheck) Start() {
 	h.ticker = time.NewTicker(h.config.Interval)
 
 	go func() {
 		for range h.ticker.C {
 			if _, err := h.client.Ping(); err != nil {
-				logger.Log.Error("health check failed: %v", err)
-				h.ticker.Stop()
-				ch <- struct{}{}
-				break
+				logger.Log.Error("error while health check: %v", err)
+				panic(err)
 			}
 		}
 	}()

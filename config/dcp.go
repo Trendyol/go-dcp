@@ -375,11 +375,11 @@ func (c *Dcp) applyDefaultRollbackMitigation() {
 
 func (c *Dcp) applyDefaultCheckpoint() {
 	if c.Checkpoint.Interval == 0 {
-		c.Checkpoint.Interval = 20 * time.Second
+		c.Checkpoint.Interval = 30 * time.Second
 	}
 
 	if c.Checkpoint.Timeout == 0 {
-		c.Checkpoint.Timeout = 60 * time.Second
+		c.Checkpoint.Timeout = 10 * time.Second
 	}
 
 	if c.Checkpoint.Type == "" {

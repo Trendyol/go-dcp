@@ -10,7 +10,7 @@ retract (
 require (
 	github.com/ansrivas/fiberprometheus/v2 v2.6.1
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/couchbase/gocbcore/v10 v10.3.2
+	github.com/couchbase/gocbcore/v10 v10.4.0
 	github.com/gofiber/fiber/v2 v2.52.2
 	github.com/google/uuid v1.6.0
 	github.com/json-iterator/go v1.1.12

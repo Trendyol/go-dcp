@@ -151,20 +151,13 @@ func (s *stream) reopenStream(vbID uint16) {
 
 			retry--
 			if retry == 0 {
-				s.decreaseStream()
-				break
+				logger.Log.Error("error while re-open stream, vbID: %d, err: give up after few retry", innerVbID)
+				panic(err)
 			}
 
 			time.Sleep(time.Second * 5)
 		}
 	}(vbID)
-}
-
-func (s *stream) decreaseStream() {
-	s.activeStreams--
-	if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
-		s.finishStreamWithEndEventCh <- struct{}{}
-	}
 }
 
 func (s *stream) listenEnd() {
@@ -189,7 +182,10 @@ func (s *stream) listenEnd() {
 				errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
 			s.reopenStream(endContext.Event.VbID)
 		} else {
-			s.decreaseStream()
+			s.activeStreams--
+			if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
+				s.finishStreamWithEndEventCh <- struct{}{}
+			}
 		}
 	}
 }

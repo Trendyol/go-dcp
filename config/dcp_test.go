@@ -156,11 +156,11 @@ func TestDcpApplyDefaultCheckpoint(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultCheckpoint()
 
-	if c.Checkpoint.Interval != 20*time.Second {
+	if c.Checkpoint.Interval != 30*time.Second {
 		t.Errorf("Checkpoint.Interval is not set to expected value")
 	}
 
-	if c.Checkpoint.Timeout != 60*time.Second {
+	if c.Checkpoint.Timeout != 10*time.Second {
 		t.Errorf("Checkpoint.Timeout is not set to expected value")
 	}
 

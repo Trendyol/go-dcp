@@ -146,20 +146,20 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 			strconv.Itoa(int(vbID)),
 		)
 
-		var lag float64
-
-		seqNo, _ := seqNoMap.Load(vbID)
-
-		if seqNo > offset.SeqNo {
-			lag = float64(seqNo - offset.SeqNo)
-		}
-
 		if err != nil {
 			ch <- prometheus.NewInvalidMetric(
 				s.lag,
 				err,
 			)
 		} else {
+			var lag float64
+
+			seqNo, _ := seqNoMap.Load(vbID)
+
+			if seqNo > offset.SeqNo {
+				lag = float64(seqNo - offset.SeqNo)
+			}
+
 			totalLag += lag
 
 			ch <- prometheus.MustNewConstMetric(

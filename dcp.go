@@ -46,27 +46,26 @@ type Dcp interface {
 }
 
 type dcp struct {
-	bus               EventBus.Bus
-	stream            stream.Stream
-	api               api.API
-	leaderElection    stream.LeaderElection
-	vBucketDiscovery  stream.VBucketDiscovery
-	serviceDiscovery  servicediscovery.ServiceDiscovery
-	metadata          metadata.Metadata
-	eventHandler      models.EventHandler
-	client            couchbase.Client
-	apiShutdown       chan struct{}
-	healCheckFailedCh chan struct{}
-	config            *config.Dcp
-	version           *couchbase.Version
-	bucketInfo        *couchbase.BucketInfo
-	healthCheck       couchbase.HealthCheck
-	listener          models.Listener
-	readyCh           chan struct{}
-	cancelCh          chan os.Signal
-	stopCh            chan struct{}
-	metricCollectors  []prometheus.Collector
-	closeWithCancel   bool
+	bus              EventBus.Bus
+	stream           stream.Stream
+	api              api.API
+	leaderElection   stream.LeaderElection
+	vBucketDiscovery stream.VBucketDiscovery
+	serviceDiscovery servicediscovery.ServiceDiscovery
+	metadata         metadata.Metadata
+	eventHandler     models.EventHandler
+	client           couchbase.Client
+	apiShutdown      chan struct{}
+	config           *config.Dcp
+	version          *couchbase.Version
+	bucketInfo       *couchbase.BucketInfo
+	healthCheck      couchbase.HealthCheck
+	listener         models.Listener
+	readyCh          chan struct{}
+	cancelCh         chan os.Signal
+	stopCh           chan struct{}
+	metricCollectors []prometheus.Collector
+	closeWithCancel  bool
 }
 
 func (s *dcp) SetMetadata(metadata metadata.Metadata) {
@@ -149,7 +148,7 @@ func (s *dcp) Start() {
 
 	if !s.config.HealthCheck.Disabled {
 		s.healthCheck = couchbase.NewHealthCheck(&s.config.HealthCheck, s.client)
-		s.healthCheck.Start(s.healCheckFailedCh)
+		s.healthCheck.Start()
 	}
 
 	logger.Log.Info("dcp stream started")
@@ -158,12 +157,10 @@ func (s *dcp) Start() {
 
 	select {
 	case <-s.stopCh:
-		logger.Log.Info("stop channel triggered")
+		logger.Log.Debug("stop channel triggered")
 	case <-s.cancelCh:
-		logger.Log.Info("cancel channel triggered")
+		logger.Log.Debug("cancel channel triggered")
 		s.closeWithCancel = true
-	case <-s.healCheckFailedCh:
-		logger.Log.Info("health check channel triggered")
 	}
 }
 
@@ -266,19 +263,18 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	}
 
 	return &dcp{
-		client:            client,
-		listener:          listener,
-		config:            config,
-		version:           version,
-		bucketInfo:        bucketInfo,
-		apiShutdown:       make(chan struct{}, 1),
-		cancelCh:          make(chan os.Signal, 1),
-		stopCh:            make(chan struct{}, 1),
-		healCheckFailedCh: make(chan struct{}, 1),
-		readyCh:           make(chan struct{}, 1),
-		metricCollectors:  []prometheus.Collector{},
-		eventHandler:      models.DefaultEventHandler,
-		bus:               EventBus.New(),
+		client:           client,
+		listener:         listener,
+		config:           config,
+		version:          version,
+		bucketInfo:       bucketInfo,
+		apiShutdown:      make(chan struct{}, 1),
+		cancelCh:         make(chan os.Signal, 1),
+		stopCh:           make(chan struct{}, 1),
+		readyCh:          make(chan struct{}, 1),
+		metricCollectors: []prometheus.Collector{},
+		eventHandler:     models.DefaultEventHandler,
+		bus:              EventBus.New(),
 	}, nil
 }
 

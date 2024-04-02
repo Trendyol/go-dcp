@@ -150,7 +150,7 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 		}
 
 		if vbUUID != replica.vbUUID {
-			logger.Log.Debug("vbUUID mismatch %v != %v for %v index of %v", vbUUID, replica.vbUUID, idx, len(replicas))
+			logger.Log.Trace("vbUUID mismatch %v != %v for %v index of %v", vbUUID, replica.vbUUID, idx, len(replicas))
 			return 0
 		}
 
@@ -205,16 +205,17 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 			r.persistedSeqNos.Range(func(vbID uint16, replicas []*vbUUIDAndSeqNo) bool {
 				for idx, replica := range replicas {
 					if replica.IsAbsent() {
+						wg.Done()
 						continue
 					}
 
 					if r.closed || r.activeGroupID != groupID {
 						logger.Log.Debug("closed(%v) or groupID(%v!=%v) changed on startObserve", r.closed, r.activeGroupID, groupID)
-						return false
+						wg.Done()
+					} else {
+						vbUUID, _ := r.vbUUIDMap.Load(vbID)
+						r.observe(vbID, idx, groupID, vbUUID, wg)
 					}
-
-					vbUUID, _ := r.vbUUIDMap.Load(vbID)
-					r.observe(vbID, idx, groupID, vbUUID, wg)
 				}
 
 				return true
@@ -222,7 +223,7 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 
 			wg.Wait()
 		case <-r.observeCloseCh:
-			logger.Log.Debug("observe close triggered")
+			logger.Log.Debug("observe close trigger received")
 			r.observeCloseDoneCh <- struct{}{}
 			return
 		}
@@ -245,7 +246,7 @@ func (r *rollbackMitigation) loadVbUUID(vbID uint16) error {
 		)
 	}
 
-	logger.Log.Debug(
+	logger.Log.Trace(
 		"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
 		vbID, failoverLogs[0].VbUUID, strings.Join(failoverInfos, ", "),
 	)
@@ -276,9 +277,10 @@ func (r *rollbackMitigation) reconfigure() {
 
 	if r.observeTimer != nil {
 		r.observeTimer.Stop()
+		logger.Log.Debug("observe close triggered from reconfigure")
 		r.observeCloseCh <- struct{}{}
 		<-r.observeCloseDoneCh
-		logger.Log.Debug("observe close done")
+		logger.Log.Debug("observe close done from reconfigure")
 	}
 
 	r.activeGroupID++
@@ -419,8 +421,10 @@ func (r *rollbackMitigation) Stop() {
 
 	if r.observeTimer != nil {
 		r.observeTimer.Stop()
+		logger.Log.Debug("observe close triggered from stop")
 		r.observeCloseCh <- struct{}{}
 		<-r.observeCloseDoneCh
+		logger.Log.Debug("observe close done from stop")
 	}
 
 	logger.Log.Info("rollback mitigation stopped")

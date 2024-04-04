@@ -224,8 +224,13 @@ func (h *cbMembership) monitor() {
 		err = h.updateIndex(ctx, filteredInstances, data.Cas)
 		if err == nil {
 			h.rebalance(filteredInstances)
-		} else if errors.Is(err, gocbcore.ErrCasMismatch) {
-			h.monitor()
+		} else {
+			if errors.Is(err, gocbcore.ErrCasMismatch) {
+				logger.Log.Warn("error while update instances: cas mismatch")
+				h.monitor()
+			} else {
+				logger.Log.Error("error while update instances: %v", err)
+			}
 		}
 	}
 }
@@ -241,7 +246,6 @@ func (h *cbMembership) updateIndex(ctx context.Context, instances []Instance, ca
 
 	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, payload, 0, &cas)
 	if err != nil {
-		logger.Log.Error("error while update instances: %v", err)
 		return err
 	}
 	return nil

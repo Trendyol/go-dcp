@@ -90,6 +90,8 @@ func (s *cbMetadata) Load(
 
 				if err != nil {
 					doc = models.NewEmptyCheckpointDocument(bucketUUID)
+					logger.Log.Warn("corrupted checkpoint, vbID: %d, key: %v, err: %v", vbID, id, err)
+					err = nil
 				} else {
 					exist = true
 				}

@@ -193,10 +193,11 @@ func (s *client) connect(bucketName string, connectionBufferSize uint, connectio
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {
-	if len(hosts) == 1 {
-		parsedConnStr, err := connstr.Parse(hosts[0])
+	var httpHosts []string
+	for _, host := range hosts {
+		parsedConnStr, err := connstr.Parse(host)
 		if err != nil {
-			err := errors.New(hosts[0] + " " + err.Error())
+			err := errors.New(host + " " + err.Error())
 			logger.Log.Error("error while parsing connection string, err: %v", err)
 			panic(err)
 		}
@@ -208,15 +209,12 @@ func resolveHostsAsHTTP(hosts []string) []string {
 			panic(err)
 		}
 
-		var httpHosts []string
 		for _, specHost := range out.HttpHosts {
 			httpHosts = append(httpHosts, fmt.Sprintf("%s:%d", specHost.Host, specHost.Port))
 		}
-
-		return httpHosts
 	}
 
-	return hosts
+	return httpHosts
 }
 
 func (s *client) Connect() error {

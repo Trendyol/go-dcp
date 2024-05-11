@@ -6,7 +6,6 @@ import (
 )
 
 func TestClient_ResolveHttpAddress(t *testing.T) {
-
 	t.Run("single host with port", func(t *testing.T) {
 		// Arrange
 		givenHosts := []string{"localhost:8091"}

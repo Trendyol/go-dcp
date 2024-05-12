@@ -17,7 +17,10 @@ lint:
 	golangci-lint run -c .golangci.yml --timeout=5m -v
 
 test:
-	go test ./... -bench .
+	go test ./... .
+
+race:
+	CB_VERSION=7.6.1 go test ./... -race .
 
 tidy:
 	go mod tidy

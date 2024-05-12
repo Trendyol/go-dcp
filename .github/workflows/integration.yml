@@ -2,10 +2,10 @@ name: Integration
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
   pull_request:
-    branches: [master]
-    types: [opened, reopened, synchronize]
+    branches: [ master ]
+    types: [ opened, reopened, synchronize ]
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version: [ "7.1.6", "7.2.4" ]
+        version: [ "7.1.6", "7.2.5", "7.6.1" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

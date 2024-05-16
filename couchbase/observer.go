@@ -1,6 +1,7 @@
 package couchbase
 
 import (
+	"github.com/Trendyol/go-dcp/trace"
 	"time"
 
 	"github.com/asaskevich/EventBus"
@@ -72,6 +73,7 @@ type observer struct {
 	persistSeqNo           *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo]
 	uuIDMap                *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
 	config                 *dcp.Dcp
+	tracer                 trace.Tracer
 	catchupNeededVbIDCount int
 	closed                 bool
 }
@@ -169,7 +171,9 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
+	tc := trace.NewTracerComponent(so.tracer).CreateTrace("Mutation", nil)
 	if !so.canForward(mutation.VbID, mutation.SeqNo) {
+		tc.Finish()
 		return
 	}
 
@@ -197,6 +201,8 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 			TotalMutations: 1,
 		})
 	}
+
+	tc.Finish()
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
@@ -428,6 +434,7 @@ func NewObserver(
 	config *dcp.Dcp,
 	collectionIDs map[uint32]string,
 	bus EventBus.Bus,
+	tracer trace.Tracer,
 ) Observer {
 	observer := &observer{
 		currentSnapshots: wrapper.CreateConcurrentSwissMap[uint16, *models.SnapshotMarker](1024),
@@ -440,6 +447,7 @@ func NewObserver(
 		bus:              bus,
 		persistSeqNo:     wrapper.CreateConcurrentSwissMap[uint16, gocbcore.SeqNo](100),
 		config:           config,
+		tracer:           tracer,
 	}
 
 	err := observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)

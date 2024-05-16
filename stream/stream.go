@@ -14,14 +14,12 @@ import (
 
 	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp/metadata"
-
 	"github.com/Trendyol/go-dcp/couchbase"
-	"github.com/Trendyol/go-dcp/models"
-
-	"github.com/Trendyol/go-dcp/logger"
-
 	"github.com/Trendyol/go-dcp/helpers"
+	"github.com/Trendyol/go-dcp/logger"
+	"github.com/Trendyol/go-dcp/metadata"
+	"github.com/Trendyol/go-dcp/models"
+	"github.com/Trendyol/go-dcp/trace"
 )
 
 type Stream interface {
@@ -69,6 +67,7 @@ type stream struct {
 	anyDirtyOffset             bool
 	balancing                  bool
 	closeWithCancel            bool
+	tracer                     trace.Tracer
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -191,7 +190,7 @@ func (s *stream) Open() {
 		s.vbIds.Store(vbID, struct{}{})
 	}
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
-	s.observer = couchbase.NewObserver(s.config, s.collectionIDs, s.bus)
+	s.observer = couchbase.NewObserver(s.config, s.collectionIDs, s.bus, s.tracer)
 
 	s.openAllStreams(vbIds)
 
@@ -376,6 +375,7 @@ func NewStream(client couchbase.Client,
 	stopCh chan struct{},
 	bus EventBus.Bus,
 	eventHandler models.EventHandler,
+	tracer trace.Tracer,
 ) Stream {
 	return &stream{
 		client:                     client,
@@ -392,5 +392,6 @@ func NewStream(client couchbase.Client,
 		bus:                        bus,
 		eventHandler:               eventHandler,
 		metric:                     &Metric{},
+		tracer:                     tracer,
 	}
 }

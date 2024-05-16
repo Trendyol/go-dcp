@@ -1,4 +1,4 @@
-package tracing
+package trace
 
 import (
 	"github.com/couchbase/gocbcore/v10"
@@ -39,7 +39,7 @@ type TracerComponent struct {
 	tracer Tracer
 }
 
-func NewTracer(tracer Tracer) *TracerComponent {
+func NewTracerComponent(tracer Tracer) *TracerComponent {
 	return &TracerComponent{
 		tracer: tracer,
 	}

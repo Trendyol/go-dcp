@@ -3,7 +3,7 @@ package dcp
 import (
 	"errors"
 	"fmt"
-	"github.com/Trendyol/go-dcp/tracing"
+	"github.com/Trendyol/go-dcp/trace"
 	"os"
 	"os/signal"
 	"reflect"
@@ -66,7 +66,7 @@ type dcp struct {
 	cancelCh          chan os.Signal
 	stopCh            chan struct{}
 	metricCollectors  []prometheus.Collector
-	tracer            tracing.Tracer
+	tracer            trace.Tracer
 	closeWithCancel   bool
 }
 
@@ -111,7 +111,7 @@ func (s *dcp) Start() {
 
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.version, s.bucketInfo, s.vBucketDiscovery,
-		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, s.bus, s.eventHandler,
+		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, s.bus, s.eventHandler, s.tracer,
 	)
 
 	if s.config.LeaderElection.Enabled {
@@ -216,7 +216,7 @@ func (s *dcp) GetVersion() *couchbase.Version {
 	return s.version
 }
 
-func newDcp(config *config.Dcp, listener models.Listener, tracer tracing.Tracer) (Dcp, error) {
+func newDcp(config *config.Dcp, listener models.Listener, tracer trace.Tracer) (Dcp, error) {
 	config.ApplyDefaults()
 	copyOfConfig := config
 	printConfiguration(*copyOfConfig)
@@ -283,7 +283,7 @@ func newDcp(config *config.Dcp, listener models.Listener, tracer tracing.Tracer)
 //
 // config: path to a configuration file or a configuration struct
 // listener is a callback function that will be called when a mutation, deletion or expiration event occurs
-func NewDcp(cfg any, listener models.Listener, tracer ...tracing.Tracer) (Dcp, error) {
+func NewDcp(cfg any, listener models.Listener, tracer ...trace.Tracer) (Dcp, error) {
 	t, err := getTracerIfPresent(tracer)
 	if err != nil {
 		return nil, err
@@ -300,18 +300,18 @@ func NewDcp(cfg any, listener models.Listener, tracer ...tracing.Tracer) (Dcp, e
 	}
 }
 
-func getTracerIfPresent(tracer []tracing.Tracer) (tracing.Tracer, error) {
+func getTracerIfPresent(tracer []trace.Tracer) (trace.Tracer, error) {
 	if len(tracer) > 1 {
 		return nil, errors.New("there should be only one tracer")
 	}
-	var t tracing.Tracer
+	var t trace.Tracer
 	if len(tracer) == 1 {
 		t = tracer[0]
 	}
 	return t, nil
 }
 
-func newDcpWithPath(path string, listener models.Listener, tracer tracing.Tracer) (Dcp, error) {
+func newDcpWithPath(path string, listener models.Listener, tracer trace.Tracer) (Dcp, error) {
 	c, err := newDcpConfig(path)
 	if err != nil {
 		return nil, err
@@ -332,7 +332,7 @@ func newDcpConfig(path string) (config.Dcp, error) {
 	return c, nil
 }
 
-func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger, tracer tracing.Tracer) (Dcp, error) {
+func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger, tracer trace.Tracer) (Dcp, error) {
 	logger.Log = &logger.Loggers{
 		Logrus: logrus,
 	}

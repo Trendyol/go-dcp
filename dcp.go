@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/asaskevich/EventBus"
@@ -313,6 +315,22 @@ func newDcpConfig(path string) (config.Dcp, error) {
 	if err != nil {
 		return config.Dcp{}, err
 	}
+
+	envPattern := regexp.MustCompile(`\${([^}]+)}`)
+	matches := envPattern.FindAllStringSubmatch(string(file), -1)
+	for _, match := range matches {
+		envVar := match[1]
+		if value, exists := os.LookupEnv(envVar); exists {
+			updatedFile := strings.ReplaceAll(string(file), "${"+envVar+"}", value)
+			file = []byte(updatedFile)
+		}
+	}
+
+	err = yaml.Unmarshal(file, &c)
+	if err != nil {
+		return config.Dcp{}, err
+	}
+
 	return c, nil
 }
 

@@ -419,7 +419,7 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 		for j := 0; j < collectionIDSize; j++ {
 			eg.Go(func(i int, j int) func() error {
 				return func() error {
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 					defer cancel()
 
 					opm := NewAsyncOp(ctx)
@@ -485,7 +485,7 @@ func (s *client) GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) {
 }
 
 func (s *client) GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
@@ -537,7 +537,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
@@ -580,7 +580,7 @@ func (s *client) OpenStream(
 	offset *models.Offset,
 	observer Observer,
 ) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
@@ -643,7 +643,7 @@ func (s *client) OpenStream(
 }
 
 func (s *client) CloseStream(vbID uint16) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)

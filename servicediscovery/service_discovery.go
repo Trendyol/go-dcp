@@ -197,7 +197,7 @@ func (s *serviceDiscovery) GetAll() []string {
 		return s1.ClusterJoinTime < s2.ClusterJoinTime
 	}).Sort(services)
 
-	var names []string
+	names := make([]string, 0, len(services))
 
 	for _, service := range services {
 		names = append(names, service.Name)

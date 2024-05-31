@@ -406,8 +406,10 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
 
 	hasCollectionSupport := s.dcpAgent.HasCollectionsSupport()
-	var collectionIDs []uint32
-	for collectionID := range s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames) {
+
+	cIds := s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
+	collectionIDs := make([]uint32, 0, len(cIds))
+	for collectionID := range cIds {
 		collectionIDs = append(collectionIDs, collectionID)
 	}
 	collectionIDSize := len(collectionIDs)

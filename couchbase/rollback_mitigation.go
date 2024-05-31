@@ -238,7 +238,7 @@ func (r *rollbackMitigation) loadVbUUID(vbID uint16) error {
 
 	r.vbUUIDMap.Store(vbID, failoverLogs[0].VbUUID)
 
-	var failoverInfos []string
+	failoverInfos := make([]string, 0, len(failoverLogs))
 	for index, failoverLog := range failoverLogs {
 		failoverInfos = append(
 			failoverInfos,

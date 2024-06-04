@@ -66,6 +66,24 @@ func getServiceEndpoint(result *gocbcore.PingResult, serviceType gocbcore.Servic
 	return ""
 }
 
+func printLatenciesOfServiceEndpoints(result *gocbcore.PingResult) {
+	for serviceType, service := range result.Services {
+		for _, serviceResult := range service {
+			if serviceResult.Error == nil {
+				logger.Log.Debug(
+					"ping result for serviceType(memd,mgmt): %v, endpoint: %v, latency: %vms, state(ok,timeout,err): %v",
+					serviceType, serviceResult.Endpoint, serviceResult.Latency.Milliseconds(), serviceResult.State,
+				)
+			} else {
+				logger.Log.Warn(
+					"ping result get err for serviceType(memd,mgmt): %v, endpoint: %v, latency: %vms, state(ok,timeout,err): %v, err: %v",
+					serviceType, serviceResult.Endpoint, serviceResult.Latency.Milliseconds(), serviceResult.State, serviceResult.Error.Error(),
+				)
+			}
+		}
+	}
+}
+
 func (s *client) Ping() (*models.PingResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), s.config.HealthCheck.Timeout)
 	defer cancel()
@@ -81,6 +99,10 @@ func (s *client) Ping() (*models.PingResult, error) {
 		if err == nil {
 			pingResult.MemdEndpoint = getServiceEndpoint(result, gocbcore.MemdService)
 			pingResult.MgmtEndpoint = getServiceEndpoint(result, gocbcore.MgmtService)
+
+			if result != nil {
+				printLatenciesOfServiceEndpoints(result)
+			}
 		}
 
 		if pingResult.MemdEndpoint == "" || pingResult.MgmtEndpoint == "" {

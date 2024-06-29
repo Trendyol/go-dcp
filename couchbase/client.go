@@ -631,7 +631,7 @@ func (s *client) OpenStream(
 
 	op, err := s.dcpAgent.OpenStream(
 		vbID,
-		0,
+		0x80,
 		offset.VbUUID,
 		gocbcore.SeqNo(offset.SeqNo),
 		0xffffffffffffffff,

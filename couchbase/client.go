@@ -258,6 +258,7 @@ func (s *client) Connect() error {
 
 	agent, err := s.connect(s.config.BucketName, connectionBufferSize, connectionTimeout)
 	if err != nil {
+		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
 	}
 
@@ -274,6 +275,7 @@ func (s *client) Connect() error {
 				couchbaseMetadataConfig.ConnectionTimeout,
 			)
 			if err != nil {
+				logger.Log.Error("error while connect to metadata bucket, err: %v", err)
 				return err
 			}
 
@@ -330,6 +332,7 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		memd.DcpOpenFlagProducer,
 	)
 	if err != nil {
+		logger.Log.Error("error while connect to dcp, err: %v", err)
 		return err
 	}
 
@@ -345,10 +348,12 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		},
 	)
 	if err != nil {
+		logger.Log.Error("error while wait until ready to dcp, err: %v", err)
 		return err
 	}
 
 	if err = <-ch; err != nil {
+		logger.Log.Error("error while wait until ready to dcp on callback, err: %v", err)
 		return err
 	}
 
@@ -549,6 +554,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	failoverLogs, err := s.GetFailoverLogs(vbID)
 	if err != nil {
+		logger.Log.Error("error while get failover logs, err: %v", err)
 		return err
 	}
 

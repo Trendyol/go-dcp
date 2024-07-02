@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/Trendyol/go-dcp/logger"
+
 	"github.com/Trendyol/go-dcp/config"
 
 	jsoniter "github.com/json-iterator/go"
@@ -43,6 +45,7 @@ type httpClient struct {
 func (h *httpClient) Connect() error {
 	pingResult, err := h.client.Ping()
 	if err != nil {
+		logger.Log.Error("error while connecting as http to couchbase: %v", err)
 		return err
 	}
 

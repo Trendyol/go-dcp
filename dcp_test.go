@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
+
 	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/logger"
@@ -82,8 +85,15 @@ func setupContainer(c *config.Dcp, ctx context.Context, version string) (testcon
 
 	req := testcontainers.ContainerRequest{
 		Image:        fmt.Sprintf("couchbase/server:%v", version),
-		ExposedPorts: []string{"8091:8091/tcp", "8093:8093/tcp", "11210:11210/tcp"},
-		WaitingFor:   wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
+		ExposedPorts: []string{"8091/tcp", "8093/tcp", "11210/tcp"},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.PortBindings = map[nat.Port][]nat.PortBinding{
+				"8091/tcp":  {{HostIP: "0.0.0.0", HostPort: "8091"}},
+				"8093/tcp":  {{HostIP: "0.0.0.0", HostPort: "8093"}},
+				"11210/tcp": {{HostIP: "0.0.0.0", HostPort: "11210"}},
+			}
+		},
+		WaitingFor: wait.ForLog("/entrypoint.sh couchbase-server").WithStartupTimeout(30 * time.Second),
 		Env: map[string]string{
 			"USERNAME":                  c.Username,
 			"PASSWORD":                  c.Password,

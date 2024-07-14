@@ -5,8 +5,6 @@ import (
 
 	"github.com/asaskevich/EventBus"
 
-	"github.com/Trendyol/go-dcp/wrapper"
-
 	"github.com/Trendyol/go-dcp/logger"
 
 	dcp "github.com/Trendyol/go-dcp/config"
@@ -31,14 +29,14 @@ type Observer interface {
 	ModifyCollection(modification gocbcore.DcpCollectionModification)
 	OSOSnapshot(snapshot models.DcpOSOSnapshot)
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
-	GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
-	GetPersistSeqNo() *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo]
+	GetMetrics() *ObserverMetric
+	GetPersistSeqNo() gocbcore.SeqNo
 	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
 	ListenEnd() models.ListenerEndCh
-	AddCatchup(vbID uint16, seqNo gocbcore.SeqNo)
-	SetVbUUID(vbID uint16, vbUUID gocbcore.VbUUID)
+	SetCatchup(seqNo gocbcore.SeqNo)
+	SetVbUUID(vbUUID gocbcore.VbUUID)
 }
 
 const DefaultCollectionName = "_default"
@@ -62,67 +60,57 @@ func (om *ObserverMetric) AddExpiration() {
 }
 
 type observer struct {
-	bus                    EventBus.Bus
-	metrics                *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric]
-	listenerEndCh          models.ListenerEndCh
-	collectionIDs          map[uint32]string
-	catchup                *wrapper.ConcurrentSwissMap[uint16, uint64]
-	currentSnapshots       *wrapper.ConcurrentSwissMap[uint16, *models.SnapshotMarker]
-	listenerCh             models.ListenerCh
-	persistSeqNo           *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo]
-	uuIDMap                *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
-	config                 *dcp.Dcp
-	catchupNeededVbIDCount int
-	closed                 bool
+	bus             EventBus.Bus
+	currentSnapshot *models.SnapshotMarker
+	listenerEndCh   models.ListenerEndCh
+	collectionIDs   map[uint32]string
+	metrics         *ObserverMetric
+	listenerCh      models.ListenerCh
+	vbUUID          *gocbcore.VbUUID
+	config          *dcp.Dcp
+	catchupSeqNo    uint64
+	persistSeqNo    gocbcore.SeqNo
+	vbID            uint16
+	isCatchupNeed   bool
+	closed          bool
 }
 
-func (so *observer) AddCatchup(vbID uint16, seqNo gocbcore.SeqNo) {
-	so.catchup.Store(vbID, uint64(seqNo))
-	so.catchupNeededVbIDCount++
+func (so *observer) SetCatchup(seqNo gocbcore.SeqNo) {
+	so.catchupSeqNo = uint64(seqNo)
+	so.isCatchupNeed = true
 }
 
 func (so *observer) persistSeqNoChangedListener(persistSeqNo models.PersistSeqNo) {
 	if persistSeqNo.SeqNo != 0 {
-		currentPersistSeqNo, _ := so.persistSeqNo.Load(persistSeqNo.VbID)
-
-		if persistSeqNo.SeqNo > currentPersistSeqNo {
-			so.persistSeqNo.Store(persistSeqNo.VbID, persistSeqNo.SeqNo)
+		if persistSeqNo.SeqNo > so.persistSeqNo {
+			so.persistSeqNo = persistSeqNo.SeqNo
 		}
 	} else {
 		logger.Log.Trace("persistSeqNo: %v on vbId: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
 	}
 }
 
-func (so *observer) checkPersistSeqNo(vbID uint16, seqNo uint64) bool {
-	endSeqNo, ok := so.persistSeqNo.Load(vbID)
-
-	return (ok && gocbcore.SeqNo(seqNo) <= endSeqNo) || so.closed
+func (so *observer) checkPersistSeqNo(seqNo uint64) bool {
+	return gocbcore.SeqNo(seqNo) <= so.persistSeqNo || so.closed
 }
 
-func (so *observer) needCatchup(vbID uint16, seqNo uint64) bool {
-	if so.catchupNeededVbIDCount == 0 {
+func (so *observer) needCatchup(seqNo uint64) bool {
+	if !so.isCatchupNeed {
 		return false
 	}
 
-	if catchupSeqNo, ok := so.catchup.Load(vbID); ok {
-		if seqNo >= catchupSeqNo {
-			so.catchup.Delete(vbID)
-			so.catchupNeededVbIDCount--
-
-			logger.Log.Info("catchup completed for vbID: %d, remaining catchup: %d", vbID, so.catchupNeededVbIDCount)
-
-			return seqNo == catchupSeqNo
-		}
-	} else {
-		return false
+	if seqNo >= so.catchupSeqNo {
+		so.isCatchupNeed = false
+		logger.Log.Info("catchup completed for vbID: %d", so.vbID)
+		return seqNo == so.catchupSeqNo
 	}
 
 	return true
 }
 
-func (so *observer) waitRollbackMitigation(vbID uint16, seqNo uint64) {
+func (so *observer) waitRollbackMitigation(seqNo uint64) {
 	for {
-		if so.checkPersistSeqNo(vbID, seqNo) {
+		if so.checkPersistSeqNo(seqNo) {
 			break
 		}
 
@@ -130,12 +118,12 @@ func (so *observer) waitRollbackMitigation(vbID uint16, seqNo uint64) {
 	}
 }
 
-func (so *observer) canForward(vbID uint16, seqNo uint64) bool {
+func (so *observer) canForward(seqNo uint64) bool {
 	if !so.config.RollbackMitigation.Disabled {
-		so.waitRollbackMitigation(vbID, seqNo)
+		so.waitRollbackMitigation(seqNo)
 	}
 
-	return !so.needCatchup(vbID, seqNo)
+	return !so.needCatchup(seqNo)
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) string {
@@ -158,10 +146,10 @@ func (so *observer) sendOrSkip(args models.ListenerArgs) {
 }
 
 func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
-	so.currentSnapshots.Store(event.VbID, &models.SnapshotMarker{
+	so.currentSnapshot = &models.SnapshotMarker{
 		StartSeqNo: event.StartSeqNo,
 		EndSeqNo:   event.EndSeqNo,
-	})
+	}
 
 	so.sendOrSkip(models.ListenerArgs{
 		Event: event,
@@ -169,19 +157,17 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 }
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
-	if !so.canForward(mutation.VbID, mutation.SeqNo) {
+	if !so.canForward(mutation.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(mutation.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(mutation.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
 				DcpMutation: &mutation,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          mutation.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(mutation.CollectionID),
@@ -190,29 +176,21 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 		})
 	}
 
-	if metric, ok := so.metrics.Load(mutation.VbID); ok {
-		metric.AddMutation()
-	} else {
-		so.metrics.Store(mutation.VbID, &ObserverMetric{
-			TotalMutations: 1,
-		})
-	}
+	so.metrics.AddMutation()
 }
 
 func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
-	if !so.canForward(deletion.VbID, deletion.SeqNo) {
+	if !so.canForward(deletion.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(deletion.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(deletion.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpDeletion{
 				DcpDeletion: &deletion,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          deletion.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(deletion.CollectionID),
@@ -221,29 +199,21 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 		})
 	}
 
-	if metric, ok := so.metrics.Load(deletion.VbID); ok {
-		metric.AddDeletion()
-	} else {
-		so.metrics.Store(deletion.VbID, &ObserverMetric{
-			TotalDeletions: 1,
-		})
-	}
+	so.metrics.AddDeletion()
 }
 
 func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dupl
-	if !so.canForward(expiration.VbID, expiration.SeqNo) {
+	if !so.canForward(expiration.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(expiration.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(expiration.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpExpiration{
 				DcpExpiration: &expiration,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          expiration.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(expiration.CollectionID),
@@ -252,13 +222,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 		})
 	}
 
-	if metric, ok := so.metrics.Load(expiration.VbID); ok {
-		metric.AddExpiration()
-	} else {
-		so.metrics.Store(expiration.VbID, &ObserverMetric{
-			TotalExpirations: 1,
-		})
-	}
+	so.metrics.AddExpiration()
 }
 
 // nolint:staticcheck
@@ -276,19 +240,17 @@ func (so *observer) End(event models.DcpStreamEnd, err error) {
 }
 
 func (so *observer) CreateCollection(event gocbcore.DcpCollectionCreation) {
-	if !so.canForward(event.VbID, event.SeqNo) {
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(event.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionCreation{
 				DcpCollectionCreation: &event,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -298,19 +260,17 @@ func (so *observer) CreateCollection(event gocbcore.DcpCollectionCreation) {
 }
 
 func (so *observer) DeleteCollection(event gocbcore.DcpCollectionDeletion) {
-	if !so.canForward(event.VbID, event.SeqNo) {
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(event.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionDeletion{
 				DcpCollectionDeletion: &event,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -320,19 +280,17 @@ func (so *observer) DeleteCollection(event gocbcore.DcpCollectionDeletion) {
 }
 
 func (so *observer) FlushCollection(event gocbcore.DcpCollectionFlush) {
-	if !so.canForward(event.VbID, event.SeqNo) {
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(event.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionFlush{
 				DcpCollectionFlush: &event,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -342,19 +300,17 @@ func (so *observer) FlushCollection(event gocbcore.DcpCollectionFlush) {
 }
 
 func (so *observer) CreateScope(event gocbcore.DcpScopeCreation) {
-	if !so.canForward(event.VbID, event.SeqNo) {
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(event.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpScopeCreation{
 				DcpScopeCreation: &event,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 			},
@@ -363,19 +319,17 @@ func (so *observer) CreateScope(event gocbcore.DcpScopeCreation) {
 }
 
 func (so *observer) DeleteScope(event gocbcore.DcpScopeDeletion) {
-	if !so.canForward(event.VbID, event.SeqNo) {
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(event.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpScopeDeletion{
 				DcpScopeDeletion: &event,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 			},
@@ -384,19 +338,17 @@ func (so *observer) DeleteScope(event gocbcore.DcpScopeDeletion) {
 }
 
 func (so *observer) ModifyCollection(event gocbcore.DcpCollectionModification) {
-	if !so.canForward(event.VbID, event.SeqNo) {
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if currentSnapshot, ok := so.currentSnapshots.Load(event.VbID); ok && currentSnapshot != nil {
-		vbUUID, _ := so.uuIDMap.Load(event.VbID)
-
+	if so.currentSnapshot != nil {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionModification{
 				DcpCollectionModification: &event,
 				Offset: &models.Offset{
-					SnapshotMarker: currentSnapshot,
-					VbUUID:         vbUUID,
+					SnapshotMarker: so.currentSnapshot,
+					VbUUID:         *so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -412,7 +364,7 @@ func (so *observer) OSOSnapshot(event gocbcore.DcpOSOSnapshot) {
 }
 
 func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
-	if !so.canForward(advanced.VbID, advanced.SeqNo) {
+	if !so.canForward(advanced.SeqNo) {
 		return
 	}
 
@@ -421,27 +373,25 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 		EndSeqNo:   advanced.SeqNo,
 	}
 
-	so.currentSnapshots.Store(advanced.VbID, snapshot)
-
-	vbUUID, _ := so.uuIDMap.Load(advanced.VbID)
+	so.currentSnapshot = snapshot
 
 	so.sendOrSkip(models.ListenerArgs{
 		Event: models.InternalDcpSeqNoAdvance{
 			DcpSeqNoAdvanced: &advanced,
 			Offset: &models.Offset{
 				SnapshotMarker: snapshot,
-				VbUUID:         vbUUID,
+				VbUUID:         *so.vbUUID,
 				SeqNo:          advanced.SeqNo,
 			},
 		},
 	})
 }
 
-func (so *observer) GetMetrics() *wrapper.ConcurrentSwissMap[uint16, *ObserverMetric] {
+func (so *observer) GetMetrics() *ObserverMetric {
 	return so.metrics
 }
 
-func (so *observer) GetPersistSeqNo() *wrapper.ConcurrentSwissMap[uint16, gocbcore.SeqNo] {
+func (so *observer) GetPersistSeqNo() gocbcore.SeqNo {
 	return so.persistSeqNo
 }
 
@@ -479,8 +429,8 @@ func (so *observer) Close() {
 	logger.Log.Debug("observer closed")
 }
 
-func (so *observer) SetVbUUID(vbID uint16, vbUUID gocbcore.VbUUID) {
-	so.uuIDMap.Store(vbID, vbUUID)
+func (so *observer) SetVbUUID(vbUUID gocbcore.VbUUID) {
+	so.vbUUID = &vbUUID
 }
 
 // nolint:staticcheck
@@ -496,20 +446,18 @@ func (so *observer) CloseEnd() {
 
 func NewObserver(
 	config *dcp.Dcp,
+	vbID uint16,
 	collectionIDs map[uint32]string,
 	bus EventBus.Bus,
 ) Observer {
 	observer := &observer{
-		currentSnapshots: wrapper.CreateConcurrentSwissMap[uint16, *models.SnapshotMarker](1024),
-		uuIDMap:          wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](100),
-		metrics:          wrapper.CreateConcurrentSwissMap[uint16, *ObserverMetric](100),
-		catchup:          wrapper.CreateConcurrentSwissMap[uint16, uint64](100),
-		collectionIDs:    collectionIDs,
-		listenerCh:       make(models.ListenerCh, config.Dcp.Listener.BufferSize),
-		listenerEndCh:    make(models.ListenerEndCh, 1),
-		bus:              bus,
-		persistSeqNo:     wrapper.CreateConcurrentSwissMap[uint16, gocbcore.SeqNo](100),
-		config:           config,
+		vbID:          vbID,
+		metrics:       &ObserverMetric{},
+		collectionIDs: collectionIDs,
+		listenerCh:    make(models.ListenerCh),
+		listenerEndCh: make(models.ListenerEndCh, 1),
+		bus:           bus,
+		config:        config,
 	}
 
 	err := observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)

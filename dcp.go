@@ -40,6 +40,7 @@ type Dcp interface {
 	Start()
 	Close()
 	Commit()
+	GetClient() couchbase.Client
 	GetConfig() *config.Dcp
 	GetVersion() *couchbase.Version
 	SetMetadata(metadata metadata.Metadata)
@@ -164,6 +165,10 @@ func (s *dcp) Start() {
 		logger.Log.Debug("cancel channel triggered")
 		s.closeWithCancel = true
 	}
+}
+
+func (s *dcp) GetClient() couchbase.Client {
+	return s.client
 }
 
 func (s *dcp) WaitUntilReady() chan struct{} {

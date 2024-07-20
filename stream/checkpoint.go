@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -109,6 +110,7 @@ func (s *checkpoint) Save() {
 	}
 }
 
+//nolint:funlen
 func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool) {
 	s.loadLock.Lock()
 	defer s.loadLock.Unlock()
@@ -121,18 +123,18 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		panic(err)
 	}
 
+	seqNoMap, err := s.client.GetVBucketSeqNos()
+	if err != nil {
+		logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
+		panic(err)
+	}
+
 	offsets := wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
 	dirtyOffsets := wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 	anyDirtyOffset := false
 
 	if !exist && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
 		logger.Log.Debug("no checkpoint found, auto reset checkpoint to latest")
-
-		seqNoMap, err := s.client.GetVBucketSeqNos()
-		if err != nil {
-			logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
-			panic(err)
-		}
 
 		dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
 			currentSeqNo, _ := seqNoMap.Load(vbID)
@@ -158,6 +160,16 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	}
 
 	dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
+		latestSeqNo, _ := seqNoMap.Load(vbID)
+		if doc.Checkpoint.SeqNo > latestSeqNo {
+			err := errors.New("checkpoint seqNo bigger then vBucket latest seqNo")
+			logger.Log.Error(
+				"error while loading checkpoint, vbID: %v, checkpoint seqNo: %v, latest seqNo: %v, err: %v",
+				vbID, doc.Checkpoint.SeqNo, latestSeqNo, err,
+			)
+			panic(err)
+		}
+
 		offsets.Store(vbID, &models.Offset{
 			SnapshotMarker: &models.SnapshotMarker{
 				StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,

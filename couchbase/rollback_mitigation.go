@@ -119,7 +119,7 @@ func (r *rollbackMitigation) observeVbID(
 		Deadline:   time.Now().Add(time.Second * 5),
 	}, callback)
 	if err != nil {
-		logger.Log.Error("observeVBID error for vbId: %v, replica:%v, vbUUID: %v, err: %v", vbID, replica, vbUUID, err)
+		logger.Log.Error("observeVBID error for vbID: %v, replica:%v, vbUUID: %v, err: %v", vbID, replica, vbUUID, err)
 		callback(nil, err)
 	}
 }
@@ -170,7 +170,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 			serverIndex, err := r.configSnapshot.VbucketToServer(vbID, uint32(idx))
 			if err != nil {
 				if errors.Is(err, gocbcore.ErrInvalidReplica) {
-					logger.Log.Debug("invalid replica of vbId: %v, replica: %v, err: %v", vbID, idx, err)
+					logger.Log.Debug("invalid replica of vbID: %v, replica: %v, err: %v", vbID, idx, err)
 					replica.SetAbsent()
 				} else {
 					outerError = err
@@ -178,7 +178,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 				}
 			} else {
 				if serverIndex < 0 {
-					logger.Log.Debug("invalid server index of vbId: %v, replica: %v, serverIndex: %v", vbID, idx, serverIndex)
+					logger.Log.Debug("invalid server index of vbID: %v, replica: %v, serverIndex: %v", vbID, idx, serverIndex)
 					replica.SetAbsent()
 				}
 			}

@@ -89,7 +89,7 @@ func (so *observer) persistSeqNoChangedListener(persistSeqNo models.PersistSeqNo
 			so.persistSeqNo.Store(persistSeqNo.VbID, persistSeqNo.SeqNo)
 		}
 	} else {
-		logger.Log.Trace("persistSeqNo: %v on vbId: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
+		logger.Log.Trace("persistSeqNo: %v on vbID: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
 	}
 }
 

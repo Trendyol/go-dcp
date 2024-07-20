@@ -78,7 +78,7 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 		s.offsets.Store(vbID, offset)
 		s.dirtyOffsets.Store(vbID, dirty)
 	} else {
-		logger.Log.Warn("vbId=%v not belong our vbId range", vbID)
+		logger.Log.Warn("vbID: %v not belong our vbId range", vbID)
 	}
 }
 
@@ -164,14 +164,14 @@ func (s *stream) listenEnd() {
 	for endContext := range s.observer.ListenEnd() {
 		if !s.closeWithCancel && endContext.Err != nil {
 			if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
-				logger.Log.Error("end stream vbId: %v got error: %v", endContext.Event.VbID, endContext.Err)
+				logger.Log.Error("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 			} else {
-				logger.Log.Debug("end stream vbId: %v got error: %v", endContext.Event.VbID, endContext.Err)
+				logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 			}
 		}
 
 		if endContext.Err == nil {
-			logger.Log.Debug("end stream vbId: %v", endContext.Event.VbID)
+			logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
 		}
 
 		if !s.closeWithCancel && endContext.Err != nil &&

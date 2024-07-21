@@ -211,8 +211,14 @@ func CreateAgent(httpAddresses []string, bucketName string,
 	return agent, nil
 }
 
-func (s *client) connect(bucketName string, maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
-	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, maxQueueSize, connectionBufferSize, connectionTimeout) //nolint:lll
+func (s *client) connect(bucketName string,
+	maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration,
+) (*gocbcore.Agent, error) {
+	return CreateAgent(
+		s.config.Hosts, bucketName, s.config.Username, s.config.Password,
+		s.config.SecureConnection, s.config.RootCAPath,
+		maxQueueSize, connectionBufferSize, connectionTimeout,
+	)
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {

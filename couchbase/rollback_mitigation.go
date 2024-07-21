@@ -231,7 +231,7 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 }
 
 func (r *rollbackMitigation) loadVbUUID(vbID uint16) error {
-	failOverLogs, err := r.client.GetFailoverLogs(vbID)
+	failOverLogs, err := r.client.GetFailOverLogs(vbID)
 	if err != nil {
 		return err
 	}

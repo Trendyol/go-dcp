@@ -59,13 +59,13 @@ func (om *ObserverMetric) AddExpiration() {
 
 type observer struct {
 	bus             EventBus.Bus
-	listener        func(args models.ListenerArgs)
+	config          *dcp.Dcp
 	currentSnapshot *models.SnapshotMarker
 	collectionIDs   map[uint32]string
 	metrics         *ObserverMetric
-	vbUUID          gocbcore.VbUUID
-	config          *dcp.Dcp
+	listener        func(args models.ListenerArgs)
 	endListener     func(context models.DcpStreamEndContext)
+	vbUUID          gocbcore.VbUUID
 	catchupSeqNo    uint64
 	persistSeqNo    gocbcore.SeqNo
 	vbID            uint16
@@ -154,7 +154,7 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 }
 
 func (so *observer) IsInSnapshotMarker(seqNo uint64) bool {
-	var isIn = so.currentSnapshot != nil &&
+	isIn := so.currentSnapshot != nil &&
 		seqNo >= so.currentSnapshot.StartSeqNo && seqNo <= so.currentSnapshot.EndSeqNo
 
 	if !isIn {

@@ -263,7 +263,7 @@ func (s *client) Connect() error {
 		}
 	}
 
-	// when u set maxQueueSize to 0, gocbcore will use default value
+	// when u set maxQueueSize to 0, gocbcore will be use default value
 	agent, err := s.connect(s.config.BucketName, 0, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		logger.Log.Error("error while connect to source bucket, err: %v", err)
@@ -277,6 +277,7 @@ func (s *client) Connect() error {
 		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
+			// when u set maxQueueSize to 0, gocbcore will be use default value
 			metaAgent, err := s.connect(
 				couchbaseMetadataConfig.Bucket,
 				0,

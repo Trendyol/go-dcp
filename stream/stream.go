@@ -76,6 +76,9 @@ type stream struct {
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 	if s.vbIDRange.In(vbID) {
+		if current, ok := s.offsets.Load(vbID); ok && current.SeqNo > offset.SeqNo {
+			return
+		}
 		s.offsets.Store(vbID, offset)
 		s.dirtyOffsets.Store(vbID, dirty)
 	} else {

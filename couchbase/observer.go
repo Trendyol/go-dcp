@@ -63,7 +63,7 @@ type observer struct {
 	currentSnapshot *models.SnapshotMarker
 	collectionIDs   map[uint32]string
 	metrics         *ObserverMetric
-	vbUUID          *gocbcore.VbUUID
+	vbUUID          gocbcore.VbUUID
 	config          *dcp.Dcp
 	endListener     func(context models.DcpStreamEndContext)
 	catchupSeqNo    uint64
@@ -153,73 +153,84 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 	})
 }
 
-func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
-	if !so.canForward(mutation.SeqNo) {
+func (so *observer) IsInSnapshotMarker(seqNo uint64) bool {
+	var isIn = so.currentSnapshot != nil &&
+		seqNo >= so.currentSnapshot.StartSeqNo && seqNo <= so.currentSnapshot.EndSeqNo
+
+	if !isIn {
+		logger.Log.Warn("seqNo not in snapshot: %v", seqNo)
+	}
+
+	return isIn
+}
+
+func (so *observer) Mutation(event gocbcore.DcpMutation) { //nolint:dupl
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
-				DcpMutation: &mutation,
+				DcpMutation: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
-					SeqNo:          mutation.SeqNo,
+					VbUUID:         so.vbUUID,
+					SeqNo:          event.SeqNo,
 				},
-				CollectionName: so.convertToCollectionName(mutation.CollectionID),
-				EventTime:      time.Unix(int64(mutation.Cas/1000000000), 0),
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+				EventTime:      time.Unix(int64(event.Cas/1000000000), 0),
 			},
 		})
-	}
 
-	so.metrics.AddMutation()
+		so.metrics.AddMutation()
+	}
 }
 
-func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
-	if !so.canForward(deletion.SeqNo) {
+func (so *observer) Deletion(event gocbcore.DcpDeletion) { //nolint:dupl
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpDeletion{
-				DcpDeletion: &deletion,
+				DcpDeletion: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
-					SeqNo:          deletion.SeqNo,
+					VbUUID:         so.vbUUID,
+					SeqNo:          event.SeqNo,
 				},
-				CollectionName: so.convertToCollectionName(deletion.CollectionID),
-				EventTime:      time.Unix(int64(deletion.Cas/1000000000), 0),
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+				EventTime:      time.Unix(int64(event.Cas/1000000000), 0),
 			},
 		})
-	}
 
-	so.metrics.AddDeletion()
+		so.metrics.AddDeletion()
+	}
 }
 
-func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dupl
-	if !so.canForward(expiration.SeqNo) {
+func (so *observer) Expiration(event gocbcore.DcpExpiration) { //nolint:dupl
+	if !so.canForward(event.SeqNo) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpExpiration{
-				DcpExpiration: &expiration,
+				DcpExpiration: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
-					SeqNo:          expiration.SeqNo,
+					VbUUID:         so.vbUUID,
+					SeqNo:          event.SeqNo,
 				},
-				CollectionName: so.convertToCollectionName(expiration.CollectionID),
-				EventTime:      time.Unix(int64(expiration.Cas/1000000000), 0),
+				CollectionName: so.convertToCollectionName(event.CollectionID),
+				EventTime:      time.Unix(int64(event.Cas/1000000000), 0),
 			},
 		})
-	}
 
-	so.metrics.AddExpiration()
+		so.metrics.AddExpiration()
+	}
 }
 
 // nolint:staticcheck
@@ -239,13 +250,13 @@ func (so *observer) CreateCollection(event gocbcore.DcpCollectionCreation) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionCreation{
 				DcpCollectionCreation: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
+					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -259,13 +270,13 @@ func (so *observer) DeleteCollection(event gocbcore.DcpCollectionDeletion) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionDeletion{
 				DcpCollectionDeletion: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
+					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -279,13 +290,13 @@ func (so *observer) FlushCollection(event gocbcore.DcpCollectionFlush) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionFlush{
 				DcpCollectionFlush: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
+					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -299,13 +310,13 @@ func (so *observer) CreateScope(event gocbcore.DcpScopeCreation) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpScopeCreation{
 				DcpScopeCreation: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
+					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 			},
@@ -318,13 +329,13 @@ func (so *observer) DeleteScope(event gocbcore.DcpScopeDeletion) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpScopeDeletion{
 				DcpScopeDeletion: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
+					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 			},
@@ -337,13 +348,13 @@ func (so *observer) ModifyCollection(event gocbcore.DcpCollectionModification) {
 		return
 	}
 
-	if so.currentSnapshot != nil {
+	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpCollectionModification{
 				DcpCollectionModification: &event,
 				Offset: &models.Offset{
 					SnapshotMarker: so.currentSnapshot,
-					VbUUID:         *so.vbUUID,
+					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
@@ -375,7 +386,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 			DcpSeqNoAdvanced: &advanced,
 			Offset: &models.Offset{
 				SnapshotMarker: snapshot,
-				VbUUID:         *so.vbUUID,
+				VbUUID:         so.vbUUID,
 				SeqNo:          advanced.SeqNo,
 			},
 		},
@@ -405,7 +416,7 @@ func (so *observer) Close() {
 }
 
 func (so *observer) SetVbUUID(vbUUID gocbcore.VbUUID) {
-	so.vbUUID = &vbUUID
+	so.vbUUID = vbUUID
 }
 
 // nolint:staticcheck

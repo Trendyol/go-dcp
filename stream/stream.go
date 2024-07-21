@@ -212,8 +212,10 @@ func (s *stream) Open() {
 
 	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)
 	for _, vbID := range vbIDs {
-		observer := couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus)
-		s.observers.Store(vbID, observer)
+		s.observers.Store(
+			vbID,
+			couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus),
+		)
 	}
 
 	s.openAllStreams(vbIDs)

@@ -106,33 +106,29 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 	s.metric.ProcessLatency = time.Since(start).Milliseconds()
 }
 
-func (s *stream) listen(observer couchbase.Observer) {
-	for args := range observer.Listen() {
-		event := args.Event
-
-		switch v := event.(type) {
-		case models.DcpMutation:
-			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
-		case models.DcpDeletion:
-			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
-		case models.DcpExpiration:
-			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
-		case models.DcpSeqNoAdvanced:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionCreation:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionDeletion:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionFlush:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpScopeCreation:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpScopeDeletion:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionModification:
-			s.setOffset(v.VbID, v.Offset, true)
-		default:
-		}
+func (s *stream) listen(args models.ListenerArgs) {
+	switch v := args.Event.(type) {
+	case models.DcpMutation:
+		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+	case models.DcpDeletion:
+		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+	case models.DcpExpiration:
+		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+	case models.DcpSeqNoAdvanced:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionCreation:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionDeletion:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionFlush:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpScopeCreation:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpScopeDeletion:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionModification:
+		s.setOffset(v.VbID, v.Offset, true)
+	default:
 	}
 }
 
@@ -160,32 +156,30 @@ func (s *stream) reopenStream(vbID uint16) {
 	}(vbID)
 }
 
-func (s *stream) listenEnd(observer couchbase.Observer) {
-	for endContext := range observer.ListenEnd() {
-		if !s.closeWithCancel && endContext.Err != nil {
-			if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
-				logger.Log.Error("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
-			} else {
-				logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
-			}
-		}
-
-		if endContext.Err == nil {
-			logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
-		}
-
-		if !s.closeWithCancel && endContext.Err != nil &&
-			(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
-			s.reopenStream(endContext.Event.VbID)
+func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
+	if !s.closeWithCancel && endContext.Err != nil {
+		if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
+			logger.Log.Error("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 		} else {
-			s.activeStreams--
-			if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
-				s.finishStreamWithEndEventCh <- struct{}{}
-			}
+			logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
+		}
+	}
+
+	if endContext.Err == nil {
+		logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
+	}
+
+	if !s.closeWithCancel && endContext.Err != nil &&
+		(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
+		s.reopenStream(endContext.Event.VbID)
+	} else {
+		s.activeStreams--
+		if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
+			s.finishStreamWithEndEventCh <- struct{}{}
 		}
 	}
 }
@@ -219,17 +213,11 @@ func (s *stream) Open() {
 
 	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)
 	for _, vbID := range vbIDs {
-		observer := couchbase.NewObserver(s.config, vbID, s.collectionIDs, s.bus)
+		observer := couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus)
 		s.observers.Store(vbID, observer)
 	}
 
 	s.openAllStreams(vbIDs)
-
-	for _, vbID := range vbIDs {
-		observer, _ := s.observers.Load(vbID)
-		go s.listen(observer)
-		go s.listenEnd(observer)
-	}
 
 	logger.Log.Info("stream started")
 	s.eventHandler.AfterStreamStart()

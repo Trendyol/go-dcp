@@ -31,10 +31,8 @@ type Observer interface {
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
 	GetMetrics() *ObserverMetric
 	GetPersistSeqNo() gocbcore.SeqNo
-	Listen() models.ListenerCh
 	Close()
 	CloseEnd()
-	ListenEnd() models.ListenerEndCh
 	SetCatchup(seqNo gocbcore.SeqNo)
 	SetVbUUID(vbUUID gocbcore.VbUUID)
 }
@@ -61,18 +59,19 @@ func (om *ObserverMetric) AddExpiration() {
 
 type observer struct {
 	bus             EventBus.Bus
+	listener        func(args models.ListenerArgs)
 	currentSnapshot *models.SnapshotMarker
-	listenerEndCh   models.ListenerEndCh
 	collectionIDs   map[uint32]string
 	metrics         *ObserverMetric
-	listenerCh      models.ListenerCh
 	vbUUID          *gocbcore.VbUUID
 	config          *dcp.Dcp
+	endListener     func(context models.DcpStreamEndContext)
 	catchupSeqNo    uint64
 	persistSeqNo    gocbcore.SeqNo
 	vbID            uint16
 	isCatchupNeed   bool
 	closed          bool
+	endClosed       bool
 }
 
 func (so *observer) SetCatchup(seqNo gocbcore.SeqNo) {
@@ -86,7 +85,7 @@ func (so *observer) persistSeqNoChangedListener(persistSeqNo models.PersistSeqNo
 			so.persistSeqNo = persistSeqNo.SeqNo
 		}
 	} else {
-		logger.Log.Trace("persistSeqNo: %v on vbId: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
+		logger.Log.Trace("persistSeqNo: %v on vbID: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
 	}
 }
 
@@ -136,13 +135,11 @@ func (so *observer) convertToCollectionName(collectionID uint32) string {
 
 // nolint:staticcheck
 func (so *observer) sendOrSkip(args models.ListenerArgs) {
-	defer func() {
-		if r := recover(); r != nil {
-			// listener channel is closed
-		}
-	}()
+	if so.closed {
+		return
+	}
 
-	so.listenerCh <- args
+	so.listener(args)
 }
 
 func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
@@ -227,16 +224,14 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 
 // nolint:staticcheck
 func (so *observer) End(event models.DcpStreamEnd, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			// listenerEndCh channel is closed
-		}
-	}()
+	if so.endClosed {
+		return
+	}
 
-	so.listenerEndCh <- models.DcpStreamEndContext{
+	so.endListener(models.DcpStreamEndContext{
 		Event: event,
 		Err:   err,
-	}
+	})
 }
 
 func (so *observer) CreateCollection(event gocbcore.DcpCollectionCreation) {
@@ -395,22 +390,8 @@ func (so *observer) GetPersistSeqNo() gocbcore.SeqNo {
 	return so.persistSeqNo
 }
 
-func (so *observer) Listen() models.ListenerCh {
-	return so.listenerCh
-}
-
-func (so *observer) ListenEnd() models.ListenerEndCh {
-	return so.listenerEndCh
-}
-
 // nolint:staticcheck
 func (so *observer) Close() {
-	defer func() {
-		if r := recover(); r != nil {
-			// listener channel is closed
-		}
-	}()
-
 	logger.Log.Debug("observer closing")
 
 	err := so.bus.Unsubscribe(helpers.PersistSeqNoChangedBusEventName, so.persistSeqNoChangedListener)
@@ -419,12 +400,6 @@ func (so *observer) Close() {
 	}
 
 	so.closed = true
-	close(so.listenerCh)
-
-	// to drain buffered channel
-	closedListenerCh := make(models.ListenerCh)
-	close(closedListenerCh)
-	so.listenerCh = closedListenerCh
 
 	logger.Log.Debug("observer closed")
 }
@@ -435,18 +410,14 @@ func (so *observer) SetVbUUID(vbUUID gocbcore.VbUUID) {
 
 // nolint:staticcheck
 func (so *observer) CloseEnd() {
-	defer func() {
-		if r := recover(); r != nil {
-			// listener channel is closed
-		}
-	}()
-
-	close(so.listenerEndCh)
+	so.endClosed = true
 }
 
 func NewObserver(
 	config *dcp.Dcp,
 	vbID uint16,
+	listener func(args models.ListenerArgs),
+	endListener func(context models.DcpStreamEndContext),
 	collectionIDs map[uint32]string,
 	bus EventBus.Bus,
 ) Observer {
@@ -454,8 +425,8 @@ func NewObserver(
 		vbID:          vbID,
 		metrics:       &ObserverMetric{},
 		collectionIDs: collectionIDs,
-		listenerCh:    make(models.ListenerCh),
-		listenerEndCh: make(models.ListenerEndCh, 1),
+		listener:      listener,
+		endListener:   endListener,
 		bus:           bus,
 		config:        config,
 	}

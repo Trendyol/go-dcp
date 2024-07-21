@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -208,20 +209,20 @@ func test(t *testing.T, version string) {
 		t.Fatal(err)
 	}
 
-	counter := 0
+	var counter atomic.Int32
 	finish := make(chan struct{}, 1)
 
 	dcp, err := NewDcp(c, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
 			ctx.Ack()
 
-			counter++
+			val := int(counter.Add(1))
 
-			if counter%notifySize == 0 {
-				logger.Log.Info("%v/%v processed", counter/notifySize, totalNotify)
+			if val%notifySize == 0 {
+				logger.Log.Info("%v/%v processed", val/notifySize, totalNotify)
 			}
 
-			if counter == mockDataSize {
+			if val == mockDataSize {
 				finish <- struct{}{}
 			}
 		}

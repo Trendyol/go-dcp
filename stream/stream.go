@@ -53,8 +53,8 @@ type stream struct {
 	eventHandler                 models.EventHandler
 	config                       *config.Dcp
 	metric                       *Metric
-	vbIDs                        *wrapper.ConcurrentSwissMap[uint16, struct{}]
 	rebalanceTimer               *time.Timer
+	vbIDRange                    *models.VbIDRange
 	dirtyOffsets                 *wrapper.ConcurrentSwissMap[uint16, bool]
 	stopCh                       chan struct{}
 	listener                     models.Listener
@@ -75,11 +75,11 @@ type stream struct {
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
-	if _, ok := s.vbIDs.Load(vbID); ok {
+	if s.vbIDRange.In(vbID) {
 		s.offsets.Store(vbID, offset)
 		s.dirtyOffsets.Store(vbID, dirty)
 	} else {
-		logger.Log.Warn("vbID=%v not belong our vbID range", vbID)
+		logger.Log.Warn("vbID: %v not belong our vbID range", vbID)
 	}
 }
 
@@ -190,6 +190,10 @@ func (s *stream) Open() {
 	s.eventHandler.BeforeStreamStart()
 
 	vbIDs := s.vBucketDiscovery.Get()
+	s.vbIDRange = &models.VbIDRange{
+		Start: vbIDs[0],
+		End:   vbIDs[len(vbIDs)-1],
+	}
 
 	if !s.config.RollbackMitigation.Disabled {
 		if s.bucketInfo.IsEphemeral() {
@@ -204,10 +208,6 @@ func (s *stream) Open() {
 	s.activeStreams.Swap(int32(len(vbIDs)))
 
 	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config)
-	s.vbIDs = wrapper.CreateConcurrentSwissMap[uint16, struct{}](1024)
-	for _, vbID := range vbIDs {
-		s.vbIDs.Store(vbID, struct{}{})
-	}
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
 	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)
@@ -311,7 +311,6 @@ func (s *stream) closeAllStreams(internal bool) {
 			defer wg.Done()
 			if internal {
 				// todo: this is not a good way to close stream
-
 				observer, _ := s.observers.Load(vbID)
 				observer.End(models.DcpStreamEnd{VbID: vbID}, nil)
 			} else {

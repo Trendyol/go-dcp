@@ -231,24 +231,24 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 }
 
 func (r *rollbackMitigation) loadVbUUID(vbID uint16) error {
-	failoverLogs, err := r.client.GetFailoverLogs(vbID)
+	failOverLogs, err := r.client.GetFailoverLogs(vbID)
 	if err != nil {
 		return err
 	}
 
-	r.vbUUIDMap.Store(vbID, failoverLogs[0].VbUUID)
+	r.vbUUIDMap.Store(vbID, failOverLogs[0].VbUUID)
 
-	failoverInfos := make([]string, 0, len(failoverLogs))
-	for index, failoverLog := range failoverLogs {
-		failoverInfos = append(
-			failoverInfos,
-			fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failoverLog.VbUUID, failoverLog.SeqNo),
+	failOverInfos := make([]string, 0, len(failOverLogs))
+	for index, failOverLog := range failOverLogs {
+		failOverInfos = append(
+			failOverInfos,
+			fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failOverLog.VbUUID, failOverLog.SeqNo),
 		)
 	}
 
 	logger.Log.Trace(
-		"observing vbID: %v, vbUUID: %v, failoverInfo: %v",
-		vbID, failoverLogs[0].VbUUID, strings.Join(failoverInfos, ", "),
+		"observing vbID: %v, vbUUID: %v, failOverInfo: %v",
+		vbID, failOverLogs[0].VbUUID, strings.Join(failOverInfos, ", "),
 	)
 
 	return nil

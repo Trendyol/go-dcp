@@ -134,27 +134,25 @@ func (s *stream) listen(args models.ListenerArgs) {
 }
 
 func (s *stream) reopenStream(vbID uint16) {
-	go func(innerVbID uint16) {
-		retry := 3
+	retry := 3
 
-		for {
-			err := s.openStream(innerVbID)
-			if err == nil {
-				logger.Log.Info("re-open stream, vbID: %d", innerVbID)
-				break
-			} else {
-				logger.Log.Warn("cannot re-open stream, vbID: %d, err: %v", innerVbID, err)
-			}
-
-			retry--
-			if retry == 0 {
-				logger.Log.Error("error while re-open stream, vbID: %d, err: give up after few retry", innerVbID)
-				panic(err)
-			}
-
-			time.Sleep(time.Second * 5)
+	for {
+		err := s.openStream(vbID)
+		if err == nil {
+			logger.Log.Info("re-open stream, vbID: %d", vbID)
+			break
+		} else {
+			logger.Log.Warn("cannot re-open stream, vbID: %d, err: %v", vbID, err)
 		}
-	}(vbID)
+
+		retry--
+		if retry == 0 {
+			logger.Log.Error("error while re-open stream, vbID: %d, err: give up after few retry", vbID)
+			panic(err)
+		}
+
+		time.Sleep(time.Second * 5)
+	}
 }
 
 func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
@@ -176,7 +174,7 @@ func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
 			errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
 			errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
 			errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
-		s.reopenStream(endContext.Event.VbID)
+		go s.reopenStream(endContext.Event.VbID)
 	} else {
 		activeStreams := s.activeStreams.Add(-1)
 		if activeStreams == 0 && !s.streamFinishedWithCloseCh {

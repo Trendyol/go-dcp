@@ -248,7 +248,7 @@ func test(t *testing.T, version string) {
 		t.Fatal(err)
 	}
 
-	logger.Log.Info("mock data stream finished with totalSize=%v", counter)
+	logger.Log.Info("mock data stream finished with totalSize=%v", counter.Load())
 }
 
 func TestDcp(t *testing.T) {

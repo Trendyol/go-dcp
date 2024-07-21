@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/asaskevich/EventBus"
@@ -31,7 +32,7 @@ type Stream interface {
 	Close(bool)
 	GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool)
 	GetObservers() *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer]
-	GetMetric() (*Metric, int)
+	GetMetric() (*Metric, int32)
 	UnmarkDirtyOffsets()
 	GetCheckpointMetric() *CheckpointMetric
 }
@@ -64,7 +65,7 @@ type stream struct {
 	offsets                      *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	observers                    *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer]
 	collectionIDs                map[uint32]string
-	activeStreams                int
+	activeStreams                atomic.Int32
 	rebalanceLock                sync.Mutex
 	streamFinishedWithCloseCh    bool
 	streamFinishedWithEndEventCh bool
@@ -177,8 +178,8 @@ func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
 			errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
 		s.reopenStream(endContext.Event.VbID)
 	} else {
-		s.activeStreams--
-		if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
+		activeStreams := s.activeStreams.Add(-1)
+		if activeStreams == 0 && !s.streamFinishedWithCloseCh {
 			s.finishStreamWithEndEventCh <- struct{}{}
 		}
 	}
@@ -202,7 +203,7 @@ func (s *stream) Open() {
 		}
 	}
 
-	s.activeStreams = len(vbIDs)
+	s.activeStreams.Swap(int32(len(vbIDs)))
 
 	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config)
 	s.vbIDs = wrapper.CreateConcurrentSwissMap[uint16, struct{}](1024)
@@ -387,8 +388,8 @@ func (s *stream) GetObservers() *wrapper.ConcurrentSwissMap[uint16, couchbase.Ob
 	return s.observers
 }
 
-func (s *stream) GetMetric() (*Metric, int) {
-	return s.metric, s.activeStreams
+func (s *stream) GetMetric() (*Metric, int32) {
+	return s.metric, s.activeStreams.Load()
 }
 
 func (s *stream) GetCheckpointMetric() *CheckpointMetric {

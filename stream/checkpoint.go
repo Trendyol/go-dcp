@@ -123,7 +123,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		panic(err)
 	}
 
-	seqNoMap, err := s.client.GetVBucketSeqNos()
+	seqNoMap, err := s.client.GetVBucketSeqNos(false)
 	if err != nil {
 		logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
 		panic(err)
@@ -144,12 +144,18 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 				anyDirtyOffset = true
 			}
 
+			failOverLogs, err := s.client.GetFailoverLogs(vbID)
+			if err != nil {
+				logger.Log.Error("error while get failover logs when initialize latest, err: %v", err)
+				panic(err)
+			}
+
 			offsets.Store(vbID, &models.Offset{
 				SnapshotMarker: &models.SnapshotMarker{
 					StartSeqNo: currentSeqNo,
 					EndSeqNo:   currentSeqNo,
 				},
-				VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
+				VbUUID: failOverLogs[0].VbUUID,
 				SeqNo:  currentSeqNo,
 			})
 

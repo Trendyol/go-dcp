@@ -35,7 +35,7 @@ type Client interface {
 	Close()
 	DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error
 	DcpClose()
-	GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
+	GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
 	GetNumVBuckets() int
 	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
@@ -417,7 +417,7 @@ func (s *client) DcpClose() {
 	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
-func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
+func (s *client) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		return nil, err
@@ -432,7 +432,7 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 
 	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
 
-	hasCollectionSupport := s.dcpAgent.HasCollectionsSupport()
+	hasCollectionSupport := awareCollection && s.dcpAgent.HasCollectionsSupport()
 
 	cIds := s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
 	collectionIDs := make([]uint32, 0, len(cIds))
@@ -554,7 +554,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	failoverLogs, err := s.GetFailoverLogs(vbID)
 	if err != nil {
-		logger.Log.Error("error while get failover logs, err: %v", err)
+		logger.Log.Error("error while get failover logs when rollback, err: %v", err)
 		return err
 	}
 
@@ -562,7 +562,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	for i := len(failoverLogs) - 1; i >= 0; i-- {
 		log := failoverLogs[i]
-		if rollbackSeqNo > log.SeqNo {
+		if rollbackSeqNo >= log.SeqNo {
 			targetUUID = log.VbUUID
 		}
 	}

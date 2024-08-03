@@ -35,7 +35,7 @@ type Client interface {
 	Close()
 	DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error
 	DcpClose()
-	GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
+	GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
 	GetNumVBuckets() int
 	GetFailOverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
@@ -164,7 +164,7 @@ func CreateSecurityConfig(username string, password string, secureConnection boo
 
 func CreateAgent(httpAddresses []string, bucketName string,
 	username string, password string, secureConnection bool, rootCAPath string,
-	maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration,
+	maxQueueSize int, poolSize int, connectionBufferSize uint, connectionTimeout time.Duration,
 ) (*gocbcore.Agent, error) {
 	agent, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
@@ -181,6 +181,7 @@ func CreateAgent(httpAddresses []string, bucketName string,
 			},
 			KVConfig: gocbcore.KVConfig{
 				MaxQueueSize:         maxQueueSize,
+				PoolSize:             poolSize,
 				ConnectionBufferSize: connectionBufferSize,
 			},
 		},
@@ -212,12 +213,12 @@ func CreateAgent(httpAddresses []string, bucketName string,
 }
 
 func (s *client) connect(bucketName string,
-	maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration,
+	maxQueueSize int, poolSize int, connectionBufferSize uint, connectionTimeout time.Duration,
 ) (*gocbcore.Agent, error) {
 	return CreateAgent(
 		s.config.Hosts, bucketName, s.config.Username, s.config.Password,
 		s.config.SecureConnection, s.config.RootCAPath,
-		maxQueueSize, connectionBufferSize, connectionTimeout,
+		maxQueueSize, poolSize, connectionBufferSize, connectionTimeout,
 	)
 }
 
@@ -263,8 +264,7 @@ func (s *client) Connect() error {
 		}
 	}
 
-	// when u set maxQueueSize to 0, gocbcore will be use default value
-	agent, err := s.connect(s.config.BucketName, 0, connectionBufferSize, connectionTimeout)
+	agent, err := s.connect(s.config.BucketName, 0, 0, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
@@ -277,9 +277,9 @@ func (s *client) Connect() error {
 		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
 			s.metaAgent = agent
 		} else {
-			// when u set maxQueueSize to 0, gocbcore will be use default value
 			metaAgent, err := s.connect(
 				couchbaseMetadataConfig.Bucket,
+				0,
 				0,
 				couchbaseMetadataConfig.ConnectionBufferSize,
 				couchbaseMetadataConfig.ConnectionTimeout,
@@ -427,7 +427,7 @@ func (s *client) DcpClose() {
 	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
-func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
+func (s *client) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
 		return nil, err
@@ -442,7 +442,7 @@ func (s *client) GetVBucketSeqNos() (*wrapper.ConcurrentSwissMap[uint16, uint64]
 
 	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
 
-	hasCollectionSupport := s.dcpAgent.HasCollectionsSupport()
+	hasCollectionSupport := awareCollection && s.dcpAgent.HasCollectionsSupport()
 
 	cIds := s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
 	collectionIDs := make([]uint32, 0, len(cIds))
@@ -564,7 +564,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	failOverLogs, err := s.GetFailOverLogs(vbID)
 	if err != nil {
-		logger.Log.Error("error while get failOver logs, err: %v", err)
+		logger.Log.Error("error while get failOver logs when rollback, err: %v", err)
 		return err
 	}
 
@@ -572,7 +572,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 
 	for i := len(failOverLogs) - 1; i >= 0; i-- {
 		log := failOverLogs[i]
-		if rollbackSeqNo > log.SeqNo {
+		if rollbackSeqNo >= log.SeqNo {
 			targetUUID = log.VbUUID
 		}
 	}

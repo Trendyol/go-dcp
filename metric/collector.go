@@ -59,7 +59,7 @@ func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	seqNoMap, err := s.client.GetVBucketSeqNos()
+	seqNoMap, err := s.client.GetVBucketSeqNos(true)
 
 	observers.Range(func(vbID uint16, observer couchbase.Observer) bool {
 		ch <- prometheus.MustNewConstMetric(

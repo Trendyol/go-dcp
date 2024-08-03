@@ -144,9 +144,9 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 				anyDirtyOffset = true
 			}
 
-			failOverLogs, err := s.client.GetFailoverLogs(vbID)
+			failOverLogs, err := s.client.GetFailOverLogs(vbID)
 			if err != nil {
-				logger.Log.Error("error while get failover logs when initialize latest, err: %v", err)
+				logger.Log.Error("error while get failOver logs when initialize latest, err: %v", err)
 				panic(err)
 			}
 

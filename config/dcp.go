@@ -49,10 +49,6 @@ type DCPGroup struct {
 	Membership DCPGroupMembership `yaml:"membership"`
 }
 
-type DCPListener struct {
-	BufferSize uint `yaml:"bufferSize"`
-}
-
 type ExternalDcpConfig struct {
 	DisableChangeStreams bool `yaml:"disableChangeStreams"`
 }
@@ -62,7 +58,6 @@ type ExternalDcp struct {
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
 	Group                DCPGroup          `yaml:"group"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
-	Listener             DCPListener       `yaml:"listener"`
 	Config               ExternalDcpConfig `yaml:"config"`
 }
 
@@ -496,10 +491,6 @@ func (c *Dcp) applyDefaultDcp() {
 
 	if c.Dcp.ConnectionBufferSize == nil {
 		c.Dcp.ConnectionBufferSize = helpers.ResolveUnionIntOrStringValue("20mb")
-	}
-
-	if c.Dcp.Listener.BufferSize == 0 {
-		c.Dcp.Listener.BufferSize = 1000
 	}
 }
 

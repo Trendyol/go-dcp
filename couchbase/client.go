@@ -37,7 +37,7 @@ type Client interface {
 	DcpClose()
 	GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error)
 	GetNumVBuckets() int
-	GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
+	GetFailOverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
 	CloseStream(vbID uint16) error
 	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
@@ -164,7 +164,7 @@ func CreateSecurityConfig(username string, password string, secureConnection boo
 
 func CreateAgent(httpAddresses []string, bucketName string,
 	username string, password string, secureConnection bool, rootCAPath string,
-	connectionBufferSize uint, connectionTimeout time.Duration,
+	maxQueueSize int, poolSize int, connectionBufferSize uint, connectionTimeout time.Duration,
 ) (*gocbcore.Agent, error) {
 	agent, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
@@ -180,6 +180,8 @@ func CreateAgent(httpAddresses []string, bucketName string,
 				UseCollections: true,
 			},
 			KVConfig: gocbcore.KVConfig{
+				MaxQueueSize:         maxQueueSize,
+				PoolSize:             poolSize,
 				ConnectionBufferSize: connectionBufferSize,
 			},
 		},
@@ -210,8 +212,14 @@ func CreateAgent(httpAddresses []string, bucketName string,
 	return agent, nil
 }
 
-func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
-	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, connectionBufferSize, connectionTimeout) //nolint:lll
+func (s *client) connect(bucketName string,
+	maxQueueSize int, poolSize int, connectionBufferSize uint, connectionTimeout time.Duration,
+) (*gocbcore.Agent, error) {
+	return CreateAgent(
+		s.config.Hosts, bucketName, s.config.Username, s.config.Password,
+		s.config.SecureConnection, s.config.RootCAPath,
+		maxQueueSize, poolSize, connectionBufferSize, connectionTimeout,
+	)
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {
@@ -256,7 +264,7 @@ func (s *client) Connect() error {
 		}
 	}
 
-	agent, err := s.connect(s.config.BucketName, connectionBufferSize, connectionTimeout)
+	agent, err := s.connect(s.config.BucketName, 0, 0, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
@@ -271,6 +279,8 @@ func (s *client) Connect() error {
 		} else {
 			metaAgent, err := s.connect(
 				couchbaseMetadataConfig.Bucket,
+				0,
+				0,
 				couchbaseMetadataConfig.ConnectionBufferSize,
 				couchbaseMetadataConfig.ConnectionTimeout,
 			)
@@ -513,7 +523,7 @@ func (s *client) GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) {
 	return s.dcpAgent.ConfigSnapshot()
 }
 
-func (s *client) GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) {
+func (s *client) GetFailOverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
@@ -521,12 +531,12 @@ func (s *client) GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) 
 
 	ch := make(chan error, 1)
 
-	var failoverLogs []gocbcore.FailoverEntry
+	var failOverLogs []gocbcore.FailoverEntry
 
 	op, err := s.dcpAgent.GetFailoverLog(
 		vbID,
 		func(entries []gocbcore.FailoverEntry, err error) {
-			failoverLogs = entries
+			failOverLogs = entries
 
 			opm.Resolve()
 
@@ -538,7 +548,7 @@ func (s *client) GetFailoverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) 
 		return nil, err
 	}
 
-	return failoverLogs, <-ch
+	return failOverLogs, <-ch
 }
 
 func (s *client) openStreamWithRollback(vbID uint16,
@@ -552,16 +562,16 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		vbID, failedSeqNo, rollbackSeqNo,
 	)
 
-	failoverLogs, err := s.GetFailoverLogs(vbID)
+	failOverLogs, err := s.GetFailOverLogs(vbID)
 	if err != nil {
-		logger.Log.Error("error while get failover logs when rollback, err: %v", err)
+		logger.Log.Error("error while get failOver logs when rollback, err: %v", err)
 		return err
 	}
 
 	var targetUUID gocbcore.VbUUID = 0
 
-	for i := len(failoverLogs) - 1; i >= 0; i-- {
-		log := failoverLogs[i]
+	for i := len(failOverLogs) - 1; i >= 0; i-- {
+		log := failOverLogs[i]
 		if rollbackSeqNo >= log.SeqNo {
 			targetUUID = log.VbUUID
 		}
@@ -584,10 +594,10 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		rollbackSeqNo,
 		observer,
 		openStreamOptions,
-		func(failoverLogs []gocbcore.FailoverEntry, err error) {
+		func(failOverLogs []gocbcore.FailoverEntry, err error) {
 			if err == nil {
-				observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
-				observer.AddCatchup(vbID, failedSeqNo)
+				observer.SetVbUUID(failOverLogs[0].VbUUID)
+				observer.SetCatchup(failedSeqNo)
 			}
 
 			opm.Resolve()
@@ -645,9 +655,9 @@ func (s *client) OpenStream(
 		gocbcore.SeqNo(offset.EndSeqNo),
 		observer,
 		openStreamOptions,
-		func(failoverLogs []gocbcore.FailoverEntry, err error) {
+		func(failOverLogs []gocbcore.FailoverEntry, err error) {
 			if err == nil {
-				observer.SetVbUUID(vbID, failoverLogs[0].VbUUID)
+				observer.SetVbUUID(failOverLogs[0].VbUUID)
 			}
 
 			opm.Resolve()

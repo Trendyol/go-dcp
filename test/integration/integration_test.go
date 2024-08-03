@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,19 +13,19 @@ import (
 )
 
 var (
-	mutationCount   = 0
-	deletionCount   = 0
-	expirationCount = 0
+	mutationCount   atomic.Uint64
+	deletionCount   atomic.Uint64
+	expirationCount atomic.Uint64
 )
 
 func listener(ctx *models.ListenerContext) {
 	switch ctx.Event.(type) {
 	case models.DcpMutation:
-		mutationCount += 1
+		mutationCount.Add(1)
 	case models.DcpDeletion:
-		deletionCount += 1
+		deletionCount.Add(1)
 	case models.DcpExpiration:
-		expirationCount += 1
+		expirationCount.Add(1)
 	}
 	ctx.Ack()
 }
@@ -49,7 +50,7 @@ func TestCouchbase(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatalf("could not process events in 30 seconds")
 			default:
-				if mutationCount == 31591 {
+				if mutationCount.Load() == 31591 {
 					newDcp.Close()
 					return
 				}

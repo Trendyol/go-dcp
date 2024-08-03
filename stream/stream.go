@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/asaskevich/EventBus"
@@ -30,8 +31,8 @@ type Stream interface {
 	Save()
 	Close(bool)
 	GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool)
-	GetObserver() couchbase.Observer
-	GetMetric() (*Metric, int)
+	GetObservers() *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer]
+	GetMetric() (*Metric, int32)
 	UnmarkDirtyOffsets()
 	GetCheckpointMetric() *CheckpointMetric
 }
@@ -47,14 +48,13 @@ type stream struct {
 	metadata                     metadata.Metadata
 	checkpoint                   Checkpoint
 	rollbackMitigation           couchbase.RollbackMitigation
-	observer                     couchbase.Observer
 	vBucketDiscovery             VBucketDiscovery
 	bus                          EventBus.Bus
 	eventHandler                 models.EventHandler
 	config                       *config.Dcp
 	metric                       *Metric
-	vbIds                        *wrapper.ConcurrentSwissMap[uint16, struct{}]
 	rebalanceTimer               *time.Timer
+	vbIDRange                    *models.VbIDRange
 	dirtyOffsets                 *wrapper.ConcurrentSwissMap[uint16, bool]
 	stopCh                       chan struct{}
 	listener                     models.Listener
@@ -63,8 +63,9 @@ type stream struct {
 	finishStreamWithEndEventCh   chan struct{}
 	finishStreamWithCloseCh      chan struct{}
 	offsets                      *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
+	observers                    *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer]
 	collectionIDs                map[uint32]string
-	activeStreams                int
+	activeStreams                atomic.Int32
 	rebalanceLock                sync.Mutex
 	streamFinishedWithCloseCh    bool
 	streamFinishedWithEndEventCh bool
@@ -74,11 +75,14 @@ type stream struct {
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
-	if _, ok := s.vbIds.Load(vbID); ok {
+	if s.vbIDRange.In(vbID) {
+		if current, ok := s.offsets.Load(vbID); ok && current.SeqNo > offset.SeqNo {
+			return
+		}
 		s.offsets.Store(vbID, offset)
 		s.dirtyOffsets.Store(vbID, dirty)
 	} else {
-		logger.Log.Warn("vbID: %v not belong our vbId range", vbID)
+		logger.Log.Warn("vbID: %v not belong our vbID range", vbID)
 	}
 }
 
@@ -106,86 +110,78 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 	s.metric.ProcessLatency = time.Since(start).Milliseconds()
 }
 
-func (s *stream) listen() {
-	for args := range s.observer.Listen() {
-		event := args.Event
-
-		switch v := event.(type) {
-		case models.DcpMutation:
-			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
-		case models.DcpDeletion:
-			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
-		case models.DcpExpiration:
-			s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
-		case models.DcpSeqNoAdvanced:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionCreation:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionDeletion:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionFlush:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpScopeCreation:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpScopeDeletion:
-			s.setOffset(v.VbID, v.Offset, true)
-		case models.DcpCollectionModification:
-			s.setOffset(v.VbID, v.Offset, true)
-		default:
-		}
+func (s *stream) listen(args models.ListenerArgs) {
+	switch v := args.Event.(type) {
+	case models.DcpMutation:
+		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+	case models.DcpDeletion:
+		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+	case models.DcpExpiration:
+		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+	case models.DcpSeqNoAdvanced:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionCreation:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionDeletion:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionFlush:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpScopeCreation:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpScopeDeletion:
+		s.setOffset(v.VbID, v.Offset, true)
+	case models.DcpCollectionModification:
+		s.setOffset(v.VbID, v.Offset, true)
+	default:
 	}
 }
 
 func (s *stream) reopenStream(vbID uint16) {
-	go func(innerVbID uint16) {
-		retry := 3
+	retry := 3
 
-		for {
-			err := s.openStream(innerVbID)
-			if err == nil {
-				logger.Log.Info("re-open stream, vbID: %d", innerVbID)
-				break
-			} else {
-				logger.Log.Warn("cannot re-open stream, vbID: %d, err: %v", innerVbID, err)
-			}
-
-			retry--
-			if retry == 0 {
-				logger.Log.Error("error while re-open stream, vbID: %d, err: give up after few retry", innerVbID)
-				panic(err)
-			}
-
-			time.Sleep(time.Second * 5)
+	for {
+		err := s.openStream(vbID)
+		if err == nil {
+			logger.Log.Info("re-open stream, vbID: %d", vbID)
+			break
+		} else {
+			logger.Log.Warn("cannot re-open stream, vbID: %d, err: %v", vbID, err)
 		}
-	}(vbID)
+
+		retry--
+		if retry == 0 {
+			logger.Log.Error("error while re-open stream, vbID: %d, err: give up after few retry", vbID)
+			panic(err)
+		}
+
+		time.Sleep(time.Second * 5)
+	}
 }
 
-func (s *stream) listenEnd() {
-	for endContext := range s.observer.ListenEnd() {
-		if !s.closeWithCancel && endContext.Err != nil {
-			if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
-				logger.Log.Error("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
-			} else {
-				logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
-			}
-		}
-
-		if endContext.Err == nil {
-			logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
-		}
-
-		if !s.closeWithCancel && endContext.Err != nil &&
-			(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
-				errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
-			s.reopenStream(endContext.Event.VbID)
+func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
+	if !s.closeWithCancel && endContext.Err != nil {
+		if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
+			logger.Log.Error("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 		} else {
-			s.activeStreams--
-			if s.activeStreams == 0 && !s.streamFinishedWithCloseCh {
-				s.finishStreamWithEndEventCh <- struct{}{}
-			}
+			logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
+		}
+	}
+
+	if endContext.Err == nil {
+		logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
+	}
+
+	if !s.closeWithCancel && endContext.Err != nil &&
+		(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
+			errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
+		go s.reopenStream(endContext.Event.VbID)
+	} else {
+		activeStreams := s.activeStreams.Add(-1)
+		if activeStreams == 0 && !s.streamFinishedWithCloseCh {
+			s.finishStreamWithEndEventCh <- struct{}{}
 		}
 	}
 }
@@ -196,32 +192,36 @@ func (s *stream) Open() {
 
 	s.eventHandler.BeforeStreamStart()
 
-	vbIds := s.vBucketDiscovery.Get()
+	vbIDs := s.vBucketDiscovery.Get()
+	s.vbIDRange = &models.VbIDRange{
+		Start: vbIDs[0],
+		End:   vbIDs[len(vbIDs)-1],
+	}
 
 	if !s.config.RollbackMitigation.Disabled {
 		if s.bucketInfo.IsEphemeral() {
 			logger.Log.Info("rollback mitigation is disabled for ephemeral bucket")
 			s.config.RollbackMitigation.Disabled = true
 		} else {
-			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIds, s.bus)
+			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIDs, s.bus)
 			s.rollbackMitigation.Start()
 		}
 	}
 
-	s.activeStreams = len(vbIds)
+	s.activeStreams.Swap(int32(len(vbIDs)))
 
-	s.checkpoint = NewCheckpoint(s, vbIds, s.client, s.metadata, s.config)
-	s.vbIds = wrapper.CreateConcurrentSwissMap[uint16, struct{}](1024)
-	for _, vbID := range vbIds {
-		s.vbIds.Store(vbID, struct{}{})
-	}
+	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
-	s.observer = couchbase.NewObserver(s.config, s.collectionIDs, s.bus)
 
-	s.openAllStreams(vbIds)
+	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)
+	for _, vbID := range vbIDs {
+		s.observers.Store(
+			vbID,
+			couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus),
+		)
+	}
 
-	go s.listenEnd()
-	go s.listen()
+	s.openAllStreams(vbIDs)
 
 	logger.Log.Info("stream started")
 	s.eventHandler.AfterStreamStart()
@@ -285,14 +285,15 @@ func (s *stream) openStream(vbID uint16) error {
 		logger.Log.Error("error while opening stream, err: %v", err)
 		return err
 	}
-	return s.client.OpenStream(vbID, s.collectionIDs, offset, s.observer)
+	observer, _ := s.observers.Load(vbID)
+	return s.client.OpenStream(vbID, s.collectionIDs, offset, observer)
 }
 
-func (s *stream) openAllStreams(vbIds []uint16) {
+func (s *stream) openAllStreams(vbIDs []uint16) {
 	openWg := &sync.WaitGroup{}
-	openWg.Add(len(vbIds))
+	openWg.Add(len(vbIDs))
 
-	for _, vbID := range vbIds {
+	for _, vbID := range vbIDs {
 		go func(innerVbId uint16) {
 			err := s.openStream(innerVbId)
 			if err != nil {
@@ -315,7 +316,8 @@ func (s *stream) closeAllStreams(internal bool) {
 			defer wg.Done()
 			if internal {
 				// todo: this is not a good way to close stream
-				s.observer.End(models.DcpStreamEnd{VbID: vbID}, nil)
+				observer, _ := s.observers.Load(vbID)
+				observer.End(models.DcpStreamEnd{VbID: vbID}, nil)
 			} else {
 				err := s.client.CloseStream(vbID)
 				if err != nil {
@@ -351,7 +353,10 @@ func (s *stream) Close(closeWithCancel bool) {
 		s.rollbackMitigation.Stop()
 	}
 
-	s.observer.Close()
+	s.observers.Range(func(_ uint16, observer couchbase.Observer) bool {
+		observer.Close()
+		return true
+	})
 
 	if s.checkpoint != nil {
 		s.checkpoint.StopSchedule()
@@ -364,8 +369,11 @@ func (s *stream) Close(closeWithCancel bool) {
 		s.finishStreamWithCloseCh <- struct{}{}
 	}
 
-	s.observer.CloseEnd()
-	s.observer = nil
+	s.observers.Range(func(_ uint16, observer couchbase.Observer) bool {
+		observer.CloseEnd()
+		return true
+	})
+	s.observers = nil
 
 	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
 	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
@@ -378,12 +386,12 @@ func (s *stream) GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offse
 	return s.offsets, s.dirtyOffsets, s.anyDirtyOffset
 }
 
-func (s *stream) GetObserver() couchbase.Observer {
-	return s.observer
+func (s *stream) GetObservers() *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer] {
+	return s.observers
 }
 
-func (s *stream) GetMetric() (*Metric, int) {
-	return s.metric, s.activeStreams
+func (s *stream) GetMetric() (*Metric, int32) {
+	return s.metric, s.activeStreams.Load()
 }
 
 func (s *stream) GetCheckpointMetric() *CheckpointMetric {

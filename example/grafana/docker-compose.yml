@@ -1,0 +1,54 @@
+version: '3.9'
+
+volumes:
+  prometheus_data: { }
+  grafana_data: { }
+
+services:
+  go-dcp:
+    build: .
+    ports:
+      - "8080:8080"
+    expose:
+      - 8080
+    depends_on:
+      - couchbase
+
+  couchbase:
+    build: ./couchbase
+    ports:
+      - "8091-8094:8091-8094"
+      - "11210:11210"
+    expose:
+      - 8091
+    environment:
+      - COUCHBASE_ADMINISTRATOR_USERNAME=user
+      - COUCHBASE_ADMINISTRATOR_PASSWORD=password
+
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: prometheus
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    expose:
+      - 9090
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+    ports:
+      - "3000:3000"
+    expose:
+      - 3000
+    depends_on:
+      - prometheus

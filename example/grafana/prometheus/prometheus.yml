@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "go-dcp"
+    static_configs:
+      - targets: ["go-dcp:8080"]

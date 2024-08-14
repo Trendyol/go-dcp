@@ -1,6 +1,8 @@
 module github.com/Trendyol/go-dcp
 
-go 1.20
+go 1.21
+
+toolchain go1.21.5
 
 retract (
 	v1.2.17

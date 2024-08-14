@@ -167,9 +167,18 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 		Event: event,
 	})
 }
+func (so *observer) (eventTime time.Time) bool {
+
+}
 
 func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 	if !so.canForward(mutation.VbID, mutation.SeqNo) {
+		return
+	}
+
+	eventTime := time.Unix(int64(mutation.Cas/1000000000), 0)
+
+	if so.config.Dcp.Listener.SkipUntil.Before(eventTime) {
 		return
 	}
 
@@ -185,7 +194,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 					SeqNo:          mutation.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(mutation.CollectionID),
-				EventTime:      time.Unix(int64(mutation.Cas/1000000000), 0),
+				EventTime:      eventTime,
 			},
 		})
 	}
@@ -204,6 +213,12 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 		return
 	}
 
+	eventTime := time.Unix(int64(deletion.Cas/1000000000), 0)
+
+	if so.config.Dcp.Listener.SkipUntil.Before(eventTime) {
+		return
+	}
+
 	if currentSnapshot, ok := so.currentSnapshots.Load(deletion.VbID); ok && currentSnapshot != nil {
 		vbUUID, _ := so.uuIDMap.Load(deletion.VbID)
 
@@ -216,7 +231,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 					SeqNo:          deletion.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(deletion.CollectionID),
-				EventTime:      time.Unix(int64(deletion.Cas/1000000000), 0),
+				EventTime:      eventTime,
 			},
 		})
 	}
@@ -235,6 +250,12 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 		return
 	}
 
+	eventTime := time.Unix(int64(expiration.Cas/1000000000), 0)
+
+	if so.config.Dcp.Listener.SkipUntil.Before(eventTime) {
+		return
+	}
+
 	if currentSnapshot, ok := so.currentSnapshots.Load(expiration.VbID); ok && currentSnapshot != nil {
 		vbUUID, _ := so.uuIDMap.Load(expiration.VbID)
 
@@ -247,7 +268,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 					SeqNo:          expiration.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(expiration.CollectionID),
-				EventTime:      time.Unix(int64(expiration.Cas/1000000000), 0),
+				EventTime:      eventTime,
 			},
 		})
 	}

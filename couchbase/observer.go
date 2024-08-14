@@ -167,7 +167,7 @@ func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
 		Event: event,
 	})
 }
-func (so *observer) isAfterSkipWindow(eventTime time.Time) bool {
+func (so *observer) isBeforeSkipWindow(eventTime time.Time) bool {
 	return so.config.Dcp.Listener.SkipUntil.Before(eventTime)
 }
 
@@ -178,7 +178,7 @@ func (so *observer) Mutation(mutation gocbcore.DcpMutation) { //nolint:dupl
 
 	eventTime := time.Unix(int64(mutation.Cas/1000000000), 0)
 
-	if so.isAfterSkipWindow(eventTime) {
+	if so.isBeforeSkipWindow(eventTime) {
 		return
 	}
 
@@ -215,7 +215,7 @@ func (so *observer) Deletion(deletion gocbcore.DcpDeletion) { //nolint:dupl
 
 	eventTime := time.Unix(int64(deletion.Cas/1000000000), 0)
 
-	if so.isAfterSkipWindow(eventTime) {
+	if so.isBeforeSkipWindow(eventTime) {
 		return
 	}
 
@@ -252,7 +252,7 @@ func (so *observer) Expiration(expiration gocbcore.DcpExpiration) { //nolint:dup
 
 	eventTime := time.Unix(int64(expiration.Cas/1000000000), 0)
 
-	if so.isAfterSkipWindow(eventTime) {
+	if so.isBeforeSkipWindow(eventTime) {
 		return
 	}
 

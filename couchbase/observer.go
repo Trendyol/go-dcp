@@ -139,6 +139,9 @@ func (so *observer) canForward(vbID uint16, seqNo uint64) bool {
 }
 
 func (so *observer) isBeforeSkipWindow(eventTime time.Time) bool {
+	if so.config.Dcp.Listener.SkipUntil == nil {
+		return false
+	}
 	return so.config.Dcp.Listener.SkipUntil.Before(eventTime)
 }
 

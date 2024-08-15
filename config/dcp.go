@@ -50,8 +50,8 @@ type DCPGroup struct {
 }
 
 type DCPListener struct {
-	BufferSize uint      `yaml:"bufferSize"`
-	SkipUntil  time.Time `yaml:"skipUntil"`
+	BufferSize uint       `yaml:"bufferSize"`
+	SkipUntil  *time.Time `yaml:"skipUntil"`
 }
 
 type ExternalDcpConfig struct {

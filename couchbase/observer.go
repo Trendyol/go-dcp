@@ -142,7 +142,7 @@ func (so *observer) isBeforeSkipWindow(eventTime time.Time) bool {
 	if so.config.Dcp.Listener.SkipUntil == nil {
 		return false
 	}
-	return so.config.Dcp.Listener.SkipUntil.Before(eventTime)
+	return so.config.Dcp.Listener.SkipUntil.After(eventTime)
 }
 
 func (so *observer) convertToCollectionName(collectionID uint32) string {

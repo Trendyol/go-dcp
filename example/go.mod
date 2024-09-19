@@ -12,7 +12,7 @@ require (
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/couchbase/gocbcore/v10 v10.5.1 // indirect
+	github.com/couchbase/gocbcore/v10 v10.5.2-0.20240910082845-67560b8bbbc4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect

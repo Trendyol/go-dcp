@@ -10,7 +10,7 @@ retract (
 require (
 	github.com/ansrivas/fiberprometheus/v2 v2.7.0
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/couchbase/gocbcore/v10 v10.5.1
+	github.com/couchbase/gocbcore/v10 v10.5.2-0.20240910082845-67560b8bbbc4
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/gofiber/fiber/v2 v2.52.5

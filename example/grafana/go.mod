@@ -15,7 +15,7 @@ require (
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/couchbase/gocbcore/v10 v10.5.1 // indirect
+	github.com/couchbase/gocbcore/v10 v10.5.2-0.20240910082845-67560b8bbbc4 // indirect
 	github.com/couchbase/gocbcoreps v0.1.3 // indirect
 	github.com/couchbase/goprotostellar v1.0.2 // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28 // indirect

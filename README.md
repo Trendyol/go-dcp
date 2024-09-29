@@ -189,3 +189,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 - [kubernetesStatefulSet membership config](example/config_k8s_stateful_set.yml)
 - [kubernetesHa membership config](example/config_k8s_leader_election.yml)
 - [static membership config](example/config_static.yml)
+
+## Grafana Metric Dashboard
+
+[Grafana & Prometheus Example](example/grafana)

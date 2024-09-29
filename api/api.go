@@ -142,7 +142,7 @@ func NewAPI(config *dcp.Dcp,
 }
 
 func newMetricMiddleware(app *fiber.App, config *dcp.Dcp) func(ctx *fiber.Ctx) error {
-	fiberPrometheus := fiberprometheus.New(config.Dcp.Group.Name)
+	fiberPrometheus := fiberprometheus.NewWithRegistry(prometheus.DefaultRegisterer, config.Dcp.Group.Name, "http", "", nil)
 	fiberPrometheus.RegisterAt(app, config.Metric.Path)
 
 	logger.Log.Info("metric middleware registered on path %s", config.Metric.Path)

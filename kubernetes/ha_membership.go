@@ -30,10 +30,12 @@ func (h *haMembership) Close() {
 }
 
 func (h *haMembership) membershipChangedListener(model *membership.Model) {
-	h.info = model
-	go func() {
-		h.infoChan <- model
-	}()
+	if h.info == nil {
+		h.info = model
+		go func() {
+			h.infoChan <- model
+		}()
+	}
 }
 
 func NewHaMembership(_ *config.Dcp, bus EventBus.Bus) membership.Membership {

@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"github.com/Trendyol/go-dcp/membership"
+	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/metric"
 	"github.com/ansrivas/fiberprometheus/v2"
@@ -77,6 +79,20 @@ func (s *api) rebalance(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
 
+func (s *api) setInfo(c *fiber.Ctx) error {
+	var req models.SetInfoRequest
+	if err := c.BodyParser(&req); err != nil {
+		// Todo: Check Response Code
+		return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
+	}
+
+	s.stream.SetInfo(membership.Model{MemberNumber: req.MemberNumber, TotalMembers: req.TotalMembers})
+
+	s.stream.Rebalance()
+
+	return c.SendString("OK")
+}
+
 func (s *api) followers(c *fiber.Ctx) error {
 	if s.serviceDiscovery == nil {
 		return c.SendString("service discovery is not enabled")
@@ -120,6 +136,7 @@ func NewAPI(config *dcp.Dcp,
 	}
 
 	app.Get("/rebalance", api.rebalance)
+	app.Put("/membership/info", api.setInfo)
 
 	return api
 }

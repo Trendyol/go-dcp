@@ -22,6 +22,8 @@ func (h *haMembership) GetInfo() *membership.Model {
 	return <-h.infoChan
 }
 
+func (h *haMembership) SetInfo(m membership.Model) {}
+
 func (h *haMembership) Close() {
 	err := h.bus.Unsubscribe(helpers.MembershipChangedBusEventName, h.membershipChangedListener)
 	if err != nil {

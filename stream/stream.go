@@ -3,6 +3,7 @@ package stream
 import (
 	"errors"
 	"fmt"
+	"github.com/Trendyol/go-dcp/membership"
 	"sync"
 	"time"
 
@@ -34,6 +35,7 @@ type Stream interface {
 	GetMetric() (*Metric, int)
 	UnmarkDirtyOffsets()
 	GetCheckpointMetric() *CheckpointMetric
+	SetInfo(model membership.Model)
 }
 
 type Metric struct {
@@ -258,6 +260,10 @@ func (s *stream) Rebalance() {
 	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
 
 	logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+}
+
+func (s *stream) SetInfo(model membership.Model) {
+	s.vBucketDiscovery.SetInfo(model)
 }
 
 func (s *stream) rebalance() {

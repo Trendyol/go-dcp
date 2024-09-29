@@ -309,8 +309,9 @@ func (h *cbMembership) Close() {
 }
 
 func (h *cbMembership) membershipChangedListener(model *membership.Model) {
+	shouldSendMessage := h.info == nil
 	h.info = model
-	if h.info == nil {
+	if shouldSendMessage {
 		go func() {
 			h.infoChan <- model
 		}()

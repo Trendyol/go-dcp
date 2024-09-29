@@ -265,9 +265,13 @@ func (s *stream) Rebalance() {
 
 	s.eventHandler.AfterRebalanceStart()
 
-	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
-
-	logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	if s.config.Dcp.Group.Membership.Type == membership.DynamicMembershipType {
+		s.rebalanceTimer = time.AfterFunc(0, s.rebalance)
+		logger.Log.Info("rebalance delay is disabled on dynamic membership")
+	} else {
+		s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
+		logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	}
 }
 
 func (s *stream) SetInfo(model *membership.Model) {

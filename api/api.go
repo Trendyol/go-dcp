@@ -80,10 +80,10 @@ func (s *api) rebalance(c *fiber.Ctx) error {
 	return c.SendString("OK")
 }
 
-func (s *api) setInfo(c *fiber.Ctx) error {
+func (s *api) info(c *fiber.Ctx) error {
 	var req models.SetInfoRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
+		return c.Status(fiber.StatusBadRequest).SendString("invalid request body")
 	}
 
 	s.stream.SetInfo(&membership.Model{MemberNumber: req.MemberNumber, TotalMembers: req.TotalMembers})
@@ -138,7 +138,7 @@ func NewAPI(config *dcp.Dcp,
 	}
 
 	app.Get("/rebalance", api.rebalance)
-	app.Put("/membership/info", api.setInfo)
+	app.Put("/membership/info", api.info)
 
 	return api
 }

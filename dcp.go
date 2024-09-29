@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/Trendyol/go-dcp/metric"
 	"os"
 	"os/signal"
 	"reflect"
 	"regexp"
 	"strings"
 	"syscall"
+
+	"github.com/Trendyol/go-dcp/metric"
 
 	"github.com/asaskevich/EventBus"
 

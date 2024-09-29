@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+
 	"github.com/Trendyol/go-dcp/membership"
 	"github.com/Trendyol/go-dcp/models"
 
@@ -82,7 +83,6 @@ func (s *api) rebalance(c *fiber.Ctx) error {
 func (s *api) setInfo(c *fiber.Ctx) error {
 	var req models.SetInfoRequest
 	if err := c.BodyParser(&req); err != nil {
-		// Todo: Check Response Code
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
 	}
 

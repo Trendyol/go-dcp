@@ -3,9 +3,10 @@ package stream
 import (
 	"errors"
 	"fmt"
-	"github.com/Trendyol/go-dcp/membership"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp/membership"
 
 	"github.com/asaskevich/EventBus"
 
@@ -235,6 +236,7 @@ func (s *stream) Open() {
 
 	go s.wait()
 }
+
 func (s *stream) IsAlive() bool {
 	return s.alive
 }

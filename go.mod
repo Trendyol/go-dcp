@@ -10,14 +10,14 @@ retract (
 require (
 	github.com/ansrivas/fiberprometheus/v2 v2.7.0
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
-	github.com/couchbase/gocbcore/v10 v10.5.2-0.20240910082845-67560b8bbbc4
+	github.com/couchbase/gocbcore/v10 v10.5.2
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/gofiber/fiber/v2 v2.52.5
 	github.com/google/uuid v1.6.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mhmtszr/concurrent-swiss-map v1.0.8
-	github.com/prometheus/client_golang v1.20.2
+	github.com/prometheus/client_golang v1.20.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/testcontainers/testcontainers-go v0.33.0
 	github.com/valyala/fasthttp v1.56.0

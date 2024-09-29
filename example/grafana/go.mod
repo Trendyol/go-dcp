@@ -15,7 +15,7 @@ require (
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/couchbase/gocbcore/v10 v10.5.2-0.20240910082845-67560b8bbbc4 // indirect
+	github.com/couchbase/gocbcore/v10 v10.5.2 // indirect
 	github.com/couchbase/gocbcoreps v0.1.3 // indirect
 	github.com/couchbase/goprotostellar v1.0.2 // indirect
 	github.com/couchbaselabs/gocbconnstr/v2 v2.0.0-20240607131231-fb385523de28 // indirect
@@ -45,7 +45,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/prometheus/client_golang v1.20.2 // indirect
+	github.com/prometheus/client_golang v1.20.4 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.58.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect

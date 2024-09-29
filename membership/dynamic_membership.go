@@ -1,9 +1,6 @@
 package membership
 
 import (
-	"github.com/Trendyol/go-dcp/config"
-	"github.com/Trendyol/go-dcp/helpers"
-	"github.com/Trendyol/go-dcp/logger"
 	"github.com/asaskevich/EventBus"
 )
 
@@ -20,16 +17,10 @@ func (d *dynamicMembership) GetInfo() *Model {
 	return <-d.infoChan
 }
 
-func (d *dynamicMembership) Close() {
-	err := d.bus.Unsubscribe(helpers.MembershipChangedBusEventName, d.membershipChangedListener)
-	if err != nil {
-		logger.Log.Error("error while unsubscribe: %v", err)
-	}
-}
-
-func (d *dynamicMembership) membershipChangedListener(m *Model) {
+func (d *dynamicMembership) SetInfo(m *Model) {
 	shouldSendMessage := d.info == nil
 	d.info = m
+
 	if shouldSendMessage {
 		go func() {
 			d.infoChan <- m
@@ -37,20 +28,11 @@ func (d *dynamicMembership) membershipChangedListener(m *Model) {
 	}
 }
 
-func (d *dynamicMembership) SetInfo(m Model) {
-	d.info.TotalMembers = m.TotalMembers
-	d.info.MemberNumber = m.MemberNumber
-}
+func (d *dynamicMembership) Close() {}
 
-func NewDynamicMembership(_ *config.Dcp, bus EventBus.Bus) Membership {
+func NewDynamicMembership() Membership {
 	dm := &dynamicMembership{
 		infoChan: make(chan *Model),
-		bus:      bus,
-	}
-	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, dm.membershipChangedListener, true)
-	if err != nil {
-		logger.Log.Error("error while subscribe membership changed event, err: %v", err)
-		panic(err)
 	}
 
 	return dm

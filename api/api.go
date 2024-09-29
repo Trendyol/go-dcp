@@ -86,9 +86,11 @@ func (s *api) setInfo(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString("Invalid request body")
 	}
 
-	s.stream.SetInfo(membership.Model{MemberNumber: req.MemberNumber, TotalMembers: req.TotalMembers})
+	s.stream.SetInfo(&membership.Model{MemberNumber: req.MemberNumber, TotalMembers: req.TotalMembers})
 
-	s.stream.Rebalance()
+	if s.stream.IsAlive() {
+		s.stream.Rebalance()
+	}
 
 	return c.SendString("OK")
 }

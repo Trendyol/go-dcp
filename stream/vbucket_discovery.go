@@ -20,7 +20,7 @@ type VBucketDiscovery interface {
 	Get() []uint16
 	Close()
 	GetMetric() *VBucketDiscoveryMetric
-	SetInfo(model membership.Model)
+	SetInfo(model *membership.Model)
 }
 
 type vBucketDiscovery struct {
@@ -66,7 +66,7 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	return readyToStreamVBuckets
 }
 
-func (s *vBucketDiscovery) SetInfo(model membership.Model) {
+func (s *vBucketDiscovery) SetInfo(model *membership.Model) {
 	s.membership.SetInfo(model)
 	logger.Log.Debug("membership info is changed")
 }
@@ -97,7 +97,7 @@ func NewVBucketDiscovery(client couchbase.Client,
 	case config.Dcp.Group.Membership.Type == membership.KubernetesHaMembershipType:
 		ms = kubernetes.NewHaMembership(config, bus)
 	case config.Dcp.Group.Membership.Type == membership.DynamicMembershipType:
-		ms = membership.NewDynamicMembership(config, bus)
+		ms = membership.NewDynamicMembership()
 	default:
 		err := errors.New("unknown membership")
 		logger.Log.Error("error while try to use membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)

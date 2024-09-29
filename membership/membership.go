@@ -3,7 +3,7 @@ package membership
 type Membership interface {
 	GetInfo() *Model
 	Close()
-	SetInfo(model Model)
+	SetInfo(model *Model)
 }
 
 const (

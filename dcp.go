@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/Trendyol/go-dcp/metric"
 	"os"
 	"os/signal"
 	"reflect"
@@ -29,7 +30,6 @@ import (
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/metadata"
-	"github.com/Trendyol/go-dcp/metric"
 	"github.com/Trendyol/go-dcp/models"
 	"github.com/Trendyol/go-dcp/servicediscovery"
 	"github.com/Trendyol/go-dcp/stream"
@@ -126,14 +126,6 @@ func (s *dcp) Start() {
 		s.leaderElection.Start()
 	}
 
-	s.stream.Open()
-
-	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
-	if err != nil {
-		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
-		panic(err)
-	}
-
 	if !s.config.API.Disabled {
 		go func() {
 			go func() {
@@ -145,6 +137,14 @@ func (s *dcp) Start() {
 			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors)
 			s.api.Listen()
 		}()
+	}
+
+	s.stream.Open()
+
+	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
+	if err != nil {
+		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
+		panic(err)
 	}
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)

@@ -1,13 +1,8 @@
 package membership
 
-import (
-	"github.com/asaskevich/EventBus"
-)
-
 type dynamicMembership struct {
 	info     *Model
 	infoChan chan *Model
-	bus      EventBus.Bus
 }
 
 func (d *dynamicMembership) GetInfo() *Model {

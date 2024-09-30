@@ -311,10 +311,13 @@ func (h *cbMembership) Close() {
 }
 
 func (h *cbMembership) membershipChangedListener(model *membership.Model) {
+	shouldSendMessage := h.info == nil
 	h.info = model
-	go func() {
-		h.infoChan <- model
-	}()
+	if shouldSendMessage {
+		go func() {
+			h.infoChan <- model
+		}()
+	}
 }
 
 func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) membership.Membership {

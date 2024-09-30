@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Trendyol/go-dcp/metric"
+
 	"github.com/asaskevich/EventBus"
 
 	"github.com/Trendyol/go-dcp/membership"
@@ -29,7 +31,6 @@ import (
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/metadata"
-	"github.com/Trendyol/go-dcp/metric"
 	"github.com/Trendyol/go-dcp/models"
 	"github.com/Trendyol/go-dcp/servicediscovery"
 	"github.com/Trendyol/go-dcp/stream"
@@ -83,8 +84,14 @@ func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
 	s.eventHandler = eventHandler
 }
 
-func (s *dcp) membershipChangedListener(_ *membership.Model) {
-	s.stream.Rebalance()
+func (s *dcp) membershipChangedListener(m *membership.Model) {
+	currentInfo := &membership.Model{
+		MemberNumber: s.vBucketDiscovery.GetMetric().MemberNumber,
+		TotalMembers: s.vBucketDiscovery.GetMetric().TotalMembers,
+	}
+	if s.stream.IsOpen() && currentInfo.IsChanged(m) {
+		s.stream.Rebalance()
+	}
 }
 
 //nolint:funlen
@@ -126,14 +133,6 @@ func (s *dcp) Start() {
 		s.leaderElection.Start()
 	}
 
-	s.stream.Open()
-
-	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
-	if err != nil {
-		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
-		panic(err)
-	}
-
 	if !s.config.API.Disabled {
 		go func() {
 			go func() {
@@ -142,9 +141,17 @@ func (s *dcp) Start() {
 			}()
 
 			s.metricCollectors = append(s.metricCollectors, metric.NewMetricCollector(s.client, s.stream, s.vBucketDiscovery))
-			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors)
+			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors, s.bus)
 			s.api.Listen()
 		}()
+	}
+
+	s.stream.Open()
+
+	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
+	if err != nil {
+		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
+		panic(err)
 	}
 
 	signal.Notify(s.cancelCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGABRT, syscall.SIGQUIT)

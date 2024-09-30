@@ -90,10 +90,10 @@ $ go get github.com/Trendyol/go-dcp
 | `dcp.connectionTimeout`                  |   time.Duration   |    no    |     5s     | DCP connection timeout.                                                                                                                                                                                   |
 | `dcp.listener.bufferSize`                |       uint        |    no    |    1000    | Go DCP listener buffered channel size.                                                                                                                                                                    |
 | `dcp.listener.skipUntil`                 |     time.Time     |    no    |            | Set this if you want to skip events until certain time.                                                                                                                                                   |
-| `dcp.group.membership.type`              |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details.                                                                                       |
+| `dcp.group.membership.type`              |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet`, `static` or `dynamic`. Check examples for details.                                                                            |
 | `dcp.group.membership.memberNumber`      |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                                                                                                                 |
 | `dcp.group.membership.totalMembers`      |        int        |    no    |     1      | Set this if membership is `static` or `kubernetesStatefulSet`. Other methods will ignore this field.                                                                                                      |
-| `dcp.group.membership.rebalanceDelay`    |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                                                                                                                |
+| `dcp.group.membership.rebalanceDelay`    |   time.Duration   |    no    |    20s     | Works for autonomous mode. If membership is `dynamic`, it is ignored and set to `0s`.                                                                                                                     |
 | `dcp.group.membership.config`            | map[string]string |    no    |  *not set  | Set key-values of config. `expirySeconds`,`heartbeatInterval`,`heartbeatToleranceDuration`,`monitorInterval`,`timeout` for `couchbase` type                                                               |
 | `dcp.config.disableChangeStreams`        |       bool        |    no    |   false    | Set this to true if you did not want to get [older versions of changes](https://docs.couchbase.com/server/current/learn/data/change-history.html) for Couchbase Server 7.2.0+ using Magma storage buckets |
 | `leaderElection.enabled`                 |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                                                                                                            |
@@ -133,13 +133,14 @@ The client offers an API that handles different endpoints and expose several met
 
 ### API
 
-| Endpoint                | Description                                                                              | Debug Mode |
-|-------------------------|------------------------------------------------------------------------------------------|------------|
-| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |            |
-| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |            |
-| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            | x          | 
-| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        | x          |
-| `GET /debug/pprof/*`    | [Fiber Pprof](https://docs.gofiber.io/api/middleware/pprof/)                             | x          |
+| Endpoint                | Description                                                                              | Debug Mode | Body                                            |
+|-------------------------|------------------------------------------------------------------------------------------|------------|-------------------------------------------------|
+| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |            |                                                 |
+| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |            |                                                 |
+| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            | x          |                                                 |
+| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        | x          |                                                 |
+| `GET /debug/pprof/*`    | [Fiber Pprof](https://docs.gofiber.io/api/middleware/pprof/)                             | x          |                                                 |
+| `PUT /membership/info`  | Updates membership info and applies rebalance.                                           |            | ```{"memberNumber": 1,"totalMembers": 3 }```    |  
 
 The Client collects relevant metrics and makes them available at /metrics endpoint.
 In case you haven't configured a metric.path, the metrics will be exposed at the /metrics.
@@ -189,6 +190,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 - [kubernetesStatefulSet membership config](example/config_k8s_stateful_set.yml)
 - [kubernetesHa membership config](example/config_k8s_leader_election.yml)
 - [static membership config](example/config_static.yml)
+- [dynamic membership config](example/config_dynamic.yml)
 
 ## Grafana Metric Dashboard
 

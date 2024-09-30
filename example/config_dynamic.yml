@@ -1,0 +1,10 @@
+hosts:
+  - localhost:8091
+username: user
+password: password
+bucketName: dcp-test
+dcp:
+  group:
+    name: groupName
+    membership:
+      type: dynamic

@@ -2,8 +2,10 @@ package api
 
 import (
 	"fmt"
-
+	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/membership"
+	"github.com/asaskevich/EventBus"
+
 	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/metric"
@@ -35,6 +37,7 @@ type api struct {
 	app              *fiber.App
 	config           *dcp.Dcp
 	registerer       *metric.Registerer
+	bus              EventBus.Bus
 }
 
 func (s *api) Listen() {
@@ -70,13 +73,18 @@ func (s *api) status(c *fiber.Ctx) error {
 }
 
 func (s *api) offset(c *fiber.Ctx) error {
+	if !s.stream.IsOpen() {
+		return c.SendString("offset could not get, stream is not open")
+	}
 	offsets, _, _ := s.stream.GetOffsets()
 	return c.JSON(offsets)
 }
 
 func (s *api) rebalance(c *fiber.Ctx) error {
+	if !s.stream.IsOpen() {
+		return c.SendString("rebalance skipped, stream is not open")
+	}
 	s.stream.Rebalance()
-
 	return c.SendString("OK")
 }
 
@@ -85,12 +93,12 @@ func (s *api) info(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid request body")
 	}
+	logger.Log.Debug("new info arrived for member: %v/%v", req.MemberNumber, req.TotalMembers)
 
-	s.stream.SetInfo(&membership.Model{MemberNumber: req.MemberNumber, TotalMembers: req.TotalMembers})
-
-	if s.stream.IsAlive() {
-		s.stream.Rebalance()
-	}
+	s.bus.Publish(helpers.MembershipChangedBusEventName, &membership.Model{
+		MemberNumber: req.MemberNumber,
+		TotalMembers: req.TotalMembers,
+	})
 
 	return c.SendString("OK")
 }
@@ -108,6 +116,7 @@ func NewAPI(config *dcp.Dcp,
 	stream stream.Stream,
 	serviceDiscovery servicediscovery.ServiceDiscovery,
 	collectors []prometheus.Collector,
+	bus EventBus.Bus,
 ) API {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 
@@ -118,6 +127,7 @@ func NewAPI(config *dcp.Dcp,
 		stream:           stream,
 		serviceDiscovery: serviceDiscovery,
 		registerer:       metric.WrapWithRegisterer(prometheus.DefaultRegisterer),
+		bus:              bus,
 	}
 
 	err := api.registerer.RegisterAll(collectors)

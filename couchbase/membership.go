@@ -59,8 +59,6 @@ func (h *cbMembership) GetInfo() *membership.Model {
 	return <-h.infoChan
 }
 
-func (h *cbMembership) SetInfo(_ *membership.Model) {}
-
 func (h *cbMembership) register() {
 	ctx, cancel := context.WithTimeout(context.Background(), h.membershipConfig.Timeout)
 	defer cancel()

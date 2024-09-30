@@ -15,8 +15,6 @@ func (s *staticMembership) GetInfo() *Model {
 func (s *staticMembership) Close() {
 }
 
-func (s *staticMembership) SetInfo(_ *Model) {}
-
 func NewStaticMembership(config *config.Dcp) Membership {
 	return &staticMembership{
 		info: &Model{

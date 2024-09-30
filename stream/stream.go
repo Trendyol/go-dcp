@@ -36,8 +36,7 @@ type Stream interface {
 	GetMetric() (*Metric, int)
 	UnmarkDirtyOffsets()
 	GetCheckpointMetric() *CheckpointMetric
-	SetInfo(model *membership.Model)
-	IsAlive() bool
+	IsOpen() bool
 }
 
 type Metric struct {
@@ -75,7 +74,7 @@ type stream struct {
 	anyDirtyOffset               bool
 	balancing                    bool
 	closeWithCancel              bool
-	alive                        bool
+	open                         bool
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -229,16 +228,16 @@ func (s *stream) Open() {
 	go s.listen()
 
 	logger.Log.Info("stream started")
-	s.alive = true
 	s.eventHandler.AfterStreamStart()
 
 	s.checkpoint.StartSchedule()
 
 	go s.wait()
+	s.open = true
 }
 
-func (s *stream) IsAlive() bool {
-	return s.alive
+func (s *stream) IsOpen() bool {
+	return s.open
 }
 
 func (s *stream) Rebalance() {
@@ -272,10 +271,6 @@ func (s *stream) Rebalance() {
 		s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
 		logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 	}
-}
-
-func (s *stream) SetInfo(model *membership.Model) {
-	s.vBucketDiscovery.SetInfo(model)
 }
 
 func (s *stream) rebalance() {
@@ -389,8 +384,8 @@ func (s *stream) Close(closeWithCancel bool) {
 	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 
 	logger.Log.Info("stream stopped")
-	s.alive = false
 	s.eventHandler.AfterStreamStop()
+	s.open = false
 }
 
 func (s *stream) GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool) {
@@ -441,6 +436,5 @@ func NewStream(client couchbase.Client,
 		bus:                        bus,
 		eventHandler:               eventHandler,
 		metric:                     &Metric{},
-		alive:                      false,
 	}
 }

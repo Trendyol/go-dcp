@@ -20,8 +20,6 @@ func (s *statefulSetMembership) GetInfo() *membership.Model {
 	return s.info
 }
 
-func (s *statefulSetMembership) SetInfo(_ *membership.Model) {}
-
 func (s *statefulSetMembership) Close() {
 }
 

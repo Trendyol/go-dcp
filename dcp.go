@@ -84,8 +84,14 @@ func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
 	s.eventHandler = eventHandler
 }
 
-func (s *dcp) membershipChangedListener(_ *membership.Model) {
-	s.stream.Rebalance()
+func (s *dcp) membershipChangedListener(m *membership.Model) {
+	currentInfo := &membership.Model{
+		MemberNumber: s.vBucketDiscovery.GetMetric().MemberNumber,
+		TotalMembers: s.vBucketDiscovery.GetMetric().TotalMembers,
+	}
+	if s.stream.IsOpen() && currentInfo.IsChanged(m) {
+		s.stream.Rebalance()
+	}
 }
 
 //nolint:funlen
@@ -135,7 +141,7 @@ func (s *dcp) Start() {
 			}()
 
 			s.metricCollectors = append(s.metricCollectors, metric.NewMetricCollector(s.client, s.stream, s.vBucketDiscovery))
-			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors)
+			s.api = api.NewAPI(s.config, s.client, s.stream, s.serviceDiscovery, s.metricCollectors, s.bus)
 			s.api.Listen()
 		}()
 	}

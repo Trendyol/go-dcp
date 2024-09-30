@@ -24,7 +24,6 @@ func (d *dynamicMembership) Close() {
 	if err != nil {
 		logger.Log.Error("error while unsubscribe: %v", err)
 	}
-
 }
 
 func (d *dynamicMembership) membershipChangedListener(m *Model) {

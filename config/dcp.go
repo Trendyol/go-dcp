@@ -61,6 +61,7 @@ type ExternalDcpConfig struct {
 type ExternalDcp struct {
 	BufferSize           any               `yaml:"bufferSize"`
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
+	MaxQueueSize         int               `yaml:"maxQueueSize"`
 	Group                DCPGroup          `yaml:"group"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
 	Listener             DCPListener       `yaml:"listener"`
@@ -118,6 +119,7 @@ type Logging struct {
 
 type Dcp struct {
 	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
+	MaxQueueSize         int                `yaml:"maxQueueSize"`
 	BucketName           string             `yaml:"bucketName"`
 	ScopeName            string             `yaml:"scopeName"`
 	Password             string             `yaml:"password"`
@@ -356,6 +358,7 @@ func (c *Dcp) ApplyDefaults() {
 	c.applyDefaultCollections()
 	c.applyDefaultScopeName()
 	c.applyDefaultConnectionBufferSize()
+	c.applyDefaultMaxQueueSize()
 	c.applyDefaultMetrics()
 	c.applyDefaultAPI()
 	c.applyDefaultLeaderElection()
@@ -468,6 +471,12 @@ func (c *Dcp) applyDefaultConnectionBufferSize() {
 	}
 }
 
+func (c *Dcp) applyDefaultMaxQueueSize() {
+	if c.MaxQueueSize == 0 {
+		c.MaxQueueSize = 2048
+	}
+}
+
 func (c *Dcp) applyDefaultMetrics() {
 	if c.Metric.Path == "" {
 		c.Metric.Path = "/metrics"
@@ -497,6 +506,10 @@ func (c *Dcp) applyDefaultDcp() {
 
 	if c.Dcp.ConnectionBufferSize == nil {
 		c.Dcp.ConnectionBufferSize = helpers.ResolveUnionIntOrStringValue("20mb")
+	}
+
+	if c.Dcp.MaxQueueSize == 0 {
+		c.Dcp.MaxQueueSize = 2048
 	}
 
 	if c.Dcp.Listener.BufferSize == 0 {

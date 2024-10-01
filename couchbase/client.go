@@ -164,7 +164,7 @@ func CreateSecurityConfig(username string, password string, secureConnection boo
 
 func CreateAgent(httpAddresses []string, bucketName string,
 	username string, password string, secureConnection bool, rootCAPath string,
-	connectionBufferSize uint, connectionTimeout time.Duration,
+	maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration,
 ) (*gocbcore.Agent, error) {
 	agent, err := gocbcore.CreateAgent(
 		&gocbcore.AgentConfig{
@@ -181,6 +181,7 @@ func CreateAgent(httpAddresses []string, bucketName string,
 			},
 			KVConfig: gocbcore.KVConfig{
 				ConnectionBufferSize: connectionBufferSize,
+				MaxQueueSize:         maxQueueSize,
 			},
 		},
 	)
@@ -210,8 +211,8 @@ func CreateAgent(httpAddresses []string, bucketName string,
 	return agent, nil
 }
 
-func (s *client) connect(bucketName string, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
-	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, connectionBufferSize, connectionTimeout) //nolint:lll
+func (s *client) connect(bucketName string, maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
+	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, maxQueueSize, connectionBufferSize, connectionTimeout) //nolint:lll
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {
@@ -241,6 +242,7 @@ func resolveHostsAsHTTP(hosts []string) []string {
 
 func (s *client) Connect() error {
 	connectionBufferSize := uint(helpers.ResolveUnionIntOrStringValue(s.config.ConnectionBufferSize))
+	maxQueueSize := helpers.ResolveUnionIntOrStringValue(s.config.MaxQueueSize)
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
@@ -256,7 +258,7 @@ func (s *client) Connect() error {
 		}
 	}
 
-	agent, err := s.connect(s.config.BucketName, connectionBufferSize, connectionTimeout)
+	agent, err := s.connect(s.config.BucketName, maxQueueSize, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
@@ -271,6 +273,7 @@ func (s *client) Connect() error {
 		} else {
 			metaAgent, err := s.connect(
 				couchbaseMetadataConfig.Bucket,
+				0, // gocb will use default value (2048)
 				couchbaseMetadataConfig.ConnectionBufferSize,
 				couchbaseMetadataConfig.ConnectionTimeout,
 			)

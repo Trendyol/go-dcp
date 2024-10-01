@@ -242,7 +242,6 @@ func resolveHostsAsHTTP(hosts []string) []string {
 
 func (s *client) Connect() error {
 	connectionBufferSize := uint(helpers.ResolveUnionIntOrStringValue(s.config.ConnectionBufferSize))
-	maxQueueSize := helpers.ResolveUnionIntOrStringValue(s.config.MaxQueueSize)
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
@@ -258,7 +257,7 @@ func (s *client) Connect() error {
 		}
 	}
 
-	agent, err := s.connect(s.config.BucketName, maxQueueSize, connectionBufferSize, connectionTimeout)
+	agent, err := s.connect(s.config.BucketName, s.config.MaxQueueSize, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
@@ -326,6 +325,7 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		},
 		KVConfig: gocbcore.KVConfig{
 			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrStringValue(s.config.Dcp.ConnectionBufferSize)),
+			MaxQueueSize:         s.config.Dcp.MaxQueueSize,
 		},
 	}
 

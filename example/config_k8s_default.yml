@@ -1,7 +1,7 @@
 hosts:
   - couchbase.couchbase.svc.cluster.local:8091
 username: user
-password: password
+password: 123456
 bucketName: dcp-test
 dcp:
   group:

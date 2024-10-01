@@ -16,6 +16,7 @@ func (d *dynamicMembership) GetInfo() *Model {
 	if d.info != nil {
 		return d.info
 	}
+	logger.Log.Info("dynamic membership waiting first request")
 	return <-d.infoChan
 }
 

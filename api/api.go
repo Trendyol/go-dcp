@@ -38,6 +38,7 @@ type api struct {
 	app              *fiber.App
 	config           *dcp.Dcp
 	registerer       *metric.Registerer
+	membershipInfo   *membership.Model
 	bus              EventBus.Bus
 }
 
@@ -94,12 +95,19 @@ func (s *api) info(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString("invalid request body")
 	}
-	logger.Log.Debug("new info arrived for member: %v/%v", req.MemberNumber, req.TotalMembers)
 
-	s.bus.Publish(helpers.MembershipChangedBusEventName, &membership.Model{
+	newInfo := &membership.Model{
 		MemberNumber: req.MemberNumber,
 		TotalMembers: req.TotalMembers,
-	})
+	}
+
+	if newInfo.IsChanged(s.membershipInfo) {
+		s.membershipInfo = newInfo
+
+		logger.Log.Debug("new info arrived for member: %v/%v", newInfo.MemberNumber, newInfo.TotalMembers)
+
+		s.bus.Publish(helpers.MembershipChangedBusEventName, newInfo)
+	}
 
 	return c.SendString("OK")
 }

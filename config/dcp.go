@@ -50,8 +50,8 @@ type DCPGroup struct {
 }
 
 type DCPListener struct {
-	BufferSize uint       `yaml:"bufferSize"`
 	SkipUntil  *time.Time `yaml:"skipUntil"`
+	BufferSize uint       `yaml:"bufferSize"`
 }
 
 type ExternalDcpConfig struct {
@@ -61,9 +61,9 @@ type ExternalDcpConfig struct {
 type ExternalDcp struct {
 	BufferSize           any               `yaml:"bufferSize"`
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
+	Listener             DCPListener       `yaml:"listener"`
 	Group                DCPGroup          `yaml:"group"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
-	Listener             DCPListener       `yaml:"listener"`
 	Config               ExternalDcpConfig `yaml:"config"`
 }
 
@@ -118,16 +118,16 @@ type Logging struct {
 
 type Dcp struct {
 	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
+	Metric               Metric             `yaml:"metric"`
 	BucketName           string             `yaml:"bucketName"`
-	ScopeName            string             `yaml:"scopeName"`
-	Password             string             `yaml:"password"`
 	RootCAPath           string             `yaml:"rootCAPath"`
 	Username             string             `yaml:"username"`
 	Logging              Logging            `yaml:"logging"`
+	ScopeName            string             `yaml:"scopeName"`
+	Password             string             `yaml:"password"`
 	Metadata             Metadata           `yaml:"metadata"`
 	CollectionNames      []string           `yaml:"collectionNames"`
 	Hosts                []string           `yaml:"hosts"`
-	Metric               Metric             `yaml:"metric"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
 	LeaderElection       LeaderElection     `yaml:"leaderElection"`
 	Dcp                  ExternalDcp        `yaml:"dcp"`

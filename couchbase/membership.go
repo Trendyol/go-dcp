@@ -266,10 +266,16 @@ func (h *cbMembership) rebalance(instances []Instance) {
 		logger.Log.Error("error while rebalance, self = %v, err: %v", string(h.id), err)
 		panic(err)
 	} else {
-		h.bus.Publish(helpers.MembershipChangedBusEventName, &membership.Model{
+		newInfo := &membership.Model{
 			MemberNumber: selfOrder,
 			TotalMembers: len(instances),
-		})
+		}
+
+		if newInfo.IsChanged(h.info) {
+			logger.Log.Debug("new info arrived for member: %v/%v", newInfo.MemberNumber, newInfo.TotalMembers)
+
+			h.bus.Publish(helpers.MembershipChangedBusEventName, newInfo)
+		}
 
 		h.lastActiveInstances = instances
 	}

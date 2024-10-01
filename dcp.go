@@ -84,14 +84,8 @@ func (s *dcp) SetEventHandler(eventHandler models.EventHandler) {
 	s.eventHandler = eventHandler
 }
 
-func (s *dcp) membershipChangedListener(m *membership.Model) {
-	currentInfo := &membership.Model{
-		MemberNumber: s.vBucketDiscovery.GetMetric().MemberNumber,
-		TotalMembers: s.vBucketDiscovery.GetMetric().TotalMembers,
-	}
-	if s.stream.IsOpen() && currentInfo.IsChanged(m) {
-		s.stream.Rebalance()
-	}
+func (s *dcp) membershipChangedListener(_ *membership.Model) {
+	s.stream.Rebalance()
 }
 
 //nolint:funlen

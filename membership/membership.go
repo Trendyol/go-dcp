@@ -1,5 +1,7 @@
 package membership
 
+import "github.com/Trendyol/go-dcp/logger"
+
 type Membership interface {
 	GetInfo() *Model
 	Close()
@@ -23,5 +25,10 @@ func (s *Model) IsChanged(other *Model) bool {
 		return true
 	}
 
-	return s.MemberNumber != other.MemberNumber || s.TotalMembers != other.TotalMembers
+	res := s.MemberNumber != other.MemberNumber || s.TotalMembers != other.TotalMembers
+	if !res {
+		logger.Log.Info("membership info not changed")
+	}
+
+	return res
 }

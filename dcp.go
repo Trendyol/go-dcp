@@ -207,7 +207,10 @@ func (s *dcp) Close() {
 	s.client.DcpClose()
 	s.client.Close()
 
-	s.api.UnregisterMetricCollectors()
+	if s.api != nil && !s.config.API.Disabled {
+		s.api.UnregisterMetricCollectors()
+	}
+
 	s.metricCollectors = []prometheus.Collector{}
 
 	logger.Log.Info("dcp stream closed")

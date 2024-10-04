@@ -61,9 +61,9 @@ type ExternalDcpConfig struct {
 type ExternalDcp struct {
 	BufferSize           any               `yaml:"bufferSize"`
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
-	MaxQueueSize         int               `yaml:"maxQueueSize"`
 	Listener             DCPListener       `yaml:"listener"`
 	Group                DCPGroup          `yaml:"group"`
+	MaxQueueSize         int               `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
 	Config               ExternalDcpConfig `yaml:"config"`
 }
@@ -119,7 +119,6 @@ type Logging struct {
 
 type Dcp struct {
 	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
-	MaxQueueSize         int                `yaml:"maxQueueSize"`
 	Metric               Metric             `yaml:"metric"`
 	BucketName           string             `yaml:"bucketName"`
 	RootCAPath           string             `yaml:"rootCAPath"`
@@ -136,6 +135,7 @@ type Dcp struct {
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`
+	MaxQueueSize         int                `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
 	SecureConnection     bool               `yaml:"secureConnection"`
 	Debug                bool               `yaml:"debug"`

@@ -211,7 +211,7 @@ func CreateAgent(httpAddresses []string, bucketName string,
 	return agent, nil
 }
 
-func (s *client) connect(bucketName string, maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) {
+func (s *client) connect(bucketName string, maxQueueSize int, connectionBufferSize uint, connectionTimeout time.Duration) (*gocbcore.Agent, error) { //nolint:lll,unused
 	return CreateAgent(s.config.Hosts, bucketName, s.config.Username, s.config.Password, s.config.SecureConnection, s.config.RootCAPath, maxQueueSize, connectionBufferSize, connectionTimeout) //nolint:lll
 }
 

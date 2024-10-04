@@ -1,8 +1,10 @@
 hosts:
-  - couchbase.couchbase.svc.cluster.local:8091
+  - localhost:8091
 username: user
 password: 123456
 bucketName: dcp-test
 dcp:
   group:
     name: groupName
+    membership:
+      type: dynamic

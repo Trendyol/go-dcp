@@ -63,6 +63,7 @@ type ExternalDcp struct {
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
 	Listener             DCPListener       `yaml:"listener"`
 	Group                DCPGroup          `yaml:"group"`
+	MaxQueueSize         int               `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
 	Config               ExternalDcpConfig `yaml:"config"`
 }
@@ -134,6 +135,7 @@ type Dcp struct {
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`
+	MaxQueueSize         int                `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
 	SecureConnection     bool               `yaml:"secureConnection"`
 	Debug                bool               `yaml:"debug"`
@@ -356,6 +358,7 @@ func (c *Dcp) ApplyDefaults() {
 	c.applyDefaultCollections()
 	c.applyDefaultScopeName()
 	c.applyDefaultConnectionBufferSize()
+	c.applyDefaultMaxQueueSize()
 	c.applyDefaultMetrics()
 	c.applyDefaultAPI()
 	c.applyDefaultLeaderElection()
@@ -468,6 +471,12 @@ func (c *Dcp) applyDefaultConnectionBufferSize() {
 	}
 }
 
+func (c *Dcp) applyDefaultMaxQueueSize() {
+	if c.MaxQueueSize == 0 {
+		c.MaxQueueSize = 2048
+	}
+}
+
 func (c *Dcp) applyDefaultMetrics() {
 	if c.Metric.Path == "" {
 		c.Metric.Path = "/metrics"
@@ -497,6 +506,10 @@ func (c *Dcp) applyDefaultDcp() {
 
 	if c.Dcp.ConnectionBufferSize == nil {
 		c.Dcp.ConnectionBufferSize = helpers.ResolveUnionIntOrStringValue("20mb")
+	}
+
+	if c.Dcp.MaxQueueSize == 0 {
+		c.Dcp.MaxQueueSize = 2048
 	}
 
 	if c.Dcp.Listener.BufferSize == 0 {

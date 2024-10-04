@@ -251,6 +251,15 @@ func TestDcpApplyDefaultConnectionBufferSize(t *testing.T) {
 	}
 }
 
+func TestDcpApplyDefaultMaxQueueSize(t *testing.T) {
+	c := &Dcp{}
+	c.applyDefaultMaxQueueSize()
+
+	if c.MaxQueueSize != 2048 {
+		t.Errorf("ConnectionBufferSize is not set to expected value")
+	}
+}
+
 func TestDcpApplyDefaultMetrics(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultMetrics()

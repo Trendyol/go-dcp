@@ -125,6 +125,13 @@ func (so *observer) canForward(seqNo uint64) bool {
 	return !so.needCatchup(seqNo)
 }
 
+func (so *observer) isBeforeSkipWindow(eventTime time.Time) bool {
+	if so.config.Dcp.Listener.SkipUntil == nil {
+		return false
+	}
+	return so.config.Dcp.Listener.SkipUntil.After(eventTime)
+}
+
 func (so *observer) convertToCollectionName(collectionID uint32) string {
 	if name, ok := so.collectionIDs[collectionID]; ok {
 		return name
@@ -169,6 +176,11 @@ func (so *observer) Mutation(event gocbcore.DcpMutation) { //nolint:dupl
 		return
 	}
 
+	eventTime := time.Unix(int64(event.Cas/1000000000), 0)
+	if so.isBeforeSkipWindow(eventTime) {
+		return
+	}
+
 	if so.IsInSnapshotMarker(event.SeqNo) {
 		so.sendOrSkip(models.ListenerArgs{
 			Event: models.InternalDcpMutation{
@@ -179,7 +191,7 @@ func (so *observer) Mutation(event gocbcore.DcpMutation) { //nolint:dupl
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
-				EventTime:      time.Unix(int64(event.Cas/1000000000), 0),
+				EventTime:      eventTime,
 			},
 		})
 
@@ -189,6 +201,11 @@ func (so *observer) Mutation(event gocbcore.DcpMutation) { //nolint:dupl
 
 func (so *observer) Deletion(event gocbcore.DcpDeletion) { //nolint:dupl
 	if !so.canForward(event.SeqNo) {
+		return
+	}
+
+	eventTime := time.Unix(int64(event.Cas/1000000000), 0)
+	if so.isBeforeSkipWindow(eventTime) {
 		return
 	}
 
@@ -202,7 +219,7 @@ func (so *observer) Deletion(event gocbcore.DcpDeletion) { //nolint:dupl
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
-				EventTime:      time.Unix(int64(event.Cas/1000000000), 0),
+				EventTime:      eventTime,
 			},
 		})
 
@@ -212,6 +229,11 @@ func (so *observer) Deletion(event gocbcore.DcpDeletion) { //nolint:dupl
 
 func (so *observer) Expiration(event gocbcore.DcpExpiration) { //nolint:dupl
 	if !so.canForward(event.SeqNo) {
+		return
+	}
+
+	eventTime := time.Unix(int64(event.Cas/1000000000), 0)
+	if so.isBeforeSkipWindow(eventTime) {
 		return
 	}
 
@@ -225,7 +247,7 @@ func (so *observer) Expiration(event gocbcore.DcpExpiration) { //nolint:dupl
 					SeqNo:          event.SeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
-				EventTime:      time.Unix(int64(event.Cas/1000000000), 0),
+				EventTime:      eventTime,
 			},
 		})
 

@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Trendyol/go-dcp/membership"
+
 	"github.com/asaskevich/EventBus"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -35,6 +37,7 @@ type Stream interface {
 	GetMetric() (*Metric, int32)
 	UnmarkDirtyOffsets()
 	GetCheckpointMetric() *CheckpointMetric
+	IsOpen() bool
 }
 
 type Metric struct {
@@ -72,6 +75,7 @@ type stream struct {
 	anyDirtyOffset               bool
 	balancing                    bool
 	closeWithCancel              bool
+	open                         bool
 }
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
@@ -80,7 +84,17 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 			return
 		}
 		s.offsets.Store(vbID, offset)
-		s.dirtyOffsets.Store(vbID, dirty)
+		if !dirty {
+			return
+		}
+
+		s.dirtyOffsets.StoreIf(vbID, func(p bool, f bool) (v bool, s bool) {
+			if !f || (f && !p) {
+				return true, true
+			}
+
+			return p, false
+		})
 	} else {
 		logger.Log.Warn("vbID: %v not belong our vbID range", vbID)
 	}
@@ -229,6 +243,11 @@ func (s *stream) Open() {
 	s.checkpoint.StartSchedule()
 
 	go s.wait()
+	s.open = true
+}
+
+func (s *stream) IsOpen() bool {
+	return s.open
 }
 
 func (s *stream) Rebalance() {
@@ -255,9 +274,13 @@ func (s *stream) Rebalance() {
 
 	s.eventHandler.AfterRebalanceStart()
 
-	s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
-
-	logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	if s.config.Dcp.Group.Membership.Type == membership.DynamicMembershipType {
+		s.rebalanceTimer = time.AfterFunc(0, s.rebalance)
+		logger.Log.Info("rebalance delay is disabled on dynamic membership")
+	} else {
+		s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
+		logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+	}
 }
 
 func (s *stream) rebalance() {
@@ -380,6 +403,7 @@ func (s *stream) Close(closeWithCancel bool) {
 
 	logger.Log.Info("stream stopped")
 	s.eventHandler.AfterStreamStop()
+	s.open = false
 }
 
 func (s *stream) GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool) {

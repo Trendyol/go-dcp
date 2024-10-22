@@ -25,6 +25,7 @@ race:
 tidy:
 	go mod tidy
 	cd example && go mod tidy && cd ..
+	cd example/grafana && go mod tidy && cd ../..
 	cd test/integration && go mod tidy && cd ../..
 
 create-cluster:

@@ -180,9 +180,9 @@ func CreateAgent(httpAddresses []string, bucketName string,
 				UseCollections: true,
 			},
 			KVConfig: gocbcore.KVConfig{
-				MaxQueueSize:         maxQueueSize,
 				PoolSize:             poolSize,
 				ConnectionBufferSize: connectionBufferSize,
+				MaxQueueSize:         maxQueueSize,
 			},
 		},
 	)
@@ -264,7 +264,7 @@ func (s *client) Connect() error {
 		}
 	}
 
-	agent, err := s.connect(s.config.BucketName, 0, 0, connectionBufferSize, connectionTimeout)
+	agent, err := s.connect(s.config.BucketName, s.config.MaxQueueSize, 0, connectionBufferSize, connectionTimeout)
 	if err != nil {
 		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
@@ -279,7 +279,7 @@ func (s *client) Connect() error {
 		} else {
 			metaAgent, err := s.connect(
 				couchbaseMetadataConfig.Bucket,
-				0,
+				couchbaseMetadataConfig.MaxQueueSize,
 				0,
 				couchbaseMetadataConfig.ConnectionBufferSize,
 				couchbaseMetadataConfig.ConnectionTimeout,
@@ -333,6 +333,7 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		},
 		KVConfig: gocbcore.KVConfig{
 			ConnectionBufferSize: uint(helpers.ResolveUnionIntOrStringValue(s.config.Dcp.ConnectionBufferSize)),
+			MaxQueueSize:         s.config.Dcp.MaxQueueSize,
 		},
 	}
 

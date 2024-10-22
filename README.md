@@ -81,6 +81,7 @@ $ go get github.com/Trendyol/go-dcp
 | `scopeName`                              |      string       |    no    |  _default  | Couchbase scope name.                                                                                                                                                                                     |
 | `collectionNames`                        |     []string      |    no    |  _default  | Couchbase collection names.                                                                                                                                                                               |
 | `connectionBufferSize`                   |   uint, string    |    no    |    20mb    | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed.                                                                                       |
+| `maxQueueSize`                           |        int        |    no    |    2048    | The maximum number of requests that can be queued waiting to be sent to a node. `2048` is default. Check this if you get queue overflowed or queue full.                                                  |
 | `connectionTimeout`                      |   time.Duration   |    no    |     5s     | Couchbase connection timeout.                                                                                                                                                                             |
 | `secureConnection`                       |       bool        |    no    |   false    | Enable TLS connection of Couchbase.                                                                                                                                                                       |
 | `rootCAPath`                             |      string       |    no    |  *not set  | if `secureConnection` set `true` this field is required.                                                                                                                                                  |
@@ -88,10 +89,12 @@ $ go get github.com/Trendyol/go-dcp
 | `dcp.bufferSize`                         |        int        |    no    |    16mb    | Go DCP listener pre-allocated buffer size. `16mb` is default. Check this if you get OOM Killed.                                                                                                           |
 | `dcp.connectionBufferSize`               |   uint, string    |    no    |    20mb    | [gocbcore](github.com/couchbase/gocbcore) library buffer size. `20mb` is default. Check this if you get OOM Killed.                                                                                       |
 | `dcp.connectionTimeout`                  |   time.Duration   |    no    |     5s     | DCP connection timeout.                                                                                                                                                                                   |
-| `dcp.group.membership.type`              |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet` or `static`. Check examples for details.                                                                                       |
+| `dcp.maxQueueSize`                       |        int        |    no    |    2048    | The maximum number of requests that can be queued waiting to be sent to a node. `2048` is default. Check this if you get queue overflowed or queue full.                                                  |
+| `dcp.listener.skipUntil`                 |     time.Time     |    no    |            | Set this if you want to skip events until certain time.                                                                                                                                                   |
+| `dcp.group.membership.type`              |      string       |    no    |            | DCP membership types. `couchbase`, `kubernetesHa`, `kubernetesStatefulSet`, `static` or `dynamic`. Check examples for details.                                                                            |
 | `dcp.group.membership.memberNumber`      |        int        |    no    |     1      | Set this if membership is `static`. Other methods will ignore this field.                                                                                                                                 |
 | `dcp.group.membership.totalMembers`      |        int        |    no    |     1      | Set this if membership is `static` or `kubernetesStatefulSet`. Other methods will ignore this field.                                                                                                      |
-| `dcp.group.membership.rebalanceDelay`    |   time.Duration   |    no    |    20s     | Works for autonomous mode.                                                                                                                                                                                |
+| `dcp.group.membership.rebalanceDelay`    |   time.Duration   |    no    |    20s     | Works for autonomous mode. If membership is `dynamic`, it is ignored and set to `0s`.                                                                                                                     |
 | `dcp.group.membership.config`            | map[string]string |    no    |  *not set  | Set key-values of config. `expirySeconds`,`heartbeatInterval`,`heartbeatToleranceDuration`,`monitorInterval`,`timeout` for `couchbase` type                                                               |
 | `dcp.config.disableChangeStreams`        |       bool        |    no    |   false    | Set this to true if you did not want to get [older versions of changes](https://docs.couchbase.com/server/current/learn/data/change-history.html) for Couchbase Server 7.2.0+ using Magma storage buckets |
 | `leaderElection.enabled`                 |       bool        |    no    |   false    | Set this true for memberships  `kubernetesHa`.                                                                                                                                                            |
@@ -110,7 +113,7 @@ $ go get github.com/Trendyol/go-dcp
 | `rollbackMitigation.configWatchInterval` |   time.Duration   |    no    |     2s     | Cluster config changes listener interval.                                                                                                                                                                 |
 | `metadata.type`                          |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                                                                                                           |
 | `metadata.readOnly`                      |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                                                                                                                    |
-| `metadata.config`                        | map[string]string |    no    |  *not set  | Set key-values of config. `bucket`,`scope`,`collection`,`connectionBufferSize`,`connectionTimeout` for `couchbase` type                                                                                   |
+| `metadata.config`                        | map[string]string |    no    |  *not set  | Set key-values of config. `bucket`,`scope`,`collection`,`maxQueueSize`,`connectionBufferSize`,`connectionTimeout` for `couchbase` type                                                                    |
 | `api.disabled`                           |       bool        |    no    |   false    | Disable metric endpoints                                                                                                                                                                                  |
 | `api.port`                               |        int        |    no    |    8080    | Set API port                                                                                                                                                                                              |
 | `metric.path`                            |      string       |    no    |  /metrics  | Set metric endpoint path.                                                                                                                                                                                 |
@@ -131,13 +134,14 @@ The client offers an API that handles different endpoints and expose several met
 
 ### API
 
-| Endpoint                | Description                                                                              | Debug Mode |
-|-------------------------|------------------------------------------------------------------------------------------|------------|
-| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |            |
-| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |            |
-| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            | x          | 
-| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        | x          |
-| `GET /debug/pprof/*`    | [Fiber Pprof](https://docs.gofiber.io/api/middleware/pprof/)                             | x          |
+| Endpoint                | Description                                                                              | Debug Mode | Body                                            |
+|-------------------------|------------------------------------------------------------------------------------------|------------|-------------------------------------------------|
+| `GET /status`           | Returns a 200 OK status if the client is able to ping the couchbase server successfully. |            |                                                 |
+| `GET /rebalance`        | Triggers a rebalance operation for the vBuckets.                                         |            |                                                 |
+| `GET /states/offset`    | Returns the current offsets for each vBucket.                                            | x          |                                                 |
+| `GET /states/followers` | Returns the list of follower clients if service discovery enabled                        | x          |                                                 |
+| `GET /debug/pprof/*`    | [Fiber Pprof](https://docs.gofiber.io/api/middleware/pprof/)                             | x          |                                                 |
+| `PUT /membership/info`  | Updates membership info and applies rebalance.                                           |            | ```{"memberNumber": 1,"totalMembers": 3 }```    |  
 
 The Client collects relevant metrics and makes them available at /metrics endpoint.
 In case you haven't configured a metric.path, the metrics will be exposed at the /metrics.
@@ -187,3 +191,8 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 - [kubernetesStatefulSet membership config](example/config_k8s_stateful_set.yml)
 - [kubernetesHa membership config](example/config_k8s_leader_election.yml)
 - [static membership config](example/config_static.yml)
+- [dynamic membership config](example/config_dynamic.yml)
+
+## Grafana Metric Dashboard
+
+[Grafana & Prometheus Example](example/grafana)

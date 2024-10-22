@@ -1,0 +1,16 @@
+hosts:
+  - couchbase:8091
+username: user
+password: password
+bucketName: dcp-test
+dcp:
+  group:
+    name: groupName
+    membership:
+      type: static
+metadata:
+  type: couchbase
+  config:
+    bucket: dcp-test
+    scope: _default
+    collection: _default

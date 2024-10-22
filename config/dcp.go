@@ -21,6 +21,7 @@ const (
 	CouchbaseMetadataBucketConfig                   = "bucket"
 	CouchbaseMetadataScopeConfig                    = "scope"
 	CouchbaseMetadataCollectionConfig               = "collection"
+	CouchbaseMetadataMaxQueueSizeConfig             = "maxQueueSize"
 	CouchbaseMetadataConnectionBufferSizeConfig     = "connectionBufferSize"
 	CouchbaseMetadataConnectionTimeoutConfig        = "connectionTimeout"
 	CheckpointTypeAuto                              = "auto"
@@ -49,6 +50,10 @@ type DCPGroup struct {
 	Membership DCPGroupMembership `yaml:"membership"`
 }
 
+type DCPListener struct {
+	SkipUntil *time.Time `yaml:"skipUntil"`
+}
+
 type ExternalDcpConfig struct {
 	DisableChangeStreams bool `yaml:"disableChangeStreams"`
 }
@@ -56,7 +61,9 @@ type ExternalDcpConfig struct {
 type ExternalDcp struct {
 	BufferSize           any               `yaml:"bufferSize"`
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
+	Listener             DCPListener       `yaml:"listener"`
 	Group                DCPGroup          `yaml:"group"`
+	MaxQueueSize         int               `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
 	Config               ExternalDcpConfig `yaml:"config"`
 }
@@ -112,22 +119,23 @@ type Logging struct {
 
 type Dcp struct {
 	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
+	Metric               Metric             `yaml:"metric"`
 	BucketName           string             `yaml:"bucketName"`
-	ScopeName            string             `yaml:"scopeName"`
-	Password             string             `yaml:"password"`
 	RootCAPath           string             `yaml:"rootCAPath"`
 	Username             string             `yaml:"username"`
 	Logging              Logging            `yaml:"logging"`
+	ScopeName            string             `yaml:"scopeName"`
+	Password             string             `yaml:"password"`
 	Metadata             Metadata           `yaml:"metadata"`
 	CollectionNames      []string           `yaml:"collectionNames"`
 	Hosts                []string           `yaml:"hosts"`
-	Metric               Metric             `yaml:"metric"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
 	LeaderElection       LeaderElection     `yaml:"leaderElection"`
 	Dcp                  ExternalDcp        `yaml:"dcp"`
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`
+	MaxQueueSize         int                `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
 	SecureConnection     bool               `yaml:"secureConnection"`
 	Debug                bool               `yaml:"debug"`
@@ -299,6 +307,7 @@ type CouchbaseMetadata struct {
 	Bucket               string        `yaml:"bucket"`
 	Scope                string        `yaml:"scope"`
 	Collection           string        `yaml:"collection"`
+	MaxQueueSize         int           `yaml:"maxQueueSize"`
 	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
 	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
 }
@@ -308,6 +317,7 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 		Bucket:               c.BucketName,
 		Scope:                DefaultScopeName,
 		Collection:           DefaultCollectionName,
+		MaxQueueSize:         2048,
 		ConnectionBufferSize: 5242880, // 5 MB
 		ConnectionTimeout:    5 * time.Second,
 	}
@@ -322,6 +332,10 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 
 	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
 		couchbaseMetadata.Collection = collection
+	}
+
+	if maxQueueSize, ok := c.Metadata.Config[CouchbaseMetadataMaxQueueSizeConfig]; ok {
+		couchbaseMetadata.MaxQueueSize = helpers.ResolveUnionIntOrStringValue(maxQueueSize)
 	}
 
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
@@ -350,6 +364,7 @@ func (c *Dcp) ApplyDefaults() {
 	c.applyDefaultCollections()
 	c.applyDefaultScopeName()
 	c.applyDefaultConnectionBufferSize()
+	c.applyDefaultMaxQueueSize()
 	c.applyDefaultMetrics()
 	c.applyDefaultAPI()
 	c.applyDefaultLeaderElection()
@@ -462,6 +477,12 @@ func (c *Dcp) applyDefaultConnectionBufferSize() {
 	}
 }
 
+func (c *Dcp) applyDefaultMaxQueueSize() {
+	if c.MaxQueueSize == 0 {
+		c.MaxQueueSize = 2048
+	}
+}
+
 func (c *Dcp) applyDefaultMetrics() {
 	if c.Metric.Path == "" {
 		c.Metric.Path = "/metrics"
@@ -491,6 +512,10 @@ func (c *Dcp) applyDefaultDcp() {
 
 	if c.Dcp.ConnectionBufferSize == nil {
 		c.Dcp.ConnectionBufferSize = helpers.ResolveUnionIntOrStringValue("20mb")
+	}
+
+	if c.Dcp.MaxQueueSize == 0 {
+		c.Dcp.MaxQueueSize = 2048
 	}
 }
 

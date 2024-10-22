@@ -226,7 +226,7 @@ func (h *cbMembership) monitor() {
 			h.rebalance(filteredInstances)
 		} else {
 			if errors.Is(err, gocbcore.ErrCasMismatch) {
-				logger.Log.Warn("error while update instances: cas mismatch")
+				logger.Log.Debug("cannot update instances: cas mismatch")
 				h.monitor()
 			} else {
 				logger.Log.Error("error while update instances: %v", err)

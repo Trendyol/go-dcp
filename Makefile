@@ -20,7 +20,7 @@ test:
 	go test ./... .
 
 race:
-	CB_VERSION=7.6.2 go test ./... -race .
+	CB_VERSION=7.6.3 go test ./... -race .
 
 tidy:
 	go mod tidy

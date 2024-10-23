@@ -12,6 +12,15 @@ type Offset struct {
 	SeqNo  uint64
 }
 
+type VbIDRange struct {
+	Start uint16
+	End   uint16
+}
+
+func (v *VbIDRange) In(vbID uint16) bool {
+	return vbID >= v.Start && vbID <= v.End
+}
+
 type PersistSeqNo struct {
 	VbID  uint16
 	SeqNo gocbcore.SeqNo

@@ -27,10 +27,6 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Checkpoint.Type is not set to auto")
 	}
 
-	if config.Dcp.Listener.BufferSize != 1000 {
-		t.Errorf("Dcp.Listener.BufferSize is not set to 1000")
-	}
-
 	if config.Dcp.Group.Membership.Type != MembershipTypeCouchbase {
 		t.Errorf("Dcp.Group.Membership.Type is not set to couchbase")
 	}
@@ -309,10 +305,6 @@ func TestDcpApplyDefaultDcp(t *testing.T) {
 
 	if c.Dcp.ConnectionBufferSize.(int) != 20971520 {
 		t.Errorf("Dcp.ConnectionBufferSize is not set to expected value")
-	}
-
-	if c.Dcp.Listener.BufferSize != 1000 {
-		t.Errorf("Dcp.Listener.BufferSize is not set to expected value")
 	}
 }
 

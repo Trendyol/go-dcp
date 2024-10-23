@@ -3,8 +3,6 @@ package metric
 import (
 	"strconv"
 
-	"github.com/couchbase/gocbcore/v10"
-
 	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/couchbase"
@@ -56,43 +54,41 @@ func (s *metricCollector) Describe(ch chan<- *prometheus.Desc) {
 
 //nolint:funlen
 func (s *metricCollector) Collect(ch chan<- prometheus.Metric) {
-	observer := s.stream.GetObserver()
-	if observer == nil {
+	observers := s.stream.GetObservers()
+	if observers == nil {
 		return
 	}
 
 	seqNoMap, err := s.client.GetVBucketSeqNos(true)
 
-	observer.GetPersistSeqNo().Range(func(vbID uint16, seqNo gocbcore.SeqNo) bool {
+	observers.Range(func(vbID uint16, observer couchbase.Observer) bool {
 		ch <- prometheus.MustNewConstMetric(
 			s.persistSeqNo,
 			prometheus.CounterValue,
-			float64(seqNo),
+			float64(observer.GetPersistSeqNo()),
 			strconv.Itoa(int(vbID)),
 		)
 
-		return true
-	})
+		metrics := observer.GetMetrics()
 
-	observer.GetMetrics().Range(func(vbID uint16, metric *couchbase.ObserverMetric) bool {
 		ch <- prometheus.MustNewConstMetric(
 			s.mutation,
 			prometheus.CounterValue,
-			metric.TotalMutations,
+			metrics.TotalMutations,
 			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.deletion,
 			prometheus.CounterValue,
-			metric.TotalDeletions,
+			metrics.TotalDeletions,
 			strconv.Itoa(int(vbID)),
 		)
 
 		ch <- prometheus.MustNewConstMetric(
 			s.expiration,
 			prometheus.CounterValue,
-			metric.TotalExpirations,
+			metrics.TotalExpirations,
 			strconv.Itoa(int(vbID)),
 		)
 

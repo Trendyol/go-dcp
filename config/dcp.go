@@ -21,6 +21,7 @@ const (
 	CouchbaseMetadataBucketConfig                   = "bucket"
 	CouchbaseMetadataScopeConfig                    = "scope"
 	CouchbaseMetadataCollectionConfig               = "collection"
+	CouchbaseMetadataMaxQueueSizeConfig             = "maxQueueSize"
 	CouchbaseMetadataConnectionBufferSizeConfig     = "connectionBufferSize"
 	CouchbaseMetadataConnectionTimeoutConfig        = "connectionTimeout"
 	CheckpointTypeAuto                              = "auto"
@@ -50,8 +51,7 @@ type DCPGroup struct {
 }
 
 type DCPListener struct {
-	SkipUntil  *time.Time `yaml:"skipUntil"`
-	BufferSize uint       `yaml:"bufferSize"`
+	SkipUntil *time.Time `yaml:"skipUntil"`
 }
 
 type ExternalDcpConfig struct {
@@ -307,6 +307,7 @@ type CouchbaseMetadata struct {
 	Bucket               string        `yaml:"bucket"`
 	Scope                string        `yaml:"scope"`
 	Collection           string        `yaml:"collection"`
+	MaxQueueSize         int           `yaml:"maxQueueSize"`
 	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
 	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
 }
@@ -316,6 +317,7 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 		Bucket:               c.BucketName,
 		Scope:                DefaultScopeName,
 		Collection:           DefaultCollectionName,
+		MaxQueueSize:         2048,
 		ConnectionBufferSize: 5242880, // 5 MB
 		ConnectionTimeout:    5 * time.Second,
 	}
@@ -330,6 +332,10 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 
 	if collection, ok := c.Metadata.Config[CouchbaseMetadataCollectionConfig]; ok {
 		couchbaseMetadata.Collection = collection
+	}
+
+	if maxQueueSize, ok := c.Metadata.Config[CouchbaseMetadataMaxQueueSizeConfig]; ok {
+		couchbaseMetadata.MaxQueueSize = helpers.ResolveUnionIntOrStringValue(maxQueueSize)
 	}
 
 	if connectionBufferSize, ok := c.Metadata.Config[CouchbaseMetadataConnectionBufferSizeConfig]; ok {
@@ -510,10 +516,6 @@ func (c *Dcp) applyDefaultDcp() {
 
 	if c.Dcp.MaxQueueSize == 0 {
 		c.Dcp.MaxQueueSize = 2048
-	}
-
-	if c.Dcp.Listener.BufferSize == 0 {
-		c.Dcp.Listener.BufferSize = 1000
 	}
 }
 

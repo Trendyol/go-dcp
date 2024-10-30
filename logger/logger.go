@@ -3,17 +3,19 @@ package logger
 import (
 	"fmt"
 
+	"github.com/couchbase/gocbcore/v10"
+
 	"github.com/sirupsen/logrus"
 )
 
 var Log Logger
 
 const (
-	ERROR = "ERROR"
-	WARN  = "WARN"
-	INFO  = "INFO"
-	DEBUG = "DEBUG"
-	TRACE = "TRACE"
+	ERROR = "error"
+	WARN  = "warn"
+	INFO  = "info"
+	DEBUG = "debug"
+	TRACE = "trace"
 )
 
 type Logger interface {
@@ -71,8 +73,39 @@ func InitDefaultLogger(logLevel string) {
 		panic(err)
 	}
 	logger.SetLevel(level)
+	gocbcore.SetLogger(&goCbCoreLogger{level: dcpToCore[level]})
 
 	Log = &Loggers{
 		Logrus: logger,
 	}
+}
+
+var coreToDcp = map[gocbcore.LogLevel]string{
+	gocbcore.LogError:        ERROR,
+	gocbcore.LogWarn:         WARN,
+	gocbcore.LogInfo:         INFO,
+	gocbcore.LogDebug:        DEBUG,
+	gocbcore.LogTrace:        TRACE,
+	gocbcore.LogSched:        TRACE,
+	gocbcore.LogMaxVerbosity: TRACE,
+}
+
+var dcpToCore = map[logrus.Level]gocbcore.LogLevel{
+	logrus.ErrorLevel: gocbcore.LogError,
+	logrus.WarnLevel:  gocbcore.LogWarn,
+	logrus.InfoLevel:  gocbcore.LogInfo,
+	logrus.DebugLevel: gocbcore.LogDebug,
+	logrus.TraceLevel: gocbcore.LogMaxVerbosity,
+}
+
+type goCbCoreLogger struct {
+	level gocbcore.LogLevel
+}
+
+func (l *goCbCoreLogger) Log(level gocbcore.LogLevel, _ int, format string, v ...interface{}) error {
+	if level > l.level {
+		return nil
+	}
+	Log.Log(coreToDcp[level], format, v...)
+	return nil
 }

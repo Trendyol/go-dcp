@@ -157,8 +157,10 @@ func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize
 					opm := couchbase.NewAsyncOp(context.Background())
 
 					op, err := client.GetAgent().Set(gocbcore.SetOptions{
-						Key:   []byte(fmt.Sprintf("%v_%v_%v", iter, chunk, id)),
-						Value: []byte(fmt.Sprintf("%v_%v_%v", iter, chunk, id)),
+						Key:           []byte(fmt.Sprintf("%v_%v_%v", iter, chunk, id)),
+						Value:         []byte(fmt.Sprintf("%v_%v_%v", iter, chunk, id)),
+						Deadline:      time.Now().Add(time.Second * 5),
+						RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 					}, func(result *gocbcore.StoreResult, err error) {
 						opm.Resolve()
 

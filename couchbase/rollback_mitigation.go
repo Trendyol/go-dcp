@@ -54,19 +54,19 @@ func (v *vbUUIDAndSeqNo) SetVbUUID(vbUUID gocbcore.VbUUID) {
 }
 
 type rollbackMitigation struct {
-	client             Client
-	config             *config.Dcp
 	bus                EventBus.Bus
+	client             Client
+	vbUUIDMap          *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
 	configSnapshot     *gocbcore.ConfigSnapshot
 	persistedSeqNos    *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
 	observeCount       *atomic.Uint32
-	vbUUIDMap          *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
-	configWatchTimer   *time.Ticker
+	config             *config.Dcp
 	observeTimer       *time.Ticker
 	observeCloseCh     chan struct{}
 	observeCloseDoneCh chan struct{}
 	vbIds              []uint16
 	activeGroupID      int
+	configWatchRunning bool
 	closed             bool
 }
 
@@ -113,10 +113,11 @@ func (r *rollbackMitigation) observeVbID(
 	callback func(*gocbcore.ObserveVbResult, error),
 ) { //nolint:unused
 	_, err := r.client.GetAgent().ObserveVb(gocbcore.ObserveVbOptions{
-		VbID:       vbID,
-		ReplicaIdx: replica,
-		VbUUID:     vbUUID,
-		Deadline:   time.Now().Add(time.Second * 5),
+		VbID:          vbID,
+		ReplicaIdx:    replica,
+		VbUUID:        vbUUID,
+		Deadline:      time.Now().Add(time.Second * 5),
+		RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 	}, callback)
 	if err != nil {
 		logger.Log.Error("observeVBID error for vbID: %v, replica:%v, vbUUID: %v, err: %v", vbID, replica, vbUUID, err)
@@ -405,8 +406,9 @@ func (r *rollbackMitigation) Start() {
 	r.reconfigure()
 
 	go func() {
-		r.configWatchTimer = time.NewTicker(r.config.RollbackMitigation.ConfigWatchInterval)
-		for range r.configWatchTimer.C {
+		r.configWatchRunning = true
+		for r.configWatchRunning {
+			time.Sleep(r.config.RollbackMitigation.ConfigWatchInterval)
 			r.configWatch()
 		}
 	}()
@@ -415,9 +417,7 @@ func (r *rollbackMitigation) Start() {
 func (r *rollbackMitigation) Stop() {
 	r.closed = true
 
-	if r.configWatchTimer != nil {
-		r.configWatchTimer.Stop()
-	}
+	r.configWatchRunning = false
 
 	if r.observeTimer != nil {
 		r.observeTimer.Stop()

@@ -49,7 +49,7 @@ func TestGetCouchbaseMetadata(t *testing.T) {
 	expectedScope := "myscope"
 	expectedCollection := DefaultCollectionName
 	expectedConnectionBufferSize := helpers.ResolveUnionIntOrStringValue("5mb")
-	expectedConnectionTimeout := 5 * time.Second
+	expectedConnectionTimeout := time.Minute
 
 	if couchbaseMetadata.Bucket != expectedBucket {
 		t.Errorf("Bucket is not set to expected value")
@@ -78,10 +78,10 @@ func TestGetCouchbaseMembership(t *testing.T) {
 			Group: DCPGroup{
 				Membership: DCPGroupMembership{
 					Config: map[string]string{
-						CouchbaseMembershipExpirySecondsConfig:     "5",
-						CouchbaseMembershipHeartbeatIntervalConfig: "5s",
-						CouchbaseMembershipMonitorIntervalConfig:   "1s",
-						CouchbaseMembershipTimeoutConfig:           "10s",
+						CouchbaseMembershipExpirySecondsConfig:     "120",
+						CouchbaseMembershipHeartbeatIntervalConfig: "10s",
+						CouchbaseMembershipMonitorIntervalConfig:   "30s",
+						CouchbaseMembershipTimeoutConfig:           "30s",
 					},
 				},
 			},
@@ -90,11 +90,11 @@ func TestGetCouchbaseMembership(t *testing.T) {
 
 	couchbaseMembership := dcp.GetCouchbaseMembership()
 
-	expectedExpiryDuration := uint32(5)
-	expectedHeartbeatInterval := 5 * time.Second
-	expectedHeartbeatTolerance := 2 * time.Second
-	expectedMonitorInterval := 1 * time.Second
-	expectedTimeout := 10 * time.Second
+	expectedExpiryDuration := uint32(120)
+	expectedHeartbeatInterval := 10 * time.Second
+	expectedHeartbeatTolerance := 60 * time.Second
+	expectedMonitorInterval := 30 * time.Second
+	expectedTimeout := 30 * time.Second
 
 	if couchbaseMembership.ExpirySeconds != expectedExpiryDuration {
 		t.Errorf("ExpiryDuration is not set to expected value")
@@ -139,11 +139,11 @@ func TestApplyDefaultRollbackMitigation(t *testing.T) {
 	}
 	c.applyDefaultRollbackMitigation()
 
-	if c.RollbackMitigation.Interval != 500*time.Millisecond {
+	if c.RollbackMitigation.Interval != time.Second {
 		t.Errorf("RollbackMitigation.Interval is not set to expected value")
 	}
 
-	if c.RollbackMitigation.ConfigWatchInterval != 2*time.Second {
+	if c.RollbackMitigation.ConfigWatchInterval != 10*time.Second {
 		t.Errorf("RollbackMitigation.ConfigWatchInterval is not set to expected value")
 	}
 }
@@ -152,11 +152,11 @@ func TestDcpApplyDefaultCheckpoint(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultCheckpoint()
 
-	if c.Checkpoint.Interval != 30*time.Second {
+	if c.Checkpoint.Interval != time.Minute {
 		t.Errorf("Checkpoint.Interval is not set to expected value")
 	}
 
-	if c.Checkpoint.Timeout != 10*time.Second {
+	if c.Checkpoint.Timeout != time.Minute {
 		t.Errorf("Checkpoint.Timeout is not set to expected value")
 	}
 
@@ -173,11 +173,11 @@ func TestDcpApplyDefaultHealthCheck(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultHealthCheck()
 
-	if c.HealthCheck.Interval != 20*time.Second {
+	if c.HealthCheck.Interval != time.Minute {
 		t.Errorf("HealthCheck.Interval is not set to expected value")
 	}
 
-	if c.HealthCheck.Timeout != 5*time.Second {
+	if c.HealthCheck.Timeout != time.Minute {
 		t.Errorf("HealthCheck.Timeout is not set to expected value")
 	}
 
@@ -190,7 +190,7 @@ func TestDcpApplyDefaultGroupMembership(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultGroupMembership()
 
-	if c.Dcp.Group.Membership.RebalanceDelay != 20*time.Second {
+	if c.Dcp.Group.Membership.RebalanceDelay != 30*time.Second {
 		t.Errorf("Dcp.Group.Membership.RebalanceDelay is not set to expected value")
 	}
 
@@ -211,11 +211,11 @@ func TestDcpApplyDefaultConnectionTimeout(t *testing.T) {
 	c := &Dcp{}
 	c.applyDefaultConnectionTimeout()
 
-	if c.Dcp.ConnectionTimeout != 5*time.Second {
+	if c.Dcp.ConnectionTimeout != time.Minute {
 		t.Errorf("Dcp.ConnectionTimeout is not set to expected value")
 	}
 
-	if c.ConnectionTimeout != 5*time.Second {
+	if c.ConnectionTimeout != time.Minute {
 		t.Errorf("ConnectionTimeout is not set to expected value")
 	}
 }

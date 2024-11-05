@@ -179,11 +179,11 @@ type CouchbaseMembership struct {
 
 func (c *Dcp) GetCouchbaseMembership() *CouchbaseMembership {
 	couchbaseMembership := CouchbaseMembership{
-		ExpirySeconds:              10,
-		HeartbeatInterval:          5 * time.Second,
-		HeartbeatToleranceDuration: 2 * time.Second,
-		MonitorInterval:            500 * time.Millisecond,
-		Timeout:                    10 * time.Second,
+		ExpirySeconds:              120,
+		HeartbeatInterval:          10 * time.Second,
+		HeartbeatToleranceDuration: time.Minute,
+		MonitorInterval:            30 * time.Second,
+		Timeout:                    30 * time.Second,
 	}
 
 	if expirySeconds, ok := c.Dcp.Group.Membership.Config[CouchbaseMembershipExpirySecondsConfig]; ok {
@@ -319,7 +319,7 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 		Collection:           DefaultCollectionName,
 		MaxQueueSize:         2048,
 		ConnectionBufferSize: 5242880, // 5 MB
-		ConnectionTimeout:    5 * time.Second,
+		ConnectionTimeout:    time.Minute,
 	}
 
 	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
@@ -375,21 +375,21 @@ func (c *Dcp) ApplyDefaults() {
 
 func (c *Dcp) applyDefaultRollbackMitigation() {
 	if c.RollbackMitigation.Interval == 0 {
-		c.RollbackMitigation.Interval = 500 * time.Millisecond
+		c.RollbackMitigation.Interval = time.Second
 	}
 
 	if c.RollbackMitigation.ConfigWatchInterval == 0 {
-		c.RollbackMitigation.ConfigWatchInterval = 2 * time.Second
+		c.RollbackMitigation.ConfigWatchInterval = 10 * time.Second
 	}
 }
 
 func (c *Dcp) applyDefaultCheckpoint() {
 	if c.Checkpoint.Interval == 0 {
-		c.Checkpoint.Interval = 30 * time.Second
+		c.Checkpoint.Interval = time.Minute
 	}
 
 	if c.Checkpoint.Timeout == 0 {
-		c.Checkpoint.Timeout = 10 * time.Second
+		c.Checkpoint.Timeout = time.Minute
 	}
 
 	if c.Checkpoint.Type == "" {
@@ -403,17 +403,17 @@ func (c *Dcp) applyDefaultCheckpoint() {
 
 func (c *Dcp) applyDefaultHealthCheck() {
 	if c.HealthCheck.Interval == 0 {
-		c.HealthCheck.Interval = 20 * time.Second
+		c.HealthCheck.Interval = time.Minute
 	}
 
 	if c.HealthCheck.Timeout == 0 {
-		c.HealthCheck.Timeout = 5 * time.Second
+		c.HealthCheck.Timeout = time.Minute
 	}
 }
 
 func (c *Dcp) applyDefaultGroupMembership() {
 	if c.Dcp.Group.Membership.RebalanceDelay == 0 {
-		c.Dcp.Group.Membership.RebalanceDelay = 20 * time.Second
+		c.Dcp.Group.Membership.RebalanceDelay = 30 * time.Second
 	}
 
 	if c.Dcp.Group.Membership.TotalMembers == 0 {
@@ -451,11 +451,11 @@ func (c *Dcp) applyDefaultGroupMembership() {
 
 func (c *Dcp) applyDefaultConnectionTimeout() {
 	if c.Dcp.ConnectionTimeout == 0 {
-		c.Dcp.ConnectionTimeout = 5 * time.Second
+		c.Dcp.ConnectionTimeout = time.Minute
 	}
 
 	if c.ConnectionTimeout == 0 {
-		c.ConnectionTimeout = 5 * time.Second
+		c.ConnectionTimeout = time.Minute
 	}
 }
 

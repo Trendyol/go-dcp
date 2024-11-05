@@ -26,18 +26,18 @@ import (
 type cbMembership struct {
 	client              Client
 	bus                 EventBus.Bus
-	info                *membership.Model
-	infoChan            chan *membership.Model
-	heartbeatTicker     *time.Ticker
-	config              *config.Dcp
 	membershipConfig    *config.CouchbaseMembership
-	monitorTicker       *time.Ticker
+	infoChan            chan *membership.Model
+	config              *config.Dcp
+	info                *membership.Model
 	scopeName           string
 	collectionName      string
 	lastActiveInstances []Instance
 	instanceAll         []byte
 	id                  []byte
 	clusterJoinTime     int64
+	heartbeatRunning    bool
+	monitorRunning      bool
 }
 
 type Instance struct {
@@ -147,7 +147,13 @@ func (h *cbMembership) heartbeat() {
 }
 
 func (h *cbMembership) isAlive(heartbeatTime int64) bool {
-	return (time.Now().UnixNano() - heartbeatTime) < heartbeatTime+h.membershipConfig.HeartbeatToleranceDuration.Nanoseconds()
+	upperWaitLimit := h.membershipConfig.HeartbeatInterval.Nanoseconds() + h.membershipConfig.HeartbeatToleranceDuration.Nanoseconds()
+	passedTimeSinceLastHeartbeat := time.Now().UnixNano() - heartbeatTime
+	logger.Log.Debug(
+		"passed seconds since last heartbeat: %v, upper wait limit second: %v",
+		passedTimeSinceLastHeartbeat/1000000000, upperWaitLimit/1000000000,
+	)
+	return passedTimeSinceLastHeartbeat < upperWaitLimit
 }
 
 //nolint:funlen
@@ -189,6 +195,7 @@ func (h *cbMembership) monitor() {
 			var kvErr *gocbcore.KeyValueError
 			if err != nil {
 				if errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
+					logger.Log.Debug("instance no longer available, id: %v", id)
 					return
 				} else {
 					logger.Log.Error("error while monitor try to get instance, err: %v", err)
@@ -282,24 +289,26 @@ func (h *cbMembership) rebalance(instances []Instance) {
 }
 
 func (h *cbMembership) startHeartbeat() {
-	h.heartbeatTicker = time.NewTicker(h.membershipConfig.HeartbeatInterval)
+	h.heartbeatRunning = true
 
 	go func() {
-		for range h.heartbeatTicker.C {
+		for h.heartbeatRunning {
+			time.Sleep(h.membershipConfig.HeartbeatInterval)
 			h.heartbeat()
 		}
 	}()
 }
 
 func (h *cbMembership) startMonitor() {
-	h.monitorTicker = time.NewTicker(h.membershipConfig.MonitorInterval)
+	h.monitorRunning = true
 
 	go func() {
 		logger.Log.Info("couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(h.config.Dcp.Group.Membership.RebalanceDelay)
 
-		for range h.monitorTicker.C {
+		for h.monitorRunning {
 			h.monitor()
+			time.Sleep(h.membershipConfig.MonitorInterval)
 		}
 	}()
 }
@@ -310,8 +319,8 @@ func (h *cbMembership) Close() {
 		logger.Log.Error("error while unsubscribe: %v", err)
 	}
 
-	h.monitorTicker.Stop()
-	h.heartbeatTicker.Stop()
+	h.monitorRunning = false
+	h.heartbeatRunning = false
 }
 
 func (h *cbMembership) membershipChangedListener(model *membership.Model) {

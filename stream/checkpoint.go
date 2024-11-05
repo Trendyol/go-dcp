@@ -43,13 +43,13 @@ type checkpoint struct {
 	stream     Stream
 	client     couchbase.Client
 	metadata   metadata.Metadata
-	schedule   *time.Ticker
 	config     *config.Dcp
 	saveLock   *sync.Mutex
 	loadLock   *sync.Mutex
 	metric     *CheckpointMetric
 	bucketUUID string
 	vbIds      []uint16
+	running    bool
 }
 
 func (s *checkpoint) Save() {
@@ -202,8 +202,9 @@ func (s *checkpoint) StartSchedule() {
 	}
 
 	go func() {
-		s.schedule = time.NewTicker(s.config.Checkpoint.Interval)
-		for range s.schedule.C {
+		s.running = true
+		for s.running {
+			time.Sleep(s.config.Checkpoint.Interval)
 			s.Save()
 		}
 	}()
@@ -216,9 +217,7 @@ func (s *checkpoint) StopSchedule() {
 		return
 	}
 
-	if s.schedule != nil {
-		s.schedule.Stop()
-	}
+	s.running = false
 
 	logger.Log.Debug("stopped checkpoint schedule")
 }

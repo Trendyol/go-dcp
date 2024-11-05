@@ -2,6 +2,7 @@ package couchbase
 
 import (
 	"context"
+	"time"
 
 	"github.com/couchbase/gocbcore/v10/memd"
 
@@ -31,6 +32,7 @@ func CreateDocument(ctx context.Context,
 		Expiry:         expiry,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}, func(result *gocbcore.StoreResult, err error) {
 		opm.Resolve()
 
@@ -72,6 +74,7 @@ func UpdateDocument(ctx context.Context,
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}
 	if cas != nil {
 		mutateInOptions.Cas = *cas
@@ -104,6 +107,7 @@ func DeleteDocument(ctx context.Context, agent *gocbcore.Agent, scopeName string
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}, func(result *gocbcore.DeleteResult, err error) {
 		opm.Resolve()
 
@@ -147,6 +151,7 @@ func UpsertXattrs(ctx context.Context,
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}, func(result *gocbcore.MutateInResult, err error) {
 		opm.Resolve()
 
@@ -178,8 +183,10 @@ func GetXattrs(ctx context.Context, agent *gocbcore.Agent, scopeName string, col
 				Path:  path,
 			},
 		},
+		Deadline:       time.Now().Add(time.Second * 5),
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}, func(result *gocbcore.LookupInResult, err error) {
 		opm.Resolve()
 
@@ -216,6 +223,7 @@ func Get(ctx context.Context, agent *gocbcore.Agent, scopeName string, collectio
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}, func(result *gocbcore.GetResult, err error) {
 		opm.Resolve()
 
@@ -267,6 +275,7 @@ func CreatePath(ctx context.Context,
 		Deadline:       deadline,
 		ScopeName:      scopeName,
 		CollectionName: collectionName,
+		RetryStrategy:  gocbcore.NewBestEffortRetryStrategy(nil),
 	}, func(result *gocbcore.MutateInResult, err error) {
 		opm.Resolve()
 

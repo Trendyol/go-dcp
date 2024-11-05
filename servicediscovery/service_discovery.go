@@ -35,14 +35,14 @@ type ServiceDiscovery interface {
 }
 
 type serviceDiscovery struct {
-	bus             EventBus.Bus
-	leaderService   *Service
-	services        *wrapper.ConcurrentSwissMap[string, *Service]
-	heartbeatTicker *time.Ticker
-	monitorTicker   *time.Ticker
-	info            *membership.Model
-	config          *config.Dcp
-	amILeader       bool
+	bus              EventBus.Bus
+	leaderService    *Service
+	services         *wrapper.ConcurrentSwissMap[string, *Service]
+	info             *membership.Model
+	config           *config.Dcp
+	heartbeatRunning bool
+	monitorRunning   bool
+	amILeader        bool
 }
 
 func (s *serviceDiscovery) Add(service *Service) {
@@ -108,10 +108,12 @@ func (s *serviceDiscovery) ReassignLeader() error {
 }
 
 func (s *serviceDiscovery) StartHeartbeat() {
-	s.heartbeatTicker = time.NewTicker(5 * time.Second)
+	s.heartbeatRunning = true
 
 	go func() {
-		for range s.heartbeatTicker.C {
+		for s.heartbeatRunning {
+			time.Sleep(5 * time.Second)
+
 			if s.leaderService != nil {
 				err := s.leaderService.Client.Ping()
 				if err != nil {
@@ -149,17 +151,19 @@ func (s *serviceDiscovery) StartHeartbeat() {
 }
 
 func (s *serviceDiscovery) StopHeartbeat() {
-	s.heartbeatTicker.Stop()
+	s.heartbeatRunning = false
 }
 
 func (s *serviceDiscovery) StartMonitor() {
-	s.monitorTicker = time.NewTicker(5 * time.Second)
+	s.monitorRunning = true
 
 	go func() {
 		logger.Log.Info("service discovery will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(s.config.Dcp.Group.Membership.RebalanceDelay)
 
-		for range s.monitorTicker.C {
+		for s.monitorRunning {
+			time.Sleep(5 * time.Second)
+
 			if !s.amILeader {
 				continue
 			}
@@ -181,7 +185,7 @@ func (s *serviceDiscovery) StartMonitor() {
 }
 
 func (s *serviceDiscovery) StopMonitor() {
-	s.monitorTicker.Stop()
+	s.monitorRunning = false
 }
 
 func (s *serviceDiscovery) GetAll() []string {

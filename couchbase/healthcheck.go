@@ -3,8 +3,9 @@ package couchbase
 import (
 	"time"
 
-	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/logger"
+
+	"github.com/Trendyol/go-dcp/config"
 )
 
 type HealthCheck interface {
@@ -13,26 +14,42 @@ type HealthCheck interface {
 }
 
 type healthCheck struct {
-	ticker *time.Ticker
-	config *config.HealthCheck
-	client Client
+	config  *config.HealthCheck
+	client  Client
+	running bool
 }
 
 func (h *healthCheck) Start() {
-	h.ticker = time.NewTicker(h.config.Interval)
+	h.running = true
 
 	go func() {
-		for range h.ticker.C {
-			if _, err := h.client.Ping(); err != nil {
-				logger.Log.Error("error while health check: %v", err)
-				panic(err)
+		for h.running {
+			time.Sleep(h.config.Interval)
+
+			retry := 5
+
+			for {
+				_, err := h.client.Ping()
+				if err == nil {
+					break
+				} else {
+					logger.Log.Warn("cannot health check, err: %v", err)
+				}
+
+				retry--
+				if retry == 0 {
+					logger.Log.Error("error while health check: %v", err)
+					panic(err)
+				}
+
+				time.Sleep(time.Second)
 			}
 		}
 	}()
 }
 
 func (h *healthCheck) Stop() {
-	h.ticker.Stop()
+	h.running = false
 }
 
 func NewHealthCheck(config *config.HealthCheck, client Client) HealthCheck {

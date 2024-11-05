@@ -67,6 +67,10 @@ func getServiceEndpoint(result *gocbcore.PingResult, serviceType gocbcore.Servic
 }
 
 func printLatenciesOfServiceEndpoints(result *gocbcore.PingResult) {
+	if result == nil {
+		return
+	}
+
 	for serviceType, service := range result.Services {
 		for _, serviceResult := range service {
 			if serviceResult.Error == nil {
@@ -92,17 +96,21 @@ func (s *client) Ping() (*models.PingResult, error) {
 	errorCh := make(chan error, 1)
 
 	var pingResult models.PingResult
+	deadline, _ := ctx.Deadline()
 
 	op, err := s.agent.Ping(gocbcore.PingOptions{
-		ServiceTypes: []gocbcore.ServiceType{gocbcore.MemdService, gocbcore.MgmtService},
+		KVDeadline:   deadline,
+		MgmtDeadline: deadline,
+		ServiceTypes: []gocbcore.ServiceType{
+			gocbcore.MemdService,
+			gocbcore.MgmtService,
+		},
 	}, func(result *gocbcore.PingResult, err error) {
+		printLatenciesOfServiceEndpoints(result)
+
 		if err == nil {
 			pingResult.MemdEndpoint = getServiceEndpoint(result, gocbcore.MemdService)
 			pingResult.MgmtEndpoint = getServiceEndpoint(result, gocbcore.MgmtService)
-
-			if result != nil {
-				printLatenciesOfServiceEndpoints(result)
-			}
 		}
 
 		if pingResult.MemdEndpoint == "" || pingResult.MgmtEndpoint == "" {
@@ -184,6 +192,7 @@ func CreateAgent(httpAddresses []string, bucketName string,
 				ConnectionBufferSize: connectionBufferSize,
 				MaxQueueSize:         maxQueueSize,
 			},
+			DefaultRetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},
 	)
 	if err != nil {
@@ -621,7 +630,7 @@ func (s *client) OpenStream(
 	offset *models.Offset,
 	observer Observer,
 ) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	opm := NewAsyncOp(ctx)
@@ -717,7 +726,10 @@ func (s *client) getCollectionID(ctx context.Context, scopeName string, collecti
 	op, err := s.agent.GetCollectionID(
 		scopeName,
 		collectionName,
-		gocbcore.GetCollectionIDOptions{},
+		gocbcore.GetCollectionIDOptions{
+			Deadline:      time.Now().Add(time.Second * 5),
+			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
+		},
 		func(result *gocbcore.GetCollectionIDResult, err error) {
 			if err == nil {
 				collectionID = result.CollectionID

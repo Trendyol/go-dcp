@@ -151,7 +151,7 @@ func (s *stream) listen(args models.ListenerArgs) {
 }
 
 func (s *stream) reopenStream(vbID uint16) {
-	retry := 3
+	retry := 5
 
 	for {
 		err := s.openStream(vbID)
@@ -168,7 +168,7 @@ func (s *stream) reopenStream(vbID uint16) {
 			panic(err)
 		}
 
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second)
 	}
 }
 

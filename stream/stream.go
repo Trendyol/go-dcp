@@ -388,10 +388,6 @@ func (s *stream) Close(closeWithCancel bool) {
 	disableStreamEndByClient := s.version.Lower(couchbase.SrvVer550)
 	s.closeAllStreams(disableStreamEndByClient)
 
-	if !s.streamFinishedWithEndEventCh {
-		s.finishStreamWithCloseCh <- struct{}{}
-	}
-
 	s.observers.Range(func(_ uint16, observer couchbase.Observer) bool {
 		observer.CloseEnd()
 		return true
@@ -404,6 +400,10 @@ func (s *stream) Close(closeWithCancel bool) {
 	logger.Log.Info("stream stopped")
 	s.eventHandler.AfterStreamStop()
 	s.open = false
+
+	if !s.streamFinishedWithEndEventCh {
+		s.finishStreamWithCloseCh <- struct{}{}
+	}
 }
 
 func (s *stream) GetOffsets() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset], *wrapper.ConcurrentSwissMap[uint16, bool], bool) {

@@ -106,6 +106,7 @@ func (l *goCbCoreLogger) Log(level gocbcore.LogLevel, _ int, format string, v ..
 	if level > l.level {
 		return nil
 	}
-	Log.Log(coreToDcp[level], format, v...)
+	msg := fmt.Sprintf(format, v...)
+	Log.Log(coreToDcp[level], "gocbcore - %s", msg)
 	return nil
 }

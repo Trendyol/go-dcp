@@ -166,6 +166,8 @@ func (s *dcp) Start() {
 		logger.Log.Debug("cancel channel triggered")
 		s.closeWithCancel = true
 	}
+
+	s.close()
 }
 
 func (s *dcp) GetClient() couchbase.Client {
@@ -177,6 +179,10 @@ func (s *dcp) WaitUntilReady() chan struct{} {
 }
 
 func (s *dcp) Close() {
+	s.cancelCh <- syscall.SIGTERM
+}
+
+func (s *dcp) close() {
 	if !s.config.HealthCheck.Disabled {
 		s.healthCheck.Stop()
 	}

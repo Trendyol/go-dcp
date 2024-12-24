@@ -79,8 +79,21 @@ type stream struct {
 
 func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 	if _, ok := s.vbIds.Load(vbID); ok {
+		if current, ok := s.offsets.Load(vbID); ok && current.SeqNo > offset.SeqNo {
+			return
+		}
 		s.offsets.Store(vbID, offset)
-		s.dirtyOffsets.Store(vbID, dirty)
+		if !dirty {
+			return
+		}
+
+		s.dirtyOffsets.StoreIf(vbID, func(p bool, f bool) (v bool, s bool) {
+			if !f || (f && !p) {
+				return true, true
+			}
+
+			return p, false
+		})
 	} else {
 		logger.Log.Warn("vbID: %v not belong our vbId range", vbID)
 	}

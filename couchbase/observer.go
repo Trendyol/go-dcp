@@ -165,6 +165,10 @@ func (so *observer) sendOrSkip(args models.ListenerArgs) {
 }
 
 func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
+	if !so.canForward(event.VbID, event.StartSeqNo) {
+		return
+	}
+
 	so.currentSnapshots.Store(event.VbID, &models.SnapshotMarker{
 		StartSeqNo: event.StartSeqNo,
 		EndSeqNo:   event.EndSeqNo,

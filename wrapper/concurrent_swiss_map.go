@@ -35,6 +35,10 @@ func (m *ConcurrentSwissMap[K, V]) Store(key K, value V) {
 	m.m.Store(key, value)
 }
 
+func (m *ConcurrentSwissMap[K, V]) StoreIf(key K, conditionFn func(previousVale V, previousFound bool) (value V, set bool)) {
+	m.m.SetIf(key, conditionFn)
+}
+
 func (m *ConcurrentSwissMap[K, V]) Count() int {
 	return m.m.Count()
 }

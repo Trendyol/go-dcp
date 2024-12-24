@@ -2,10 +2,10 @@ name: Integration
 
 on:
   push:
-    branches: [ master ]
+    branches: [master, backport/1.1.x]
   pull_request:
-    branches: [ master ]
-    types: [ opened, reopened, synchronize ]
+    branches: [master]
+    types: [opened, reopened, synchronize]
   workflow_dispatch:
 
 concurrency:

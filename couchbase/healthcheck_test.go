@@ -3,15 +3,16 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/logger"
 	_ "github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/models"
 	"github.com/Trendyol/go-dcp/wrapper"
 	"github.com/couchbase/gocbcore/v10"
-	"sync"
-	"testing"
-	"time"
 )
 
 func init() {
@@ -195,76 +196,61 @@ func (m *mockClient) Ping() (*models.PingResult, error) {
 }
 
 func (m *mockClient) GetAgent() *gocbcore.Agent {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetMetaAgent() *gocbcore.Agent {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) Connect() error {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) Close() {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) DcpClose() {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetNumVBuckets() int {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetFailOverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) CloseStream(vbID uint16) error {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
 func (m *mockClient) GetAgentQueues() []*models.AgentQueue {
-	//TODO implement me
 	panic("implement me")
 }

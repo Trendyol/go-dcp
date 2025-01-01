@@ -2,10 +2,11 @@ package couchbase
 
 import (
 	"context"
-	"github.com/Trendyol/go-dcp/config"
-	"github.com/Trendyol/go-dcp/logger"
 	"sync"
 	"time"
+
+	"github.com/Trendyol/go-dcp/config"
+	"github.com/Trendyol/go-dcp/logger"
 )
 
 type HealthCheck interface {
@@ -74,8 +75,6 @@ func (h *healthCheck) performHealthCheck(ctx context.Context) {
 			logger.Log.Trace("healthcheck success")
 			return
 		}
-
-		logger.Log.Warn("Health check attempt %d/%d failed: %v", attempt, maxRetries, err)
 
 		if attempt < maxRetries {
 			select {

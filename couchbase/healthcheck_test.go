@@ -3,13 +3,11 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/logger"
-	_ "github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/models"
 	"github.com/Trendyol/go-dcp/wrapper"
 	"github.com/couchbase/gocbcore/v10"
@@ -143,19 +141,17 @@ func TestHealthCheck_PanicFailure(t *testing.T) {
 		return nil, errors.New("ping failed")
 	}
 
-	var wg sync.WaitGroup
 	sut := healthCheck{
 		config: cfg,
 		client: mc,
-		wg:     wg,
 	}
 
 	// Act
-	wg.Add(1)
+	sut.wg.Add(1)
 	go func() {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Fatal("test should be panic!")
+				t.Error("test should be panic!")
 			}
 		}()
 

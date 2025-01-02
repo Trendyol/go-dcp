@@ -72,9 +72,11 @@ func (h *healthCheck) performHealthCheck(ctx context.Context) {
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		_, err := h.client.Ping()
 		if err == nil {
-			logger.Log.Trace("healthcheck success")
+			logger.Log.Trace("Health check success")
 			return
 		}
+
+		logger.Log.Warn("Health check attempt %d/%d failed: %v", attempt, maxRetries, err)
 
 		if attempt < maxRetries {
 			select {

@@ -3,6 +3,8 @@ package dcp
 import (
 	"context"
 	"fmt"
+	"github.com/couchbase/gocbcore/v10"
+	"github.com/testcontainers/testcontainers-go"
 	"os"
 	"strconv"
 	"strings"
@@ -21,8 +23,6 @@ import (
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/couchbase"
-	"github.com/couchbase/gocbcore/v10"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -253,6 +253,89 @@ func test(t *testing.T, version string) {
 	logger.Log.Info("mock data stream finished with totalSize=%v", counter.Load())
 }
 
+func testWithTraces(t *testing.T, version string) {
+	chunkSize := 4
+	bulkSize := 1024
+	iteration := 512
+	mockDataSize := iteration * bulkSize * chunkSize
+	totalNotify := 10
+	notifySize := mockDataSize / totalNotify
+
+	c := getConfig()
+	c.ApplyDefaults()
+
+	ctx := context.Background()
+
+	container, err := setupContainer(c, ctx, version)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var counter atomic.Int32
+	finish := make(chan struct{}, 1)
+
+	dcp, err := NewDcp(c, func(ctx *models.ListenerContext) {
+		if _, ok := ctx.Event.(models.DcpMutation); ok {
+			ctx.Ack()
+
+			// Traces
+			lt1 := ctx.ListenerTracerComponent.InitializeListenerTrace("test1", map[string]interface{}{})
+			time.Sleep(time.Second * 1)
+
+			lt11 := ctx.ListenerTracerComponent.CreateListenerTrace(lt1, "test1-1", map[string]interface{}{})
+			time.Sleep(time.Second * 1)
+			lt11.Finish()
+
+			lt12 := ctx.ListenerTracerComponent.CreateListenerTrace(lt1, "test1-2", map[string]interface{}{
+				"test1-2": "This is a test metadata",
+			})
+
+			time.Sleep(time.Second * 1)
+			lt121 := ctx.ListenerTracerComponent.CreateListenerTrace(lt12, "test1-2-1", map[string]interface{}{})
+			time.Sleep(time.Millisecond * 100)
+			lt121.Finish()
+
+			time.Sleep(time.Millisecond * 300)
+			lt12.Finish()
+
+			lt1.Finish()
+
+			val := int(counter.Add(1))
+
+			if val%notifySize == 0 {
+				logger.Log.Info("%v/%v processed", val/notifySize, totalNotify)
+			}
+
+			if val == mockDataSize {
+				finish <- struct{}{}
+			}
+
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		<-dcp.WaitUntilReady()
+		insertDataToContainer(c, t, iteration, chunkSize, bulkSize)
+	}()
+
+	go func() {
+		<-finish
+		dcp.Close()
+	}()
+
+	dcp.Start()
+
+	err = container.Terminate(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	logger.Log.Info("mock data stream finished with totalSize=%v", counter.Load())
+}
+
 func TestDcp(t *testing.T) {
 	version := os.Getenv("CB_VERSION")
 
@@ -262,6 +345,19 @@ func TestDcp(t *testing.T) {
 
 	t.Run(version, func(t *testing.T) {
 		test(t, version)
+	})
+}
+
+func TestDcpWithTraces(t *testing.T) {
+	t.Skip()
+	version := os.Getenv("CB_VERSION")
+
+	if version == "" {
+		t.Skip("Skipping test")
+	}
+
+	t.Run(version, func(t *testing.T) {
+		testWithTraces(t, version)
 	})
 }
 

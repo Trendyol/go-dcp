@@ -1,6 +1,9 @@
 package couchbase
 
 import (
+	"context"
+	"github.com/Trendyol/go-dcp/tracing"
+	"reflect"
 	"time"
 
 	"github.com/asaskevich/EventBus"
@@ -63,6 +66,7 @@ type observer struct {
 	currentSnapshot *models.SnapshotMarker
 	collectionIDs   map[uint32]string
 	metrics         *ObserverMetric
+	tracer          *tracing.TracerComponent
 	listener        func(args models.ListenerArgs)
 	endListener     func(context models.DcpStreamEndContext)
 	vbUUID          gocbcore.VbUUID
@@ -146,7 +150,18 @@ func (so *observer) sendOrSkip(args models.ListenerArgs) {
 		return
 	}
 
-	so.listener(args)
+	opTrace := so.tracer.StartOpTelemeteryHandler(
+		"go-dcp-observer",
+		reflect.TypeOf(args.Event).Name(),
+		tracing.RequestSpanContext{RefCtx: context.Background(), Value: args.Event},
+		tracing.NewObserverLabels(so.vbID, so.collectionIDs),
+	)
+
+	tracingContextAwareListenerArgs := models.ListenerArgs{Event: args.Event, TraceContext: opTrace.RootContext()}
+
+	so.listener(tracingContextAwareListenerArgs)
+
+	opTrace.Finish()
 }
 
 func (so *observer) SnapshotMarker(event models.DcpSnapshotMarker) {
@@ -453,10 +468,12 @@ func NewObserver(
 	endListener func(context models.DcpStreamEndContext),
 	collectionIDs map[uint32]string,
 	bus EventBus.Bus,
+	tc *tracing.TracerComponent,
 ) Observer {
 	observer := &observer{
 		vbID:          vbID,
 		metrics:       &ObserverMetric{},
+		tracer:        tc,
 		collectionIDs: collectionIDs,
 		listener:      listener,
 		endListener:   endListener,

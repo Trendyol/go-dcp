@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/Trendyol/go-dcp/tracing"
 	"os"
 	"os/signal"
 	"reflect"
@@ -113,9 +114,12 @@ func (s *dcp) Start() {
 
 	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, s.bus)
 
+	tc := tracing.NewTracerComponent()
+
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.version, s.bucketInfo, s.vBucketDiscovery,
 		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, s.bus, s.eventHandler,
+		tc,
 	)
 
 	if s.config.LeaderElection.Enabled {

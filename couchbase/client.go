@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -256,13 +258,22 @@ func resolveHostsAsHTTP(hosts []string) []string {
 	return httpHosts
 }
 
+func (s *client) isDcpAndMetadataSameHost() bool {
+	dcpHosts := append([]string{}, s.config.Hosts...)
+	metadataHosts := append([]string{}, s.config.GetCouchbaseMetadata().Hosts...)
+	sort.Strings(dcpHosts)
+	sort.Strings(metadataHosts)
+
+	return strings.Join(dcpHosts, ",") == strings.Join(metadataHosts, ",")
+}
+
 func (s *client) Connect() error {
 	connectionBufferSize := uint(helpers.ResolveUnionIntOrStringValue(s.config.ConnectionBufferSize))
 	connectionTimeout := s.config.ConnectionTimeout
 
 	if s.config.IsCouchbaseMetadata() {
 		couchbaseMetadataConfig := s.config.GetCouchbaseMetadata()
-		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
+		if couchbaseMetadataConfig.Bucket == s.config.BucketName && s.isDcpAndMetadataSameHost() {
 			if couchbaseMetadataConfig.ConnectionBufferSize > connectionBufferSize {
 				connectionBufferSize = couchbaseMetadataConfig.ConnectionBufferSize
 			}
@@ -283,31 +294,52 @@ func (s *client) Connect() error {
 
 	if s.config.IsCouchbaseMetadata() {
 		couchbaseMetadataConfig := s.config.GetCouchbaseMetadata()
-		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
-			s.metaAgent = agent
-		} else {
-			metaAgent, err := s.connect(
-				couchbaseMetadataConfig.Bucket,
-				couchbaseMetadataConfig.MaxQueueSize,
-				0,
-				couchbaseMetadataConfig.ConnectionBufferSize,
-				couchbaseMetadataConfig.ConnectionTimeout,
-			)
-			if err != nil {
-				logger.Log.Error("error while connect to metadata bucket, err: %v", err)
-				return err
-			}
+		metaAgent, metaErr := s.createMetadataAgent(couchbaseMetadataConfig)
 
-			s.metaAgent = metaAgent
+		if metaErr != nil {
+			logger.Log.Error("error while connect to metadata bucket, err: %v", metaErr)
+			return metaErr
 		}
 
-		logger.Log.Info("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts, s.config.BucketName, couchbaseMetadataConfig.Bucket)
+		s.metaAgent = metaAgent
+
+		logger.Log.Info("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts,
+			s.config.BucketName, couchbaseMetadataConfig.Bucket)
+
 		return nil
 	}
 
 	logger.Log.Info("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
+}
+
+func (s *client) createMetadataAgent(couchbaseMetadataConfig *config.CouchbaseMetadata) (*gocbcore.Agent, error) {
+	if s.isDcpAndMetadataSameHost() {
+		if couchbaseMetadataConfig.Bucket == s.config.BucketName {
+			return s.agent, nil
+		}
+
+		return s.connect(
+			couchbaseMetadataConfig.Bucket,
+			couchbaseMetadataConfig.MaxQueueSize,
+			0,
+			couchbaseMetadataConfig.ConnectionBufferSize,
+			couchbaseMetadataConfig.ConnectionTimeout,
+		)
+	}
+
+	return CreateAgent(
+		couchbaseMetadataConfig.Hosts,
+		couchbaseMetadataConfig.Bucket,
+		couchbaseMetadataConfig.Username,
+		couchbaseMetadataConfig.Password,
+		couchbaseMetadataConfig.SecureConnection,
+		couchbaseMetadataConfig.RootCAPath,
+		0,
+		0,
+		couchbaseMetadataConfig.ConnectionBufferSize,
+		couchbaseMetadataConfig.ConnectionTimeout)
 }
 
 func (s *client) Close() {

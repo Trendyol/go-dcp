@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Trendyol/go-dcp/helpers"
@@ -18,12 +19,17 @@ const (
 	MetadataTypeCouchbase                           = "couchbase"
 	MetadataTypeFile                                = "file"
 	MembershipTypeCouchbase                         = "couchbase"
+	CouchbaseMetadataHostsConfig                    = "hosts"
+	CouchbaseMetadataUsernameConfig                 = "username"
+	CouchbaseMetadataPasswordConfig                 = "password"
 	CouchbaseMetadataBucketConfig                   = "bucket"
 	CouchbaseMetadataScopeConfig                    = "scope"
 	CouchbaseMetadataCollectionConfig               = "collection"
 	CouchbaseMetadataMaxQueueSizeConfig             = "maxQueueSize"
 	CouchbaseMetadataConnectionBufferSizeConfig     = "connectionBufferSize"
 	CouchbaseMetadataConnectionTimeoutConfig        = "connectionTimeout"
+	CouchbaseMetadataSecureConnectionConfig         = "secureConnection"
+	CouchbaseMetadataRootCAPathConfig               = "rootCAPath"
 	CheckpointTypeAuto                              = "auto"
 	CouchbaseMembershipExpirySecondsConfig          = "expirySeconds"
 	CouchbaseMembershipHeartbeatIntervalConfig      = "heartbeatInterval"
@@ -304,22 +310,44 @@ func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
 }
 
 type CouchbaseMetadata struct {
+	Hosts                []string      `yaml:"hosts"`
+	Username             string        `yaml:"username"`
+	Password             string        `yaml:"password"`
 	Bucket               string        `yaml:"bucket"`
 	Scope                string        `yaml:"scope"`
 	Collection           string        `yaml:"collection"`
 	MaxQueueSize         int           `yaml:"maxQueueSize"`
 	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
 	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
+	SecureConnection     bool          `yaml:"secureConnection"`
+	RootCAPath           string        `yaml:"rootCAPath"`
 }
 
 func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 	couchbaseMetadata := CouchbaseMetadata{
+		Hosts:                c.Hosts,
+		Username:             c.Username,
+		Password:             c.Password,
 		Bucket:               c.BucketName,
 		Scope:                DefaultScopeName,
 		Collection:           DefaultCollectionName,
 		MaxQueueSize:         2048,
 		ConnectionBufferSize: 5242880, // 5 MB
 		ConnectionTimeout:    time.Minute,
+		SecureConnection:     c.SecureConnection,
+		RootCAPath:           c.RootCAPath,
+	}
+
+	if hosts, ok := c.Metadata.Config[CouchbaseMetadataHostsConfig]; ok {
+		couchbaseMetadata.Hosts = strings.Split(hosts, ",")
+	}
+
+	if username, ok := c.Metadata.Config[CouchbaseMetadataUsernameConfig]; ok {
+		couchbaseMetadata.Username = username
+	}
+
+	if password, ok := c.Metadata.Config[CouchbaseMetadataPasswordConfig]; ok {
+		couchbaseMetadata.Password = password
 	}
 
 	if bucket, ok := c.Metadata.Config[CouchbaseMetadataBucketConfig]; ok {
@@ -350,6 +378,19 @@ func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {
 		}
 
 		couchbaseMetadata.ConnectionTimeout = parsedConnectionTimeout
+	}
+
+	if secureConnection, ok := c.Metadata.Config[CouchbaseMetadataSecureConnectionConfig]; ok {
+		v, err := strconv.ParseBool(secureConnection)
+		if err != nil {
+			logger.Log.Error("error while parse metadata secure connection, err: %v", err)
+			panic(err)
+		}
+		couchbaseMetadata.SecureConnection = v
+	}
+
+	if rootCAPath, ok := c.Metadata.Config[CouchbaseMetadataRootCAPathConfig]; ok {
+		couchbaseMetadata.RootCAPath = rootCAPath
 	}
 
 	return &couchbaseMetadata

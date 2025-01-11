@@ -3,8 +3,6 @@ package dcp
 import (
 	"context"
 	"fmt"
-	"github.com/couchbase/gocbcore/v10"
-	"github.com/testcontainers/testcontainers-go"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +10,9 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/couchbase/gocbcore/v10"
+	"github.com/testcontainers/testcontainers-go"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
@@ -23,6 +24,7 @@ import (
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/couchbase"
+	// _ "github.com/emrygun/go-dcp-tracing-otel"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -253,6 +255,25 @@ func test(t *testing.T, version string) {
 	logger.Log.Info("mock data stream finished with totalSize=%v", counter.Load())
 }
 
+func testTraces(ctx *models.ListenerContext) {
+	// Traces
+	lt1 := ctx.ListenerTracerComponent.InitializeListenerTrace("test1", map[string]interface{}{})
+	time.Sleep(time.Second * 1)
+	lt11 := ctx.ListenerTracerComponent.CreateListenerTrace(lt1, "test1-1", map[string]interface{}{})
+	time.Sleep(time.Second * 1)
+	lt11.Finish()
+	lt12 := ctx.ListenerTracerComponent.CreateListenerTrace(lt1, "test1-2", map[string]interface{}{
+		"test1-2": "This is a test metadata",
+	})
+	time.Sleep(time.Second * 1)
+	lt121 := ctx.ListenerTracerComponent.CreateListenerTrace(lt12, "test1-2-1", map[string]interface{}{})
+	time.Sleep(time.Millisecond * 100)
+	lt121.Finish()
+	time.Sleep(time.Millisecond * 300)
+	lt12.Finish()
+	lt1.Finish()
+}
+
 func testWithTraces(t *testing.T, version string) {
 	chunkSize := 4
 	bulkSize := 1024
@@ -277,28 +298,7 @@ func testWithTraces(t *testing.T, version string) {
 	dcp, err := NewDcp(c, func(ctx *models.ListenerContext) {
 		if _, ok := ctx.Event.(models.DcpMutation); ok {
 			ctx.Ack()
-
-			// Traces
-			lt1 := ctx.ListenerTracerComponent.InitializeListenerTrace("test1", map[string]interface{}{})
-			time.Sleep(time.Second * 1)
-
-			lt11 := ctx.ListenerTracerComponent.CreateListenerTrace(lt1, "test1-1", map[string]interface{}{})
-			time.Sleep(time.Second * 1)
-			lt11.Finish()
-
-			lt12 := ctx.ListenerTracerComponent.CreateListenerTrace(lt1, "test1-2", map[string]interface{}{
-				"test1-2": "This is a test metadata",
-			})
-
-			time.Sleep(time.Second * 1)
-			lt121 := ctx.ListenerTracerComponent.CreateListenerTrace(lt12, "test1-2-1", map[string]interface{}{})
-			time.Sleep(time.Millisecond * 100)
-			lt121.Finish()
-
-			time.Sleep(time.Millisecond * 300)
-			lt12.Finish()
-
-			lt1.Finish()
+			testTraces(ctx)
 
 			val := int(counter.Add(1))
 
@@ -309,7 +309,6 @@ func testWithTraces(t *testing.T, version string) {
 			if val == mockDataSize {
 				finish <- struct{}{}
 			}
-
 		}
 	})
 	if err != nil {
@@ -350,6 +349,7 @@ func TestDcp(t *testing.T) {
 
 func TestDcpWithTraces(t *testing.T) {
 	t.Skip()
+
 	version := os.Getenv("CB_VERSION")
 
 	if version == "" {

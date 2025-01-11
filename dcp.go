@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/Trendyol/go-dcp/tracing"
 	"os"
 	"os/signal"
 	"reflect"
 	"regexp"
 	"strings"
 	"syscall"
+
+	"github.com/Trendyol/go-dcp/tracing"
 
 	"github.com/Trendyol/go-dcp/metric"
 

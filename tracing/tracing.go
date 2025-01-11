@@ -54,8 +54,7 @@ var (
 )
 
 //nolint:unused
-type NoopTracer struct {
-}
+type NoopTracer struct{}
 
 // RequestSpan creates a new RequestSpan.
 func (tracer *NoopTracer) RequestSpan(parentContext RequestSpanContext, operationName string) RequestSpan {
@@ -104,11 +103,11 @@ func (t *Trace) RootContext() RequestSpanContext {
 
 type ObserverLabels struct {
 	collectionIDs map[uint32]string
-	vbId          uint16
+	vbID          uint16
 }
 
-func NewObserverLabels(vbId uint16, collectionIDs map[uint32]string) *ObserverLabels {
-	return &ObserverLabels{vbId: vbId, collectionIDs: collectionIDs}
+func NewObserverLabels(vbID uint16, collectionIDs map[uint32]string) *ObserverLabels {
+	return &ObserverLabels{vbID: vbID, collectionIDs: collectionIDs}
 }
 
 type TracerComponent struct {
@@ -146,7 +145,7 @@ func (tc *TracerComponent) createOpTrace(
 	opSpan.SetAttribute("op.attributes", parentContext.Value)
 
 	// Append labels
-	opSpan.SetAttribute("vb_id", observerLabels.vbId)
+	opSpan.SetAttribute("vb_id", observerLabels.vbID)
 	opSpan.SetAttribute("collection_ids", observerLabels.collectionIDs)
 
 	return &opTracer{
@@ -172,7 +171,10 @@ func (tc *TracerComponent) NewListenerTracerComponent(opTracerContext RequestSpa
 	}
 }
 
-func (tc *listenerTracerComponent) InitializeListenerTrace(operationName string, attributes map[string]interface{}) *listenerTracer {
+func (tc *listenerTracerComponent) InitializeListenerTrace(
+	operationName string,
+	attributes map[string]interface{},
+) *listenerTracer {
 	listenerSpan := tc.tracerComponent.tracer.RequestSpan(tc.opContext, operationName)
 
 	// Append labels
@@ -186,7 +188,11 @@ func (tc *listenerTracerComponent) InitializeListenerTrace(operationName string,
 	}
 }
 
-func (tc *listenerTracerComponent) CreateListenerTrace(trace *listenerTracer, operationName string, attributes map[string]interface{}) *listenerTracer {
+func (tc *listenerTracerComponent) CreateListenerTrace(
+	trace *listenerTracer,
+	operationName string,
+	attributes map[string]interface{},
+) *listenerTracer {
 	listenerSpan := tc.tracerComponent.tracer.RequestSpan(trace.parentContext, operationName)
 
 	// Append labels

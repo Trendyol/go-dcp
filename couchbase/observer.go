@@ -2,9 +2,10 @@ package couchbase
 
 import (
 	"context"
-	"github.com/Trendyol/go-dcp/tracing"
 	"reflect"
 	"time"
+
+	"github.com/Trendyol/go-dcp/tracing"
 
 	"github.com/asaskevich/EventBus"
 

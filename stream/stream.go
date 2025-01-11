@@ -3,10 +3,11 @@ package stream
 import (
 	"errors"
 	"fmt"
-	"github.com/Trendyol/go-dcp/tracing"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/Trendyol/go-dcp/tracing"
 
 	"github.com/Trendyol/go-dcp/membership"
 
@@ -107,7 +108,13 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 	}
 }
 
-func (s *stream) waitAndForward(payload interface{}, spanCtx tracing.RequestSpanContext, offset *models.Offset, vbID uint16, eventTime time.Time) {
+func (s *stream) waitAndForward(
+	payload interface{},
+	spanCtx tracing.RequestSpanContext,
+	offset *models.Offset,
+	vbID uint16,
+	eventTime time.Time,
+) {
 	if helpers.IsMetadata(payload) {
 		s.setOffset(vbID, offset, false)
 		return

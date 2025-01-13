@@ -310,17 +310,17 @@ func (c *Dcp) GetKubernetesLeaderElector() *KubernetesLeaderElector {
 }
 
 type CouchbaseMetadata struct {
-	Hosts                []string      `yaml:"hosts"`
 	Username             string        `yaml:"username"`
 	Password             string        `yaml:"password"`
 	Bucket               string        `yaml:"bucket"`
 	Scope                string        `yaml:"scope"`
 	Collection           string        `yaml:"collection"`
+	RootCAPath           string        `yaml:"rootCAPath"`
+	Hosts                []string      `yaml:"hosts"`
 	MaxQueueSize         int           `yaml:"maxQueueSize"`
 	ConnectionBufferSize uint          `yaml:"connectionBufferSize"`
 	ConnectionTimeout    time.Duration `yaml:"connectionTimeout"`
 	SecureConnection     bool          `yaml:"secureConnection"`
-	RootCAPath           string        `yaml:"rootCAPath"`
 }
 
 func (c *Dcp) GetCouchbaseMetadata() *CouchbaseMetadata {

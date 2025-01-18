@@ -24,7 +24,6 @@ import (
 	"github.com/Trendyol/go-dcp/config"
 
 	"github.com/Trendyol/go-dcp/couchbase"
-	// _ "github.com/emrygun/go-dcp-tracing-otel"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 

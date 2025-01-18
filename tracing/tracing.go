@@ -6,11 +6,7 @@ import (
 	"time"
 )
 
-// TracerContext
-// ---------------------------------------------------------------------------------------------------------------------
-var (
-	tracerCtx = tracerContext{tracer: &NoopTracer{}}
-)
+var tracerCtx = tracerContext{tracer: &NoopTracer{}}
 
 type tracerContext struct {
 	tracer RequestTracer
@@ -24,8 +20,6 @@ func RegisterRequestTracer(requestTracer RequestTracer) error {
 
 	return fmt.Errorf("RequestTracer already registered %s", requestTracer)
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 type RequestTracer interface {
 	RequestSpan(parentContext RequestSpanContext, operationName string) RequestSpan
@@ -44,8 +38,6 @@ type RequestSpan interface {
 	SetAttribute(key string, value interface{})
 }
 
-// noop tracer
-// ---------------------------------------------------------------------------------------------------------------------
 type noopSpan struct{}
 
 var (
@@ -78,9 +70,6 @@ func (span noopSpan) SetAttribute(key string, value interface{}) {
 func (span noopSpan) AddEvent(key string, timestamp time.Time) {
 }
 
-// Trace
-// ---------------------------------------------------------------------------------------------------------------------
-
 type Trace struct {
 	rsc RequestSpanContext
 	rs  RequestSpan
@@ -98,8 +87,6 @@ func (t *Trace) RootContext() RequestSpanContext {
 	}
 	return t.rsc
 }
-
-// ---------------------------------------------------------------------------------------------------------------------
 
 type ObserverLabels struct {
 	collectionIDs map[uint32]string
@@ -206,7 +193,6 @@ func (tc *listenerTracerComponent) CreateListenerTrace(
 	}
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
 type opTracer struct {
 	parentContext RequestSpanContext
 	opSpan        RequestSpan
@@ -245,7 +231,6 @@ func (tracer *listenerTracer) RootContext() RequestSpanContext {
 	return tracer.parentContext
 }
 
-// ---------------------------------------------------------------------------------------------------------------------
 type opTelemetryHandler struct {
 	start             time.Time
 	tracer            *opTracer

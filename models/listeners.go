@@ -1,13 +1,19 @@
 package models
 
+import (
+	"github.com/Trendyol/go-dcp/tracing"
+)
+
 type ListenerContext struct {
-	Commit func()
-	Event  interface{}
-	Ack    func()
+	Commit                  func()
+	Event                   interface{}
+	Ack                     func()
+	ListenerTracerComponent tracing.ListenerTracerComponent
 }
 
 type ListenerArgs struct {
-	Event interface{}
+	Event        interface{}
+	TraceContext tracing.RequestSpanContext
 }
 
 type DcpStreamEndContext struct {

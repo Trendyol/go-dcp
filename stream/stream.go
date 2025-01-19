@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Trendyol/go-dcp/tracing"
+
 	"github.com/Trendyol/go-dcp/membership"
 
 	"github.com/asaskevich/EventBus"
@@ -54,20 +56,21 @@ type stream struct {
 	vBucketDiscovery             VBucketDiscovery
 	bus                          EventBus.Bus
 	eventHandler                 models.EventHandler
-	bucketInfo                   *couchbase.BucketInfo
-	observers                    *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer]
+	config                       *config.Dcp
+	metric                       *Metric
 	rebalanceTimer               *time.Timer
 	vbIDRange                    *models.VbIDRange
 	dirtyOffsets                 *wrapper.ConcurrentSwissMap[uint16, bool]
 	stopCh                       chan struct{}
 	listener                     models.Listener
-	config                       *config.Dcp
+	bucketInfo                   *couchbase.BucketInfo
 	finishStreamWithEndEventCh   chan struct{}
 	finishStreamWithCloseCh      chan struct{}
 	offsets                      *wrapper.ConcurrentSwissMap[uint16, *models.Offset]
-	metric                       *Metric
+	observers                    *wrapper.ConcurrentSwissMap[uint16, couchbase.Observer]
 	collectionIDs                map[uint32]string
 	streamEndNotSupportedData    *streamEndNotSupportedData
+	tracerComponent              *tracing.TracerComponent
 	rebalanceLock                sync.Mutex
 	activeStreams                atomic.Int32
 	streamFinishedWithCloseCh    bool
@@ -105,7 +108,13 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 	}
 }
 
-func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID uint16, eventTime time.Time) {
+func (s *stream) waitAndForward(
+	payload interface{},
+	spanCtx tracing.RequestSpanContext,
+	offset *models.Offset,
+	vbID uint16,
+	eventTime time.Time,
+) {
 	if helpers.IsMetadata(payload) {
 		s.setOffset(vbID, offset, false)
 		return
@@ -120,6 +129,7 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 			s.setOffset(vbID, offset, true)
 			s.anyDirtyOffset = true
 		},
+		ListenerTracerComponent: s.tracerComponent.NewListenerTracerComponent(spanCtx),
 	}
 
 	start := time.Now()
@@ -132,11 +142,11 @@ func (s *stream) waitAndForward(payload interface{}, offset *models.Offset, vbID
 func (s *stream) listen(args models.ListenerArgs) {
 	switch v := args.Event.(type) {
 	case models.DcpMutation:
-		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+		s.waitAndForward(v, args.TraceContext, v.Offset, v.VbID, v.EventTime)
 	case models.DcpDeletion:
-		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+		s.waitAndForward(v, args.TraceContext, v.Offset, v.VbID, v.EventTime)
 	case models.DcpExpiration:
-		s.waitAndForward(v, v.Offset, v.VbID, v.EventTime)
+		s.waitAndForward(v, args.TraceContext, v.Offset, v.VbID, v.EventTime)
 	case models.DcpSeqNoAdvanced:
 		s.setOffset(v.VbID, v.Offset, true)
 	case models.DcpCollectionCreation:
@@ -240,7 +250,7 @@ func (s *stream) Open() {
 	for _, vbID := range vbIDs {
 		s.observers.Store(
 			vbID,
-			couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus),
+			couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus, s.tracerComponent),
 		)
 	}
 
@@ -457,6 +467,7 @@ func NewStream(client couchbase.Client,
 	stopCh chan struct{},
 	bus EventBus.Bus,
 	eventHandler models.EventHandler,
+	tc *tracing.TracerComponent,
 ) Stream {
 	stream := &stream{
 		client:                     client,
@@ -472,6 +483,7 @@ func NewStream(client couchbase.Client,
 		bus:                        bus,
 		eventHandler:               eventHandler,
 		metric:                     &Metric{},
+		tracerComponent:            tc,
 	}
 
 	if version.Lower(couchbase.SrvVer550) {

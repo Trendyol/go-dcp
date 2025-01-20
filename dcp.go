@@ -117,9 +117,15 @@ func (s *dcp) Start() {
 
 	tc := tracing.NewTracerComponent()
 
+	collectionIDs, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
+	if err != nil {
+		logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
+		panic(err)
+	}
+
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.version, s.bucketInfo, s.vBucketDiscovery,
-		s.listener, s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames), s.stopCh, s.bus, s.eventHandler,
+		s.listener, collectionIDs, s.stopCh, s.bus, s.eventHandler,
 		tc,
 	)
 
@@ -147,7 +153,7 @@ func (s *dcp) Start() {
 
 	s.stream.Open()
 
-	err := s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
+	err = s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
 	if err != nil {
 		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
 		panic(err)

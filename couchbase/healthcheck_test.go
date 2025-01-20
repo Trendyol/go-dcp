@@ -235,7 +235,7 @@ func (m *mockClient) CloseStream(vbID uint16) error {
 	panic("implement me")
 }
 
-func (m *mockClient) GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string {
+func (m *mockClient) GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error) {
 	panic("implement me")
 }
 

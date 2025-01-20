@@ -42,7 +42,7 @@ type Client interface {
 	GetFailOverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error)
 	OpenStream(vbID uint16, collectionIDs map[uint32]string, offset *models.Offset, observer Observer) error
 	CloseStream(vbID uint16) error
-	GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string
+	GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error)
 	GetAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 	GetDcpAgentConfigSnapshot() (*gocbcore.ConfigSnapshot, error)
 	GetAgentQueues() []*models.AgentQueue
@@ -469,6 +469,7 @@ func (s *client) DcpClose() {
 	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
+//nolint:funlen
 func (s *client) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwissMap[uint16, uint64], error) {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
@@ -486,7 +487,10 @@ func (s *client) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwis
 
 	hasCollectionSupport := awareCollection && s.dcpAgent.HasCollectionsSupport()
 
-	cIds := s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
+	cIds, err := s.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
+	if err != nil {
+		return nil, err
+	}
 	collectionIDs := make([]uint32, 0, len(cIds))
 	for collectionID := range cIds {
 		collectionIDs = append(collectionIDs, collectionID)
@@ -759,7 +763,7 @@ func (s *client) getCollectionID(ctx context.Context, scopeName string, collecti
 		scopeName,
 		collectionName,
 		gocbcore.GetCollectionIDOptions{
-			Deadline:      time.Now().Add(time.Second * 5),
+			Deadline:      time.Now().Add(time.Second * 30),
 			RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 		},
 		func(result *gocbcore.GetCollectionIDResult, err error) {
@@ -780,8 +784,8 @@ func (s *client) getCollectionID(ctx context.Context, scopeName string, collecti
 	return collectionID, <-ch
 }
 
-func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) map[uint32]string {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) (map[uint32]string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
 	collectionIDs := map[uint32]string{}
@@ -791,14 +795,14 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) ma
 			collectionID, err := s.getCollectionID(ctx, scopeName, collectionName)
 			if err != nil {
 				logger.Log.Error("error while get collection ids, err: %v", err)
-				panic(err)
+				return nil, err
 			}
 
 			collectionIDs[collectionID] = collectionName
 		}
 	}
 
-	return collectionIDs
+	return collectionIDs, nil
 }
 
 func NewClient(config *config.Dcp) Client {

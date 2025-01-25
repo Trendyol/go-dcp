@@ -2,6 +2,7 @@ package couchbase
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -185,7 +186,9 @@ func (so *observer) IsInSnapshotMarker(seqNo uint64) bool {
 		seqNo >= so.currentSnapshot.StartSeqNo && seqNo <= so.currentSnapshot.EndSeqNo
 
 	if !isIn {
-		logger.Log.Warn("seqNo not in snapshot: %v", seqNo)
+		err := fmt.Errorf("seqNo not in snapshot: %v, vbID: %v", seqNo, so.vbID)
+		logger.Log.Error("error while snapshot marker check, err: %v", err)
+		panic(err)
 	}
 
 	return isIn

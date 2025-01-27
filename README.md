@@ -196,3 +196,5 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 ## Grafana Metric Dashboard
 
 [Grafana & Prometheus Example](example/grafana)
+
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Trendyol/go-dcp/badge)](https://scorecard.dev/viewer/?uri=github.com/Trendyol/go-dcp)

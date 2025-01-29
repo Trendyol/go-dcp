@@ -1,4 +1,4 @@
-FROM couchbase:7.6.3
+FROM couchbase:7.6.5
 
 COPY configure.sh /opt/couchbase
 RUN chmod +x /opt/couchbase/configure.sh

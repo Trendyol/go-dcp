@@ -43,6 +43,13 @@ const (
 	KubernetesLeaderElectorRetryPeriodConfig        = "retryPeriod"
 )
 
+type DcpMode string
+
+const (
+	Infinite DcpMode = "infinite"
+	Finite   DcpMode = "finite"
+)
+
 type DCPGroupMembership struct {
 	Config         map[string]string `yaml:"config"`
 	Type           string            `yaml:"type"`
@@ -66,6 +73,7 @@ type ExternalDcpConfig struct {
 
 type ExternalDcp struct {
 	BufferSize           any               `yaml:"bufferSize"`
+	Mode                 DcpMode           `yaml:"mode"`
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
 	Listener             DCPListener       `yaml:"listener"`
 	Group                DCPGroup          `yaml:"group"`
@@ -149,6 +157,10 @@ type Dcp struct {
 
 func (c *Dcp) IsCouchbaseMetadata() bool {
 	return c.Metadata.Type == MetadataTypeCouchbase
+}
+
+func (c *Dcp) IsDcpModeFinite() bool {
+	return c.Dcp.Mode == Finite
 }
 
 func (c *Dcp) IsFileMetadata() bool {

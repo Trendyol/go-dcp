@@ -2,6 +2,8 @@ package stream
 
 import (
 	"errors"
+	"github.com/Trendyol/go-dcp/stream/offset"
+	"github.com/couchbase/gocbcore/v10"
 	"sync"
 	"time"
 
@@ -16,8 +18,6 @@ import (
 	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/logger"
-
-	"github.com/couchbase/gocbcore/v10"
 )
 
 const (
@@ -40,16 +40,17 @@ type CheckpointMetric struct {
 }
 
 type checkpoint struct {
-	stream     Stream
-	client     couchbase.Client
-	metadata   metadata.Metadata
-	config     *config.Dcp
-	saveLock   *sync.Mutex
-	loadLock   *sync.Mutex
-	metric     *CheckpointMetric
-	bucketUUID string
-	vbIds      []uint16
-	running    bool
+	stream                Stream
+	client                couchbase.Client
+	metadata              metadata.Metadata
+	config                *config.Dcp
+	saveLock              *sync.Mutex
+	loadLock              *sync.Mutex
+	metric                *CheckpointMetric
+	bucketUUID            string
+	vbIds                 []uint16
+	running               bool
+	offsetLatestSeqNoInit *offset.OffsetLatestSeqNoInit
 }
 
 func (s *checkpoint) Save() {
@@ -150,13 +151,16 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 				panic(err)
 			}
 
+			latestOffsetSeqNo := s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo)
+
 			offsets.Store(vbID, &models.Offset{
 				SnapshotMarker: &models.SnapshotMarker{
 					StartSeqNo: currentSeqNo,
 					EndSeqNo:   currentSeqNo,
 				},
-				VbUUID: failOverLogs[0].VbUUID,
-				SeqNo:  currentSeqNo,
+				VbUUID:      failOverLogs[0].VbUUID,
+				SeqNo:       currentSeqNo,
+				LatestSeqNo: latestOffsetSeqNo,
 			})
 
 			return true
@@ -176,13 +180,16 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 			panic(err)
 		}
 
+		latestOffsetSeqNo := s.offsetLatestSeqNoInit.InitializeLatestSeqNo(latestSeqNo)
+
 		offsets.Store(vbID, &models.Offset{
 			SnapshotMarker: &models.SnapshotMarker{
 				StartSeqNo: doc.Checkpoint.Snapshot.StartSeqNo,
 				EndSeqNo:   doc.Checkpoint.Snapshot.EndSeqNo,
 			},
-			VbUUID: gocbcore.VbUUID(doc.Checkpoint.VbUUID),
-			SeqNo:  doc.Checkpoint.SeqNo,
+			VbUUID:      gocbcore.VbUUID(doc.Checkpoint.VbUUID),
+			SeqNo:       doc.Checkpoint.SeqNo,
+			LatestSeqNo: latestOffsetSeqNo,
 		})
 
 		return true
@@ -242,16 +249,18 @@ func NewCheckpoint(
 	client couchbase.Client,
 	metadata metadata.Metadata,
 	config *config.Dcp,
+	offsetLatestSeqNoInit *offset.OffsetLatestSeqNoInit,
 ) Checkpoint {
 	return &checkpoint{
-		client:     client,
-		stream:     stream,
-		vbIds:      vbIds,
-		bucketUUID: getBucketUUID(client),
-		metadata:   metadata,
-		config:     config,
-		saveLock:   &sync.Mutex{},
-		loadLock:   &sync.Mutex{},
-		metric:     &CheckpointMetric{},
+		client:                client,
+		stream:                stream,
+		vbIds:                 vbIds,
+		bucketUUID:            getBucketUUID(client),
+		metadata:              metadata,
+		config:                config,
+		saveLock:              &sync.Mutex{},
+		loadLock:              &sync.Mutex{},
+		metric:                &CheckpointMetric{},
+		offsetLatestSeqNoInit: offsetLatestSeqNoInit,
 	}
 }

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
@@ -322,4 +323,51 @@ func TestApplyDefaultMetadata(t *testing.T) {
 	if c.Metadata.Type != "couchbase" {
 		t.Errorf("Metadata.Type is not set to expected value")
 	}
+}
+
+func TestDcpMode(t *testing.T) {
+	t.Run("it should return true when dcp mode finite", func(t *testing.T) {
+		// Arrange
+		dcp := &Dcp{
+			Dcp: ExternalDcp{
+				Mode: Finite,
+			},
+		}
+
+		// Act
+		isDcpModeFinite := dcp.IsDcpModeFinite()
+
+		// Assert
+		assert.True(t, isDcpModeFinite)
+	})
+
+	t.Run("it should return false when dcp mode infinite", func(t *testing.T) {
+		// Arrange
+		dcp := &Dcp{
+			Dcp: ExternalDcp{
+				Mode: Infinite,
+			},
+		}
+
+		// Act
+		isDcpModeFinite := dcp.IsDcpModeFinite()
+
+		// Assert
+		assert.False(t, isDcpModeFinite)
+	})
+
+	t.Run("it should return false when dcp mode empty", func(t *testing.T) {
+		// Arrange
+		dcp := &Dcp{
+			Dcp: ExternalDcp{
+				Mode: "",
+			},
+		}
+
+		// Act
+		isDcpModeFinite := dcp.IsDcpModeFinite()
+
+		// Assert
+		assert.False(t, isDcpModeFinite)
+	})
 }

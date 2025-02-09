@@ -3,6 +3,7 @@ package stream
 import (
 	"errors"
 	"fmt"
+	"github.com/Trendyol/go-dcp/stream/offset"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -243,7 +244,9 @@ func (s *stream) Open() {
 
 	s.activeStreams.Swap(int32(len(vbIDs)))
 
-	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config)
+	latestSeqNoInitializer := offset.NewOffsetLatestSeqNoInit(s.config)
+
+	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config, latestSeqNoInitializer)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
 	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)

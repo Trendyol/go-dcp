@@ -8,8 +8,9 @@ import (
 
 type Offset struct {
 	*SnapshotMarker
-	VbUUID gocbcore.VbUUID
-	SeqNo  uint64
+	VbUUID      gocbcore.VbUUID
+	SeqNo       uint64
+	LatestSeqNo uint64
 }
 
 type VbIDRange struct {

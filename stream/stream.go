@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Trendyol/go-dcp/stream/offset"
+
 	"github.com/Trendyol/go-dcp/tracing"
 
 	"github.com/Trendyol/go-dcp/membership"
@@ -243,7 +245,9 @@ func (s *stream) Open() {
 
 	s.activeStreams.Swap(int32(len(vbIDs)))
 
-	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config)
+	latestSeqNoInitializer := offset.NewOffsetLatestSeqNoInit(s.config)
+
+	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config, latestSeqNoInitializer)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
 	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)

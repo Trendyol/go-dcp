@@ -600,6 +600,7 @@ func (s *client) GetFailOverLogs(vbID uint16) ([]gocbcore.FailoverEntry, error) 
 func (s *client) openStreamWithRollback(vbID uint16,
 	failedSeqNo gocbcore.SeqNo,
 	rollbackSeqNo gocbcore.SeqNo,
+	latestSeqNo gocbcore.SeqNo,
 	observer Observer,
 	openStreamOptions gocbcore.OpenStreamOptions,
 ) error {
@@ -635,7 +636,7 @@ func (s *client) openStreamWithRollback(vbID uint16,
 		0,
 		targetUUID,
 		rollbackSeqNo,
-		0xffffffffffffffff,
+		latestSeqNo,
 		rollbackSeqNo,
 		rollbackSeqNo,
 		observer,
@@ -696,7 +697,7 @@ func (s *client) OpenStream(
 		0x80,
 		offset.VbUUID,
 		gocbcore.SeqNo(offset.SeqNo),
-		0xffffffffffffffff,
+		gocbcore.SeqNo(offset.LatestSeqNo),
 		gocbcore.SeqNo(offset.StartSeqNo),
 		gocbcore.SeqNo(offset.EndSeqNo),
 		observer,
@@ -721,10 +722,10 @@ func (s *client) OpenStream(
 	if err != nil {
 		if rollbackErr, ok := err.(gocbcore.DCPRollbackError); ok {
 			logger.Log.Info("need to rollback for vbID: %d, vbUUID: %d", vbID, offset.VbUUID)
-			return s.openStreamWithRollback(vbID, gocbcore.SeqNo(offset.SeqNo), rollbackErr.SeqNo, observer, openStreamOptions)
+			return s.openStreamWithRollback(vbID, gocbcore.SeqNo(offset.SeqNo), rollbackErr.SeqNo,
+				gocbcore.SeqNo(offset.LatestSeqNo), observer, openStreamOptions)
 		}
 	}
-
 	return err
 }
 

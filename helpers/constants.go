@@ -9,5 +9,6 @@ const (
 	MembershipChangedBusEventName   string = "membershipChanged"
 	PersistSeqNoChangedBusEventName string = "persistSeqNoChanged"
 
-	JSONFlags uint32 = 50333696
+	JSONFlags   uint32 = 50333696
+	MaxIntValue uint64 = 0xffffffffffffffff
 )

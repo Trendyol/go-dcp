@@ -323,3 +323,61 @@ func TestApplyDefaultMetadata(t *testing.T) {
 		t.Errorf("Metadata.Type is not set to expected value")
 	}
 }
+
+func TestDcpMode(t *testing.T) {
+	t.Run("it should return true when dcp mode finite", func(t *testing.T) {
+		// Arrange
+		dcp := &Dcp{
+			Dcp: ExternalDcp{
+				Mode: DcpModeFinite,
+			},
+		}
+
+		expectedValue := true
+
+		// Act
+		actualValue := dcp.IsDcpModeFinite()
+
+		// Assert
+		if expectedValue != actualValue {
+			t.Errorf("isDcpModeFinite check result. got %v want %v", actualValue, expectedValue)
+		}
+	})
+
+	t.Run("it should return false when dcp mode infinite", func(t *testing.T) {
+		// Arrange
+		dcp := &Dcp{
+			Dcp: ExternalDcp{
+				Mode: DcpModeInfinite,
+			},
+		}
+
+		expectedValue := false
+
+		// Act
+		actualValue := dcp.IsDcpModeFinite()
+
+		// Assert
+		if expectedValue != actualValue {
+			t.Errorf("isDcpModeFinite check result. got %v want %v", actualValue, expectedValue)
+		}
+	})
+
+	t.Run("it should return false when dcp mode empty", func(t *testing.T) {
+		// Arrange
+		dcp := &Dcp{
+			Dcp: ExternalDcp{
+				Mode: "",
+			},
+		}
+		expectedValue := false
+
+		// Act
+		actualValue := dcp.IsDcpModeFinite()
+
+		// Assert
+		if expectedValue != actualValue {
+			t.Errorf("isDcpModeFinite check result. got %v want %v", actualValue, expectedValue)
+		}
+	})
+}

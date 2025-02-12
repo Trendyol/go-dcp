@@ -4,6 +4,8 @@ import (
 	"errors"
 	"os"
 
+	"github.com/bytedance/sonic"
+
 	"github.com/Trendyol/go-dcp/wrapper"
 
 	"github.com/Trendyol/go-dcp/config"
@@ -11,8 +13,6 @@ import (
 	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/Trendyol/go-dcp/logger"
-
-	"github.com/json-iterator/go"
 )
 
 type fileMetadata struct { //nolint:unused
@@ -20,7 +20,7 @@ type fileMetadata struct { //nolint:unused
 }
 
 func (s *fileMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[uint16]bool, _ string) error { //nolint:unused
-	file, _ := jsoniter.MarshalIndent(state, "", "  ")
+	file, _ := sonic.MarshalIndent(state, "", "  ")
 	_ = os.WriteFile(s.fileName, file, 0o644) //nolint:gosec
 	return nil
 }

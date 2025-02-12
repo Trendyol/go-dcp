@@ -8,7 +8,7 @@ import (
 
 	"github.com/Trendyol/go-dcp/config"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/bytedance/sonic"
 	"github.com/valyala/fasthttp"
 )
 
@@ -68,7 +68,7 @@ func (h *httpClient) doRequest(req *fasthttp.Request, v interface{}) error {
 		return err
 	}
 
-	err = jsoniter.Unmarshal(res.Body(), v)
+	err = sonic.Unmarshal(res.Body(), v)
 	if err != nil {
 		return err
 	}

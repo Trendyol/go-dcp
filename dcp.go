@@ -11,6 +11,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/bytedance/sonic"
+
 	"github.com/Trendyol/go-dcp/tracing"
 
 	"github.com/Trendyol/go-dcp/metric"
@@ -20,8 +22,6 @@ import (
 	"github.com/Trendyol/go-dcp/membership"
 
 	"github.com/sirupsen/logrus"
-
-	jsoniter "github.com/json-iterator/go"
 
 	"gopkg.in/yaml.v3"
 
@@ -369,7 +369,7 @@ func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger) 
 
 func printConfiguration(config config.Dcp) {
 	config.Password = "*****"
-	configJSON, _ := jsoniter.Marshal(config)
+	configJSON, _ := sonic.Marshal(config)
 
 	dst := &bytes.Buffer{}
 	if err := json.Compact(dst, configJSON); err != nil {

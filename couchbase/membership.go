@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
+
 	"github.com/asaskevich/EventBus"
 
 	"github.com/Trendyol/go-dcp/config"
@@ -14,8 +16,6 @@ import (
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/membership"
-
-	"github.com/json-iterator/go"
 
 	"github.com/google/uuid"
 
@@ -79,7 +79,7 @@ func (h *cbMembership) register() {
 		ClusterJoinTime: now,
 	}
 
-	payload, _ := jsoniter.Marshal(instance)
+	payload, _ := sonic.Marshal(instance)
 
 	err = UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds, nil)
 
@@ -108,7 +108,7 @@ func (h *cbMembership) register() {
 }
 
 func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
-	payload, _ := jsoniter.Marshal(clusterJoinTime)
+	payload, _ := sonic.Marshal(clusterJoinTime)
 
 	return CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload, memd.SubdocDocFlagMkDoc)
 }
@@ -137,7 +137,7 @@ func (h *cbMembership) heartbeat() {
 		ClusterJoinTime: h.clusterJoinTime,
 	}
 
-	payload, _ := jsoniter.Marshal(instance)
+	payload, _ := sonic.Marshal(instance)
 
 	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.id, payload, h.membershipConfig.ExpirySeconds, nil)
 	if err != nil {
@@ -169,7 +169,7 @@ func (h *cbMembership) monitor() {
 
 	all := map[string]int64{}
 
-	err = jsoniter.Unmarshal(data.Value, &all)
+	err = sonic.Unmarshal(data.Value, &all)
 	if err != nil {
 		logger.Log.Error("error while monitor try to unmarshal index: %v", err)
 		return
@@ -205,7 +205,7 @@ func (h *cbMembership) monitor() {
 
 			copyID := id
 			instance := &Instance{ID: &copyID}
-			err = jsoniter.Unmarshal(doc.Value, instance)
+			err = sonic.Unmarshal(doc.Value, instance)
 			if err != nil {
 				logger.Log.Error("error while monitor try to unmarshal instance %v, err: %v", string(doc.Value), err)
 				panic(err)
@@ -249,7 +249,7 @@ func (h *cbMembership) updateIndex(ctx context.Context, instances []Instance, ca
 		all[*instance.ID] = instance.ClusterJoinTime
 	}
 
-	payload, _ := jsoniter.Marshal(all)
+	payload, _ := sonic.Marshal(all)
 
 	err := UpdateDocument(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, payload, 0, &cas)
 	if err != nil {

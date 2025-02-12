@@ -1,9 +1,8 @@
 package models
 
 import (
-	"github.com/json-iterator/go"
-
 	"github.com/Trendyol/go-dcp/logger"
+	"github.com/bytedance/sonic"
 )
 
 type Identity struct {
@@ -13,7 +12,7 @@ type Identity struct {
 }
 
 func (k *Identity) String() string {
-	str, err := jsoniter.Marshal(k)
+	str, err := sonic.Marshal(k)
 	if err != nil {
 		logger.Log.Error("error while marshalling identity, err: %v", err)
 		panic(err)
@@ -29,7 +28,7 @@ func (k *Identity) Equal(other *Identity) bool {
 func NewIdentityFromStr(str string) *Identity {
 	var identity Identity
 
-	err := jsoniter.Unmarshal([]byte(str), &identity)
+	err := sonic.Unmarshal([]byte(str), &identity)
 	if err != nil {
 		logger.Log.Error("error while unmarshalling identity, err: %v", err)
 		panic(err)

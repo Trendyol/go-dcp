@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/bytedance/sonic"
+
 	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -19,8 +21,6 @@ import (
 	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/metadata"
 	"github.com/Trendyol/go-dcp/models"
-
-	"github.com/json-iterator/go"
 
 	"github.com/couchbase/gocbcore/v10/memd"
 )
@@ -49,7 +49,7 @@ func (s *cbMetadata) Save(state map[uint16]*models.CheckpointDocument, dirtyOffs
 func (s *cbMetadata) saveVBucketCheckpoint(ctx context.Context, vbID uint16, checkpointDocument *models.CheckpointDocument) func() error {
 	return func() error {
 		id := getCheckpointID(vbID, s.config.Dcp.Group.Name)
-		payload, _ := jsoniter.Marshal(checkpointDocument)
+		payload, _ := sonic.Marshal(checkpointDocument)
 		err := UpsertXattrs(ctx, s.client.GetMetaAgent(), s.scopeName, s.collectionName, id, helpers.Name, payload, 0)
 
 		var kvErr *gocbcore.KeyValueError
@@ -86,7 +86,7 @@ func (s *cbMetadata) Load(
 			var doc *models.CheckpointDocument
 
 			if err == nil {
-				err = jsoniter.Unmarshal(data, &doc)
+				err = sonic.Unmarshal(data, &doc)
 
 				if err != nil {
 					doc = models.NewEmptyCheckpointDocument(bucketUUID)

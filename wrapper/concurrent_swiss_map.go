@@ -1,7 +1,7 @@
 package wrapper
 
 import (
-	jsoniter "github.com/json-iterator/go"
+	"github.com/bytedance/sonic"
 	csmap "github.com/mhmtszr/concurrent-swiss-map"
 )
 
@@ -53,12 +53,12 @@ func (m *ConcurrentSwissMap[K, V]) ToMap() map[K]V {
 }
 
 func (m *ConcurrentSwissMap[K, V]) MarshalJSON() ([]byte, error) {
-	return jsoniter.Marshal(m.ToMap())
+	return sonic.Marshal(m.ToMap())
 }
 
 func (m *ConcurrentSwissMap[K, V]) UnmarshalJSON(data []byte) error {
 	var result map[K]V
-	if err := jsoniter.Unmarshal(data, &result); err != nil {
+	if err := sonic.Unmarshal(data, &result); err != nil {
 		return err
 	}
 

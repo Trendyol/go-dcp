@@ -323,7 +323,7 @@ func (s *simplifiedConsumer) TrackOffset(vbID uint16, offset *models.Offset) {}
 // NewExtendedDcp creates a new Dcp client
 //
 // config: path to a configuration file or a configuration struct
-// consumer must implement models.Consumer interface containg both ConsumeEvent and TrackOffset methods
+// consumer must implement models.Consumer interface containing both ConsumeEvent and TrackOffset methods
 func NewExtendedDcp(cfg any, consumer models.Consumer) (Dcp, error) {
 	switch v := cfg.(type) {
 	case *config.Dcp:

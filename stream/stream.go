@@ -119,7 +119,6 @@ func (s *stream) waitAndForward(
 	eventTime time.Time,
 ) {
 	if helpers.IsMetadata(payload) {
-		fmt.Printf("metadata: %v\n", payload)
 		s.setOffset(vbID, offset, false)
 		return
 	}

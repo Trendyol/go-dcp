@@ -26,3 +26,8 @@ type (
 	ListenerCh    chan ListenerArgs
 	ListenerEndCh chan DcpStreamEndContext
 )
+
+type Consumer interface {
+	ConsumeEvent(ctx *ListenerContext)
+	TrackOffset(vbID uint16, offset *Offset)
+}

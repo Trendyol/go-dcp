@@ -64,7 +64,7 @@ type stream struct {
 	vbIDRange                    *models.VbIDRange
 	dirtyOffsets                 *wrapper.ConcurrentSwissMap[uint16, bool]
 	stopCh                       chan struct{}
-	listener                     models.Listener
+	consumer                     models.Consumer
 	bucketInfo                   *couchbase.BucketInfo
 	finishStreamWithEndEventCh   chan struct{}
 	finishStreamWithCloseCh      chan struct{}
@@ -94,6 +94,7 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 			return
 		}
 		s.offsets.Store(vbID, offset)
+		s.consumer.TrackOffset(vbID, offset)
 		if !dirty {
 			return
 		}
@@ -118,6 +119,7 @@ func (s *stream) waitAndForward(
 	eventTime time.Time,
 ) {
 	if helpers.IsMetadata(payload) {
+		fmt.Printf("metadata: %v\n", payload)
 		s.setOffset(vbID, offset, false)
 		return
 	}
@@ -136,7 +138,7 @@ func (s *stream) waitAndForward(
 
 	start := time.Now()
 
-	s.listener(ctx)
+	s.consumer.ConsumeEvent(ctx)
 
 	s.metric.ProcessLatency = time.Since(start).Milliseconds()
 }
@@ -466,7 +468,7 @@ func NewStream(client couchbase.Client,
 	version *couchbase.Version,
 	bucketInfo *couchbase.BucketInfo,
 	vBucketDiscovery VBucketDiscovery,
-	listener models.Listener,
+	consumer models.Consumer,
 	collectionIDs map[uint32]string,
 	stopCh chan struct{},
 	bus EventBus.Bus,
@@ -476,7 +478,7 @@ func NewStream(client couchbase.Client,
 	stream := &stream{
 		client:                     client,
 		metadata:                   metadata,
-		listener:                   listener,
+		consumer:                   consumer,
 		config:                     config,
 		bucketInfo:                 bucketInfo,
 		vBucketDiscovery:           vBucketDiscovery,

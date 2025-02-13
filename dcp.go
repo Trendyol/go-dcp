@@ -66,7 +66,7 @@ type dcp struct {
 	version          *couchbase.Version
 	bucketInfo       *couchbase.BucketInfo
 	healthCheck      couchbase.HealthCheck
-	listener         models.Listener
+	consumer         models.Consumer
 	readyCh          chan struct{}
 	cancelCh         chan os.Signal
 	stopCh           chan struct{}
@@ -125,7 +125,7 @@ func (s *dcp) Start() {
 
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.version, s.bucketInfo, s.vBucketDiscovery,
-		s.listener, collectionIDs, s.stopCh, s.bus, s.eventHandler,
+		s.consumer, collectionIDs, s.stopCh, s.bus, s.eventHandler,
 		tc,
 	)
 
@@ -245,7 +245,7 @@ func (s *dcp) GetVersion() *couchbase.Version {
 	return s.version
 }
 
-func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
+func newDcp(config *config.Dcp, consumer models.Consumer) (Dcp, error) {
 	config.ApplyDefaults()
 	copyOfConfig := config
 	printConfiguration(*copyOfConfig)
@@ -292,7 +292,7 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 
 	return &dcp{
 		client:           client,
-		listener:         listener,
+		consumer:         consumer,
 		config:           config,
 		version:          version,
 		bucketInfo:       bucketInfo,
@@ -306,6 +306,37 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 	}, nil
 }
 
+type simplifiedConsumer struct {
+	listener models.Listener
+}
+
+func NewSimpleConsumer(listener models.Listener) models.Consumer {
+	return &simplifiedConsumer{listener: listener}
+}
+
+func (s *simplifiedConsumer) ConsumeEvent(ctx *models.ListenerContext) {
+	s.listener(ctx)
+}
+
+func (s *simplifiedConsumer) TrackOffset(vbID uint16, offset *models.Offset) {}
+
+// NewExtendedDcp creates a new Dcp client
+//
+// config: path to a configuration file or a configuration struct
+// consumer must implement models.Consumer interface containg both ConsumeEvent and TrackOffset methods
+func NewExtendedDcp(cfg any, consumer models.Consumer) (Dcp, error) {
+	switch v := cfg.(type) {
+	case *config.Dcp:
+		return newDcp(v, consumer)
+	case config.Dcp:
+		return newDcp(&v, consumer)
+	case string:
+		return newDcpWithPath(v, consumer)
+	default:
+		return nil, errors.New("invalid config")
+	}
+}
+
 // NewDcp creates a new Dcp client
 //
 // config: path to a configuration file or a configuration struct
@@ -313,22 +344,22 @@ func newDcp(config *config.Dcp, listener models.Listener) (Dcp, error) {
 func NewDcp(cfg any, listener models.Listener) (Dcp, error) {
 	switch v := cfg.(type) {
 	case *config.Dcp:
-		return newDcp(v, listener)
+		return newDcp(v, NewSimpleConsumer(listener))
 	case config.Dcp:
-		return newDcp(&v, listener)
+		return newDcp(&v, NewSimpleConsumer(listener))
 	case string:
-		return newDcpWithPath(v, listener)
+		return newDcpWithPath(v, NewSimpleConsumer(listener))
 	default:
 		return nil, errors.New("invalid config")
 	}
 }
 
-func newDcpWithPath(path string, listener models.Listener) (Dcp, error) {
+func newDcpWithPath(path string, consumer models.Consumer) (Dcp, error) {
 	c, err := newDcpConfig(path)
 	if err != nil {
 		return nil, err
 	}
-	return newDcp(&c, listener)
+	return newDcp(&c, consumer)
 }
 
 func newDcpConfig(path string) (config.Dcp, error) {

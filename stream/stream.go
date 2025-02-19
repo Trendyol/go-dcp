@@ -252,12 +252,16 @@ func (s *stream) Open() {
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
 	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)
-	for _, vbID := range vbIDs {
+	s.offsets.Range(func(vbID uint16, offset *models.Offset) bool {
 		s.observers.Store(
 			vbID,
-			couchbase.NewObserver(s.config, vbID, s.listen, s.listenEnd, s.collectionIDs, s.bus, s.tracerComponent),
+			couchbase.NewObserver(s.config,
+				vbID, offset.LatestSeqNo, s.listen, s.listenEnd, s.collectionIDs, s.bus, s.tracerComponent,
+			),
 		)
-	}
+
+		return true
+	})
 
 	s.openAllStreams(vbIDs)
 

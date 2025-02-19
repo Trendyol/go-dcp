@@ -74,6 +74,7 @@ type observer struct {
 	vbUUID          gocbcore.VbUUID
 	catchupSeqNo    uint64
 	persistSeqNo    gocbcore.SeqNo
+	latestSeqNo     uint64
 	vbID            uint16
 	isCatchupNeed   bool
 	closed          bool
@@ -212,6 +213,7 @@ func (so *observer) Mutation(event gocbcore.DcpMutation) { //nolint:dupl
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 				EventTime:      eventTime,
@@ -240,6 +242,7 @@ func (so *observer) Deletion(event gocbcore.DcpDeletion) { //nolint:dupl
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 				EventTime:      eventTime,
@@ -268,6 +271,7 @@ func (so *observer) Expiration(event gocbcore.DcpExpiration) { //nolint:dupl
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 				EventTime:      eventTime,
@@ -303,6 +307,7 @@ func (so *observer) CreateCollection(event gocbcore.DcpCollectionCreation) {
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 			},
@@ -323,6 +328,7 @@ func (so *observer) DeleteCollection(event gocbcore.DcpCollectionDeletion) {
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 			},
@@ -343,6 +349,7 @@ func (so *observer) FlushCollection(event gocbcore.DcpCollectionFlush) {
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 			},
@@ -363,6 +370,7 @@ func (so *observer) CreateScope(event gocbcore.DcpScopeCreation) {
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 			},
 		})
@@ -382,6 +390,7 @@ func (so *observer) DeleteScope(event gocbcore.DcpScopeDeletion) {
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 			},
 		})
@@ -401,6 +410,7 @@ func (so *observer) ModifyCollection(event gocbcore.DcpCollectionModification) {
 					SnapshotMarker: so.currentSnapshot,
 					VbUUID:         so.vbUUID,
 					SeqNo:          event.SeqNo,
+					LatestSeqNo:    so.latestSeqNo,
 				},
 				CollectionName: so.convertToCollectionName(event.CollectionID),
 			},
@@ -433,6 +443,7 @@ func (so *observer) SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced) {
 				SnapshotMarker: snapshot,
 				VbUUID:         so.vbUUID,
 				SeqNo:          advanced.SeqNo,
+				LatestSeqNo:    so.latestSeqNo,
 			},
 		},
 	})
@@ -472,6 +483,7 @@ func (so *observer) CloseEnd() {
 func NewObserver(
 	config *dcp.Dcp,
 	vbID uint16,
+	latestSeqNo uint64,
 	listener func(args models.ListenerArgs),
 	endListener func(context models.DcpStreamEndContext),
 	collectionIDs map[uint32]string,
@@ -480,6 +492,7 @@ func NewObserver(
 ) Observer {
 	observer := &observer{
 		vbID:          vbID,
+		latestSeqNo:   latestSeqNo,
 		metrics:       &ObserverMetric{},
 		tracer:        tc,
 		collectionIDs: collectionIDs,

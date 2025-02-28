@@ -256,12 +256,18 @@ func (s *stream) Open() {
 		s.observers.Store(
 			vbID,
 			couchbase.NewObserver(s.config,
-				vbID, offset.LatestSeqNo, s.listen, s.listenEnd, s.collectionIDs, s.bus, s.tracerComponent,
+				vbID, offset.LatestSeqNo, s.listen, s.listenEnd, s.collectionIDs, s.tracerComponent,
 			),
 		)
 
 		return true
 	})
+	// there is a single topic for persistSeqNo events related to all vBuckets
+	// the listener is responsible for dispatching the event to the correct observer
+	if err := s.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, s.dispatchPersistSeqNo); err != nil {
+		logger.Log.Error("cannot subscribe to persistSeqNoChanged event, err: %v", err)
+		panic(err)
+	}
 
 	s.openAllStreams(vbIDs)
 
@@ -327,6 +333,12 @@ func (s *stream) rebalance() {
 
 func (s *stream) Save() {
 	s.checkpoint.Save()
+}
+
+func (s *stream) dispatchPersistSeqNo(persistSeqNo models.PersistSeqNo) {
+	if observer, ok := s.observers.Load(persistSeqNo.VbID); ok {
+		observer.SetPersistSeqNo(persistSeqNo.SeqNo)
+	}
 }
 
 func (s *stream) openStream(vbID uint16) error {

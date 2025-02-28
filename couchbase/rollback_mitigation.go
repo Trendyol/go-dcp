@@ -53,6 +53,14 @@ func (v *vbUUIDAndSeqNo) SetVbUUID(vbUUID gocbcore.VbUUID) {
 	v.vbUUID = vbUUID
 }
 
+// IsOutdated verify if a known state is outdated comparing to lastly received from couchbase
+func (v *vbUUIDAndSeqNo) IsOutdated(last *gocbcore.ObserveVbResult) bool {
+	if !v.absent {
+		return v.vbUUID != last.VbUUID || v.seqNo != last.PersistSeqNo
+	}
+	return false
+}
+
 type rollbackMitigation struct {
 	bus                EventBus.Bus
 	client             Client
@@ -202,7 +210,6 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 		case <-r.observeTimer.C:
 			wg := &sync.WaitGroup{}
 			wg.Add(int(r.observeCount.Load()))
-
 			r.persistedSeqNos.Range(func(vbID uint16, replicas []*vbUUIDAndSeqNo) bool {
 				for idx, replica := range replicas {
 					if replica.IsAbsent() {
@@ -328,13 +335,16 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 		}
 
 		if len(replicas) > replica {
-			replicas[replica].SetSeqNo(result.PersistSeqNo)
-			replicas[replica].SetVbUUID(result.VbUUID)
+			// publish events only if the state is outdated, to not generate unnecessary events
+			if replicas[replica].IsOutdated(result) {
+				replicas[replica].SetSeqNo(result.PersistSeqNo)
+				replicas[replica].SetVbUUID(result.VbUUID)
 
-			r.bus.Publish(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
-				VbID:  vbID,
-				SeqNo: r.getMinSeqNo(vbID),
-			})
+				r.bus.Publish(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
+					VbID:  vbID,
+					SeqNo: r.getMinSeqNo(vbID),
+				})
+			}
 
 			if vbUUID != result.VbUUID {
 				r.vbUUIDMap.Store(vbID, result.VbUUID)

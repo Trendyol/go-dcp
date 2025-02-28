@@ -16,6 +16,7 @@ This repository contains go implementation of a Couchbase Database Change Protoc
     + [Elastic Connector](https://github.com/Trendyol/go-dcp-elasticsearch)
     + [Kafka Connector](https://github.com/Trendyol/go-dcp-kafka)
     + [Couchbase Connector](https://github.com/Trendyol/go-dcp-couchbase)
+    + [SQL Connector](https://github.com/Trendyol/go-dcp-sql)
 
 ### Example
 

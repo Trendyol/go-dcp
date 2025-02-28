@@ -198,3 +198,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 ## Grafana Metric Dashboard
 
 [Grafana & Prometheus Example](example/grafana)
+
+## Distributed Tracing
+
+[otel-go-dcp](https://github.com/Trendyol/otel-go-dcp)

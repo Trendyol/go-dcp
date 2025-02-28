@@ -197,7 +197,7 @@ func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
 
 	if !s.closeWithCancel && endContext.Err != nil {
 		if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
-			logger.Log.Error("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
+			logger.Log.Warn("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 		} else {
 			logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 		}

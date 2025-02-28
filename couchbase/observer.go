@@ -8,13 +8,10 @@ import (
 
 	"github.com/Trendyol/go-dcp/tracing"
 
-	"github.com/asaskevich/EventBus"
-
 	"github.com/Trendyol/go-dcp/logger"
 
 	dcp "github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/models"
 
 	"github.com/couchbase/gocbcore/v10"
@@ -36,6 +33,7 @@ type Observer interface {
 	SeqNoAdvanced(advanced gocbcore.DcpSeqNoAdvanced)
 	GetMetrics() *ObserverMetric
 	GetPersistSeqNo() gocbcore.SeqNo
+	SetPersistSeqNo(gocbcore.SeqNo)
 	Close()
 	CloseEnd()
 	SetCatchup(seqNo gocbcore.SeqNo)
@@ -63,7 +61,6 @@ func (om *ObserverMetric) AddExpiration() {
 }
 
 type observer struct {
-	bus             EventBus.Bus
 	config          *dcp.Dcp
 	currentSnapshot *models.SnapshotMarker
 	collectionIDs   map[uint32]string
@@ -84,16 +81,6 @@ type observer struct {
 func (so *observer) SetCatchup(seqNo gocbcore.SeqNo) {
 	so.catchupSeqNo = uint64(seqNo)
 	so.isCatchupNeed = true
-}
-
-func (so *observer) persistSeqNoChangedListener(persistSeqNo models.PersistSeqNo) {
-	if persistSeqNo.SeqNo != 0 {
-		if persistSeqNo.SeqNo > so.persistSeqNo {
-			so.persistSeqNo = persistSeqNo.SeqNo
-		}
-	} else {
-		logger.Log.Trace("persistSeqNo: %v on vbID: %v", persistSeqNo.SeqNo, persistSeqNo.VbID)
-	}
 }
 
 func (so *observer) checkPersistSeqNo(seqNo uint64) bool {
@@ -457,17 +444,20 @@ func (so *observer) GetPersistSeqNo() gocbcore.SeqNo {
 	return so.persistSeqNo
 }
 
+func (so *observer) SetPersistSeqNo(persistSeqNo gocbcore.SeqNo) {
+	if persistSeqNo != 0 {
+		if persistSeqNo > so.persistSeqNo {
+			so.persistSeqNo = persistSeqNo
+		}
+	} else {
+		logger.Log.Trace("persistSeqNo: %v on vbID: %v", persistSeqNo, so.vbID)
+	}
+}
+
 // nolint:staticcheck
 func (so *observer) Close() {
 	logger.Log.Debug("observer closing")
-
-	err := so.bus.Unsubscribe(helpers.PersistSeqNoChangedBusEventName, so.persistSeqNoChangedListener)
-	if err != nil {
-		logger.Log.Error("error while unsubscribe: %v", err)
-	}
-
 	so.closed = true
-
 	logger.Log.Debug("observer closed")
 }
 
@@ -487,10 +477,9 @@ func NewObserver(
 	listener func(args models.ListenerArgs),
 	endListener func(context models.DcpStreamEndContext),
 	collectionIDs map[uint32]string,
-	bus EventBus.Bus,
 	tc *tracing.TracerComponent,
 ) Observer {
-	observer := &observer{
+	return &observer{
 		vbID:          vbID,
 		latestSeqNo:   latestSeqNo,
 		metrics:       &ObserverMetric{},
@@ -498,15 +487,6 @@ func NewObserver(
 		collectionIDs: collectionIDs,
 		listener:      listener,
 		endListener:   endListener,
-		bus:           bus,
 		config:        config,
 	}
-
-	err := observer.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, observer.persistSeqNoChangedListener)
-	if err != nil {
-		logger.Log.Error("error while subscribe to persistSeqNo changed event, err: %v", err)
-		panic(err)
-	}
-
-	return observer
 }

@@ -262,12 +262,6 @@ func (s *stream) Open() {
 
 		return true
 	})
-	// there is a single topic for persistSeqNo events related to all vBuckets
-	// the listener is responsible for dispatching the event to the correct observer
-	if err := s.bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, s.dispatchPersistSeqNo); err != nil {
-		logger.Log.Error("cannot subscribe to persistSeqNoChanged event, err: %v", err)
-		panic(err)
-	}
 
 	s.openAllStreams(vbIDs)
 
@@ -336,8 +330,10 @@ func (s *stream) Save() {
 }
 
 func (s *stream) dispatchPersistSeqNo(persistSeqNo models.PersistSeqNo) {
-	if observer, ok := s.observers.Load(persistSeqNo.VbID); ok {
-		observer.SetPersistSeqNo(persistSeqNo.SeqNo)
+	if s.observers != nil {
+		if observer, ok := s.observers.Load(persistSeqNo.VbID); ok {
+			observer.SetPersistSeqNo(persistSeqNo.SeqNo)
+		}
 	}
 }
 
@@ -512,6 +508,13 @@ func NewStream(client couchbase.Client,
 			ending: false,
 			queue:  make(chan struct{}, 1),
 		}
+	}
+
+	// there is a single topic for persistSeqNo events related to all vBuckets
+	// the listener is responsible for dispatching the event to the correct observer
+	if err := bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, stream.dispatchPersistSeqNo); err != nil {
+		logger.Log.Error("cannot subscribe to persistSeqNoChanged event, err: %v", err)
+		panic(err)
 	}
 
 	return stream

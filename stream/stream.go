@@ -13,8 +13,6 @@ import (
 
 	"github.com/Trendyol/go-dcp/membership"
 
-	"github.com/asaskevich/EventBus"
-
 	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -56,7 +54,6 @@ type stream struct {
 	checkpoint                   Checkpoint
 	rollbackMitigation           couchbase.RollbackMitigation
 	vBucketDiscovery             VBucketDiscovery
-	bus                          EventBus.Bus
 	eventHandler                 models.EventHandler
 	config                       *config.Dcp
 	metric                       *Metric
@@ -239,7 +236,7 @@ func (s *stream) Open() {
 			logger.Log.Info("rollback mitigation is disabled for ephemeral bucket")
 			s.config.RollbackMitigation.Disabled = true
 		} else {
-			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIDs, s.bus)
+			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIDs, s.dispatchPersistSeqNo)
 			s.rollbackMitigation.Start()
 		}
 	}
@@ -329,7 +326,7 @@ func (s *stream) Save() {
 	s.checkpoint.Save()
 }
 
-func (s *stream) dispatchPersistSeqNo(persistSeqNo models.PersistSeqNo) {
+func (s *stream) dispatchPersistSeqNo(persistSeqNo *models.PersistSeqNo) {
 	if s.observers != nil {
 		if observer, ok := s.observers.Load(persistSeqNo.VbID); ok {
 			observer.SetPersistSeqNo(persistSeqNo.SeqNo)
@@ -482,7 +479,6 @@ func NewStream(client couchbase.Client,
 	consumer models.Consumer,
 	collectionIDs map[uint32]string,
 	stopCh chan struct{},
-	bus EventBus.Bus,
 	eventHandler models.EventHandler,
 	tc *tracing.TracerComponent,
 ) Stream {
@@ -497,7 +493,6 @@ func NewStream(client couchbase.Client,
 		finishStreamWithCloseCh:    make(chan struct{}, 1),
 		finishStreamWithEndEventCh: make(chan struct{}, 1),
 		stopCh:                     stopCh,
-		bus:                        bus,
 		eventHandler:               eventHandler,
 		metric:                     &Metric{},
 		tracerComponent:            tc,
@@ -508,13 +503,6 @@ func NewStream(client couchbase.Client,
 			ending: false,
 			queue:  make(chan struct{}, 1),
 		}
-	}
-
-	// there is a single topic for persistSeqNo events related to all vBuckets
-	// the listener is responsible for dispatching the event to the correct observer
-	if err := bus.Subscribe(helpers.PersistSeqNoChangedBusEventName, stream.dispatchPersistSeqNo); err != nil {
-		logger.Log.Error("cannot subscribe to persistSeqNoChanged event, err: %v", err)
-		panic(err)
 	}
 
 	return stream

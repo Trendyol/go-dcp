@@ -125,8 +125,7 @@ func (s *dcp) Start() {
 
 	s.stream = stream.NewStream(
 		s.client, s.metadata, s.config, s.version, s.bucketInfo, s.vBucketDiscovery,
-		s.consumer, collectionIDs, s.stopCh, s.bus, s.eventHandler,
-		tc,
+		s.consumer, collectionIDs, s.stopCh, s.eventHandler, tc,
 	)
 
 	if s.config.LeaderElection.Enabled {

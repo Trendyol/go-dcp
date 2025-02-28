@@ -12,8 +12,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/asaskevich/EventBus"
-
 	"github.com/couchbase/gocbcore/v10"
 
 	"github.com/Trendyol/go-dcp/wrapper"
@@ -22,7 +20,6 @@ import (
 
 	"github.com/Trendyol/go-dcp/config"
 
-	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
 )
 
@@ -62,20 +59,20 @@ func (v *vbUUIDAndSeqNo) IsOutdated(last *gocbcore.ObserveVbResult) bool {
 }
 
 type rollbackMitigation struct {
-	bus                EventBus.Bus
-	client             Client
-	vbUUIDMap          *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
-	configSnapshot     *gocbcore.ConfigSnapshot
-	persistedSeqNos    *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
-	observeCount       *atomic.Uint32
-	config             *config.Dcp
-	observeTimer       *time.Ticker
-	observeCloseCh     chan struct{}
-	observeCloseDoneCh chan struct{}
-	vbIds              []uint16
-	activeGroupID      int
-	configWatchRunning bool
-	closed             bool
+	client                 Client
+	observeTimer           *time.Ticker
+	configSnapshot         *gocbcore.ConfigSnapshot
+	persistedSeqNos        *wrapper.ConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo]
+	observeCount           *atomic.Uint32
+	config                 *config.Dcp
+	vbUUIDMap              *wrapper.ConcurrentSwissMap[uint16, gocbcore.VbUUID]
+	observeCloseCh         chan struct{}
+	observeCloseDoneCh     chan struct{}
+	persistSeqNoDispatcher models.PersistSeqNoDispatcher
+	vbIds                  []uint16
+	activeGroupID          int
+	configWatchRunning     bool
+	closed                 bool
 }
 
 func (r *rollbackMitigation) getRevEpochAndID(snapshot *gocbcore.ConfigSnapshot) (int64, int64) {
@@ -340,7 +337,7 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 				replicas[replica].SetSeqNo(result.PersistSeqNo)
 				replicas[replica].SetVbUUID(result.VbUUID)
 
-				r.bus.Publish(helpers.PersistSeqNoChangedBusEventName, models.PersistSeqNo{
+				r.persistSeqNoDispatcher(&models.PersistSeqNo{
 					VbID:  vbID,
 					SeqNo: r.getMinSeqNo(vbID),
 				})
@@ -440,14 +437,18 @@ func (r *rollbackMitigation) Stop() {
 	logger.Log.Info("rollback mitigation stopped")
 }
 
-func NewRollbackMitigation(client Client, config *config.Dcp, vbIds []uint16, bus EventBus.Bus) RollbackMitigation {
+func NewRollbackMitigation(client Client,
+	config *config.Dcp,
+	vbIds []uint16,
+	persistSeqNoDispatcher models.PersistSeqNoDispatcher,
+) RollbackMitigation {
 	return &rollbackMitigation{
-		client:             client,
-		config:             config,
-		vbIds:              vbIds,
-		bus:                bus,
-		observeCount:       &atomic.Uint32{},
-		observeCloseCh:     make(chan struct{}, 1),
-		observeCloseDoneCh: make(chan struct{}, 1),
+		client:                 client,
+		config:                 config,
+		vbIds:                  vbIds,
+		observeCount:           &atomic.Uint32{},
+		observeCloseCh:         make(chan struct{}, 1),
+		observeCloseDoneCh:     make(chan struct{}, 1),
+		persistSeqNoDispatcher: persistSeqNoDispatcher,
 	}
 }

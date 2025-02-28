@@ -22,9 +22,10 @@ type DcpStreamEndContext struct {
 }
 
 type (
-	Listener      func(*ListenerContext)
-	ListenerCh    chan ListenerArgs
-	ListenerEndCh chan DcpStreamEndContext
+	Listener               func(*ListenerContext)
+	ListenerCh             chan ListenerArgs
+	ListenerEndCh          chan DcpStreamEndContext
+	PersistSeqNoDispatcher func(persistSeqNo *PersistSeqNo)
 )
 
 type Consumer interface {

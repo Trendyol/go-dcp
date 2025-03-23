@@ -170,8 +170,9 @@ func (tc *listenerTracerComponent) InitializeListenerTrace(
 	}
 
 	return &listenerTracer{
-		parentContext: listenerSpan.Context(),
-		span:          listenerSpan,
+		listenerTracerComponent: tc,
+		parentContext:           listenerSpan.Context(),
+		span:                    listenerSpan,
 	}
 }
 
@@ -188,8 +189,9 @@ func (tc *listenerTracerComponent) CreateListenerTrace(
 	}
 
 	return &listenerTracer{
-		parentContext: listenerSpan.Context(),
-		span:          listenerSpan,
+		listenerTracerComponent: tc,
+		parentContext:           listenerSpan.Context(),
+		span:                    listenerSpan,
 	}
 }
 
@@ -212,9 +214,20 @@ func (tracer *opTracer) RootContext() RequestSpanContext {
 	return tracer.parentContext
 }
 
+type ListenerTrace interface {
+	CreateChildTrace(operationName string, attributes map[string]interface{}) *listenerTracer
+	Finish()
+	ParentContext() RequestSpanContext
+}
+
 type listenerTracer struct {
-	parentContext RequestSpanContext
-	span          RequestSpan
+	listenerTracerComponent ListenerTracerComponent
+	parentContext           RequestSpanContext
+	span                    RequestSpan
+}
+
+func (tracer *listenerTracer) CreateChildTrace(operationName string, attributes map[string]interface{}) *listenerTracer {
+	return tracer.listenerTracerComponent.CreateListenerTrace(tracer, operationName, attributes)
 }
 
 func (tracer *listenerTracer) Finish() {
@@ -223,7 +236,7 @@ func (tracer *listenerTracer) Finish() {
 	}
 }
 
-func (tracer *listenerTracer) RootContext() RequestSpanContext {
+func (tracer *listenerTracer) ParentContext() RequestSpanContext {
 	if tracer.span != nil {
 		return tracer.span.Context()
 	}

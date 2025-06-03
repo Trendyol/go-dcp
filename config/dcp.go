@@ -18,6 +18,7 @@ const (
 	FileMetadataFileNameConfig                      = "fileName"
 	MetadataTypeCouchbase                           = "couchbase"
 	MetadataTypeFile                                = "file"
+	MetadataTypeNoop                                = "noop"
 	MembershipTypeCouchbase                         = "couchbase"
 	CouchbaseMetadataHostsConfig                    = "hosts"
 	CouchbaseMetadataUsernameConfig                 = "username"
@@ -165,6 +166,10 @@ func (c *Dcp) IsDcpModeFinite() bool {
 
 func (c *Dcp) IsFileMetadata() bool {
 	return c.Metadata.Type == MetadataTypeFile
+}
+
+func (c *Dcp) IsNoopMetadata() bool {
+	return c.Metadata.Type == MetadataTypeNoop
 }
 
 func (c *Dcp) GetFileMetadata() string {

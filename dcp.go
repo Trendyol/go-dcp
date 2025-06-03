@@ -98,6 +98,8 @@ func (s *dcp) Start() {
 			s.metadata = couchbase.NewCBMetadata(s.client, s.config)
 		case s.config.IsFileMetadata():
 			s.metadata = metadata.NewFSMetadata(s.config)
+		case s.config.IsNoopMetadata():
+			s.metadata = metadata.NewNoopMetadata(s.config)
 		default:
 			err := errors.New("invalid metadata type")
 			logger.Log.Error("error while dcp start, err: %v", err)

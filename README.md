@@ -1,6 +1,7 @@
 # Go Dcp [![Go Reference](https://pkg.go.dev/badge/github.com/Trendyol/go-dcp.svg)](https://pkg.go.dev/github.com/Trendyol/go-dcp) [![Go Report Card](https://goreportcard.com/badge/github.com/Trendyol/go-dcp)](https://goreportcard.com/report/github.com/Trendyol/go-dcp) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Trendyol/go-dcp/badge)](https://scorecard.dev/viewer/?uri=github.com/Trendyol/go-dcp)
 
-This repository contains go implementation of a Couchbase Database Change Protocol (DCP) client.
+This repository contains go implementation of a Couchbase Database Change Protocol (DCP) client. You can find more information
+by looking at our [docs](docs/index.md). 
 
 ### Contents
 

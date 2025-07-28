@@ -1,6 +1,7 @@
 # Go Dcp [![Go Reference](https://pkg.go.dev/badge/github.com/Trendyol/go-dcp.svg)](https://pkg.go.dev/github.com/Trendyol/go-dcp) [![Go Report Card](https://goreportcard.com/badge/github.com/Trendyol/go-dcp)](https://goreportcard.com/report/github.com/Trendyol/go-dcp) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Trendyol/go-dcp/badge)](https://scorecard.dev/viewer/?uri=github.com/Trendyol/go-dcp)
 
-This repository contains go implementation of a Couchbase Database Change Protocol (DCP) client.
+This repository contains go implementation of a Couchbase Database Change Protocol (DCP) client. You can find more information
+by looking at our [docs](docs/index.md).
 
 ### Contents
 
@@ -113,7 +114,7 @@ $ go get github.com/Trendyol/go-dcp
 | `rollbackMitigation.disabled`            |       bool        |    no    |   false    | Disable reprocessing for roll-backed Vbucket offsets.                                                                                                                                                                                   |
 | `rollbackMitigation.interval`            |   time.Duration   |    no    |     1s     | Persisted sequence numbers polling interval.                                                                                                                                                                                            |
 | `rollbackMitigation.configWatchInterval` |   time.Duration   |    no    |    10s     | Cluster config changes listener interval.                                                                                                                                                                                               |
-| `metadata.type`                          |      string       |    no    | couchbase  | Metadata storing types.  `file` or `couchbase`.                                                                                                                                                                                         |
+| `metadata.type`                          |      string       |    no    | couchbase  | Metadata storing types.  `file`, `couchbase`, `noop`.                                                                                                                                                                                   |
 | `metadata.readOnly`                      |       bool        |    no    |   false    | Set this for debugging state purposes.                                                                                                                                                                                                  |
 | `metadata.config`                        | map[string]string |    no    |  *not set  | Set key-values of config. `hosts`, `username`, `password`, `bucket`,`scope`,`collection`,`maxQueueSize`,`connectionBufferSize` 5mb is default (x Node Count),`connectionTimeout`, `secureConnection`, `rootCAPath` for `couchbase` type |
 | `api.disabled`                           |       bool        |    no    |   false    | Disable metric endpoints                                                                                                                                                                                                                |
@@ -194,6 +195,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 - [kubernetesHa membership config](example/config_k8s_leader_election.yml)
 - [static membership config](example/config_static.yml)
 - [dynamic membership config](example/config_dynamic.yml)
+- [lilCouchbase membership config](example/config_lil_couchbase.yml)
 
 ## Grafana Metric Dashboard
 

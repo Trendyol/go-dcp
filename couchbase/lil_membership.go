@@ -282,7 +282,7 @@ func NewLilCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) mem
 	lcbm := &lilCbMembership{
 		infoChan:         make(chan *membership.Model),
 		client:           client,
-		id:               []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
+		id:               []byte(uuid.New().String()),
 		instanceAll:      []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":lil"),
 		bus:              bus,
 		scopeName:        couchbaseMetadataConfig.Scope,

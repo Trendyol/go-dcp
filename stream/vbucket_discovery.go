@@ -92,6 +92,8 @@ func NewVBucketDiscovery(client couchbase.Client,
 		ms = kubernetes.NewHaMembership(config, bus)
 	case config.Dcp.Group.Membership.Type == membership.DynamicMembershipType:
 		ms = membership.NewDynamicMembership(bus)
+	case config.Dcp.Group.Membership.Type == membership.LilCouchbaseMembershipType:
+		ms = couchbase.NewLilCBMembership(config, client, bus)
 	default:
 		err := errors.New("unknown membership")
 		logger.Log.Error("error while try to use membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)

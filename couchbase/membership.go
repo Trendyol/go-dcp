@@ -345,7 +345,7 @@ func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) member
 	cbm := &cbMembership{
 		infoChan:         make(chan *membership.Model),
 		client:           client,
-		id:               []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":" + uuid.New().String()),
+		id:               []byte(uuid.New().String()),
 		instanceAll:      []byte(helpers.Prefix + config.Dcp.Group.Name + ":" + _type + ":all"),
 		bus:              bus,
 		scopeName:        couchbaseMetadataConfig.Scope,

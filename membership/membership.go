@@ -13,6 +13,7 @@ const (
 	KubernetesStatefulSetMembershipType = "kubernetesStatefulSet"
 	KubernetesHaMembershipType          = "kubernetesHa"
 	DynamicMembershipType               = "dynamic"
+	LilCouchbaseMembershipType          = "lilCouchbase"
 )
 
 type Model struct {

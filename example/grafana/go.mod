@@ -1,6 +1,8 @@
 module grafana
 
-go 1.20
+go 1.24
+
+toolchain go1.24.2
 
 replace github.com/Trendyol/go-dcp => ../../.
 

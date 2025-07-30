@@ -1,6 +1,6 @@
 module github.com/Trendyol/go-dcp
 
-go 1.20
+go 1.24
 
 retract (
 	v1.2.17

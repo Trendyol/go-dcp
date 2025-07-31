@@ -3,6 +3,9 @@ package couchbase
 import (
 	"context"
 	"errors"
+	"sort"
+	"time"
+
 	"github.com/Trendyol/go-dcp/config"
 	"github.com/Trendyol/go-dcp/helpers"
 	"github.com/Trendyol/go-dcp/logger"
@@ -12,8 +15,6 @@ import (
 	"github.com/couchbase/gocbcore/v10"
 	"github.com/couchbase/gocbcore/v10/memd"
 	"github.com/google/uuid"
-	"sort"
-	"time"
 )
 
 type lilCbMembership struct {
@@ -28,7 +29,6 @@ type lilCbMembership struct {
 	lastActiveInstances []Instance
 	instanceAll         []byte
 	id                  []byte
-	clusterJoinTime     int64
 	heartbeatRunning    bool
 	monitorRunning      bool
 }
@@ -59,9 +59,9 @@ func (h *lilCbMembership) register() {
 }
 
 func (h *lilCbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
-	var id = string(h.id)
+	id := string(h.id)
 
-	var instance = Instance{
+	instance := Instance{
 		ID:              &id,
 		Type:            _type,
 		HeartbeatTime:   clusterJoinTime,
@@ -107,13 +107,16 @@ func (h *lilCbMembership) heartbeat() {
 	ctx, cancel := context.WithTimeout(context.Background(), h.membershipConfig.Timeout)
 	defer cancel()
 
-	var now = time.Now().UnixNano()
+	now := time.Now().UnixNano()
 
 	payload, _ := sonic.Marshal(now)
 
-	var heartbeatPath = append(append(h.id, '.'), []byte(_heartbeatPath)...)
+	heartbeatPath := append(append(h.id, '.'), []byte(_heartbeatPath)...)
 
-	err := CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, heartbeatPath, payload, memd.SubdocDocFlagMkDoc)
+	err := CreatePath(
+		ctx, h.client.GetMetaAgent(),
+		h.scopeName, h.collectionName, h.instanceAll, heartbeatPath, payload, memd.SubdocDocFlagMkDoc,
+	)
 	if err != nil {
 		logger.Log.Error("error while heartbeat: %v", err)
 		return

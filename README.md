@@ -18,6 +18,7 @@ by looking at our [docs](docs/index.md).
     + [Kafka Connector](https://github.com/Trendyol/go-dcp-kafka)
     + [Couchbase Connector](https://github.com/Trendyol/go-dcp-couchbase)
     + [SQL Connector](https://github.com/Trendyol/go-dcp-sql)
+    + [MongoDB Connector](https://github.com/Trendyol/go-dcp-mongodb)
 
 ### Example
 

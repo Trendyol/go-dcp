@@ -81,18 +81,18 @@ func NewVBucketDiscovery(client couchbase.Client,
 ) VBucketDiscovery {
 	var ms membership.Membership
 
-	switch {
-	case config.Dcp.Group.Membership.Type == membership.StaticMembershipType:
+	switch config.Dcp.Group.Membership.Type {
+	case membership.StaticMembershipType:
 		ms = membership.NewStaticMembership(config)
-	case config.Dcp.Group.Membership.Type == membership.CouchbaseMembershipType:
+	case membership.CouchbaseMembershipType:
 		ms = couchbase.NewCBMembership(config, client, bus)
-	case config.Dcp.Group.Membership.Type == membership.KubernetesStatefulSetMembershipType:
+	case membership.KubernetesStatefulSetMembershipType:
 		ms = kubernetes.NewStatefulSetMembership(config)
-	case config.Dcp.Group.Membership.Type == membership.KubernetesHaMembershipType:
+	case membership.KubernetesHaMembershipType:
 		ms = kubernetes.NewHaMembership(config, bus)
-	case config.Dcp.Group.Membership.Type == membership.DynamicMembershipType:
+	case membership.DynamicMembershipType:
 		ms = membership.NewDynamicMembership(bus)
-	case config.Dcp.Group.Membership.Type == membership.LilCouchbaseMembershipType:
+	case membership.LilCouchbaseMembershipType:
 		ms = couchbase.NewLilCBMembership(config, client, bus)
 	default:
 		err := errors.New("unknown membership")

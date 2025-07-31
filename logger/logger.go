@@ -83,7 +83,7 @@ func InitDefaultLogger(logLevel string) {
 var coreToDcp = map[gocbcore.LogLevel]string{
 	gocbcore.LogError:        ERROR,
 	gocbcore.LogWarn:         WARN,
-	gocbcore.LogInfo:         DEBUG,
+	gocbcore.LogInfo:         INFO,
 	gocbcore.LogDebug:        DEBUG,
 	gocbcore.LogTrace:        TRACE,
 	gocbcore.LogSched:        TRACE,

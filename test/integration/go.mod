@@ -8,7 +8,7 @@ replace github.com/Trendyol/go-dcp => ../../.
 
 require (
 	github.com/Trendyol/go-dcp v0.0.0
-	github.com/couchbase/gocbcore/v10 v10.5.2
+	github.com/couchbase/gocbcore/v10 v10.7.1
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/testcontainers/testcontainers-go v0.33.0
@@ -49,6 +49,7 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect

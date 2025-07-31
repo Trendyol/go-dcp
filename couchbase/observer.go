@@ -102,11 +102,7 @@ func (so *observer) needCatchup(seqNo uint64) bool {
 }
 
 func (so *observer) waitRollbackMitigation(seqNo uint64) {
-	for {
-		if so.checkPersistSeqNo(seqNo) {
-			break
-		}
-
+	for !so.checkPersistSeqNo(seqNo) {
 		time.Sleep(so.config.RollbackMitigation.Interval / 5)
 	}
 }

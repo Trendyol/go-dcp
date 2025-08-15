@@ -19,6 +19,7 @@ by looking at our [docs](docs/index.md).
     + [Couchbase Connector](https://github.com/Trendyol/go-dcp-couchbase)
     + [SQL Connector](https://github.com/Trendyol/go-dcp-sql)
     + [MongoDB Connector](https://github.com/Trendyol/go-dcp-mongodb)
+    + [Cassandra Connector](https://github.com/Trendyol/go-dcp-cassandra)
 
 ### Example
 

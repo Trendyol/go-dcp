@@ -1,0 +1,45 @@
+#!/bin/bash
+
+os=$(uname -s | tr '[:upper:]' '[:lower:]')
+arch=$(uname -m)
+
+# Keep if gitleaks is installed with curl (binary will be deleted)
+installed=false
+# Check if gitleaks is installed
+if ! command -v gitleaks &> /dev/null; then
+    echo "Gitleaks not found. Installing..."
+
+    # Get latest release tag
+    latest_version=$(curl -k -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name":' | cut -d '"' -f 4)
+
+    # Construct download URL (for Linux x86_64)
+    url="https://github.com/gitleaks/gitleaks/releases/download/$latest_version/gitleaks_${latest_version#v}_${os}_${arch}.tar.gz"
+
+    # Download and extract
+    curl -k -L "$url" -o gitleaks.tar.gz
+    tar -xzf gitleaks.tar.gz gitleaks
+    chmod +x gitleaks
+    rm gitleaks.tar.gz
+
+    echo "Gitleaks installed successfully."
+    installed=true
+else
+    echo "Gitleaks is already installed."
+fi
+
+#Manually Gitleaks binary should be removed
+if $installed; then
+# Run gitleaks in the current directory
+echo "Running gitleaks in current directory..."
+./gitleaks detect --source . --report-path gitleaks_report.json --no-git
+
+echo "Scan complete. Report saved to gitleaks_report.json"
+echo "Removing Gitleaks binary"
+rm ./gitleaks
+
+else
+echo "Running gitleaks in current directory..."
+gitleaks detect --source . --report-path gitleaks_report.json --no-git
+
+echo "Scan complete. Report saved to gitleaks_report.json"
+fi

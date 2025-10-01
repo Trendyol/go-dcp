@@ -17,3 +17,4 @@
 
 .idea
 test/integration/hosts
+gitleaks_report.json

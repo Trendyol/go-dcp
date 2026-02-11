@@ -135,11 +135,21 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	dirtyOffsets := wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
 	anyDirtyOffset := false
 
-	if !exist && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
-		logger.Log.Debug("no checkpoint found, auto reset checkpoint to latest")
+	if !exist {
+		logger.Log.Debug("no checkpoint found, auto reset checkpoint to %s", s.config.Checkpoint.AutoReset)
+	}
 
-		dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
-			currentSeqNo, _ := seqNoMap.Load(vbID)
+	dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
+		currentSeqNo, _ := seqNoMap.Load(vbID)
+		isEmptyCheckpoint := doc.Checkpoint.VbUUID == 0 && doc.Checkpoint.SeqNo == 0
+
+		if isEmptyCheckpoint && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
+			if exist {
+				logger.Log.Warn(
+					"partial checkpoint detected, resetting vbID: %d to latest, seqNo: %d",
+					vbID, currentSeqNo,
+				)
+			}
 
 			if currentSeqNo != 0 {
 				dirtyOffsets.Store(vbID, true)
@@ -165,23 +175,18 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 			})
 
 			return true
-		})
+		}
 
-		return offsets, dirtyOffsets, anyDirtyOffset
-	}
-
-	dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
-		latestSeqNo, _ := seqNoMap.Load(vbID)
-		if doc.Checkpoint.SeqNo > latestSeqNo {
+		if doc.Checkpoint.SeqNo > currentSeqNo {
 			err := errors.New("checkpoint seqNo bigger then vBucket latest seqNo")
 			logger.Log.Error(
 				"error while loading checkpoint, vbID: %v, checkpoint seqNo: %v, latest seqNo: %v, err: %v",
-				vbID, doc.Checkpoint.SeqNo, latestSeqNo, err,
+				vbID, doc.Checkpoint.SeqNo, currentSeqNo, err,
 			)
 			panic(err)
 		}
 
-		latestOffsetSeqNo := s.offsetLatestSeqNoInit.InitializeLatestSeqNo(latestSeqNo)
+		latestOffsetSeqNo := s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo)
 
 		offsets.Store(vbID, &models.Offset{
 			SnapshotMarker: &models.SnapshotMarker{

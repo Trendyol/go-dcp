@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/bytedance/sonic"
 
@@ -73,7 +74,7 @@ func (s *cbMetadata) Load(
 	wg := &sync.WaitGroup{}
 	wg.Add(len(vbIds))
 
-	exist := false
+	var exist atomic.Bool
 
 	for _, vbID := range vbIds {
 		go func(vbID uint16) {
@@ -93,7 +94,7 @@ func (s *cbMetadata) Load(
 					logger.Log.Warn("corrupted checkpoint, vbID: %d, key: %v, err: %v", vbID, id, err)
 					err = nil
 				} else {
-					exist = true
+					exist.Store(true)
 				}
 			} else {
 				doc = models.NewEmptyCheckpointDocument(bucketUUID)
@@ -113,7 +114,7 @@ func (s *cbMetadata) Load(
 
 	wg.Wait()
 
-	return state, exist, nil
+	return state, exist.Load(), nil
 }
 
 func (s *cbMetadata) Clear(vbIds []uint16) error {

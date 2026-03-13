@@ -166,7 +166,7 @@ In case you haven't configured a metric.path, the metrics will be exposed at the
 | cbgo_lag_current                     | The current lag on a specific vBucket                   | vbId: ID of the vBucket                  | Gauge      |
 | cbgo_total_lag_current               | The current total lag                                   | N/A                                      | Gauge      |
 | cbgo_process_latency_ms_current      | The latest process latency in milliseconds              | N/A                                      | Gauge      |
-| cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds | N/A                                      | Counter    |
+| cbgo_dcp_latency_ms_current          | The latest consumed dcp message latency in milliseconds | N/A                                      | Gauge      |
 | cbgo_rebalance_current               | The number of total rebalance                           | N/A                                      | Counter    |
 | cbgo_active_stream_current           | The number of total active stream                       | N/A                                      | Gauge      |
 | cbgo_total_members_current           | The total number of members in the cluster              | N/A                                      | Gauge      |

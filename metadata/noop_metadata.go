@@ -12,6 +12,7 @@ import (
 )
 
 type noopMetadata struct { //nolint:unused
+	vBuckets int
 }
 
 func (s *noopMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[uint16]bool, _ string) error { //nolint:unused
@@ -19,7 +20,7 @@ func (s *noopMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[u
 }
 
 func (s *noopMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error) { //nolint:lll,unused
-	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument](1024)
+	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument](uint64(s.vBuckets))
 
 	for _, vbID := range vbIds {
 		state.Store(vbID, models.NewEmptyCheckpointDocument(bucketUUID))
@@ -32,12 +33,14 @@ func (s *noopMetadata) Clear(_ []uint16) error { //nolint:unused
 	return nil
 }
 
-func NewNoopMetadata(config *config.Dcp) Metadata { //nolint:unused
+func NewNoopMetadata(config *config.Dcp, vBuckets int) Metadata { //nolint:unused
 	if !config.IsNoopMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.Log.Error("error while initialize noop metadata, err: %s", err)
 		panic(err)
 	}
 
-	return &noopMetadata{}
+	return &noopMetadata{
+		vBuckets: vBuckets,
+	}
 }

@@ -197,7 +197,9 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 }
 
 func (r *rollbackMitigation) startObserve(groupID int) {
-	r.vbUUIDMap = wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](1024)
+	vBuckets := r.client.GetNumVBuckets()
+
+	r.vbUUIDMap = wrapper.CreateConcurrentSwissMap[uint16, gocbcore.VbUUID](uint64(vBuckets))
 
 	r.loadVbUUIDMap()
 
@@ -353,13 +355,14 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 }
 
 func (r *rollbackMitigation) reset() {
+	vBuckets := r.client.GetNumVBuckets()
 	replicas, err := r.configSnapshot.NumReplicas()
 	if err != nil {
 		logger.Log.Error("error while reset rollback mitigation, err: %v", err)
 		panic(err)
 	}
 
-	r.persistedSeqNos = wrapper.CreateConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo](1024)
+	r.persistedSeqNos = wrapper.CreateConcurrentSwissMap[uint16, []*vbUUIDAndSeqNo](uint64(vBuckets))
 
 	var observeCount int
 	for _, vbID := range r.vbIds {

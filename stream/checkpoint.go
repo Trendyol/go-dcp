@@ -131,8 +131,10 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		panic(err)
 	}
 
-	offsets := wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
-	dirtyOffsets := wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
+	vBuckets := s.client.GetNumVBuckets()
+
+	offsets := wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](uint64(vBuckets))
+	dirtyOffsets := wrapper.CreateConcurrentSwissMap[uint16, bool](uint64(vBuckets))
 	anyDirtyOffset := false
 
 	if !exist {

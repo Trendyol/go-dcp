@@ -225,20 +225,11 @@ func (s *stream) Open() {
 
 	s.eventHandler.BeforeStreamStart()
 
+	vBuckets := s.client.GetNumVBuckets()
 	vbIDs := s.vBucketDiscovery.Get()
 	s.vbIDRange = &models.VbIDRange{
 		Start: vbIDs[0],
 		End:   vbIDs[len(vbIDs)-1],
-	}
-
-	if !s.config.RollbackMitigation.Disabled {
-		if s.bucketInfo.IsEphemeral() {
-			logger.Log.Info("rollback mitigation is disabled for ephemeral bucket")
-			s.config.RollbackMitigation.Disabled = true
-		} else {
-			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIDs, s.dispatchPersistSeqNo)
-			s.rollbackMitigation.Start()
-		}
 	}
 
 	s.activeStreams.Swap(int32(len(vbIDs)))
@@ -248,7 +239,7 @@ func (s *stream) Open() {
 	s.checkpoint = NewCheckpoint(s, vbIDs, s.client, s.metadata, s.config, latestSeqNoInitializer)
 	s.offsets, s.dirtyOffsets, s.anyDirtyOffset = s.checkpoint.Load()
 
-	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](1024)
+	s.observers = wrapper.CreateConcurrentSwissMap[uint16, couchbase.Observer](uint64(vBuckets))
 	s.offsets.Range(func(vbID uint16, offset *models.Offset) bool {
 		s.observers.Store(
 			vbID,
@@ -259,6 +250,16 @@ func (s *stream) Open() {
 
 		return true
 	})
+
+	if !s.config.RollbackMitigation.Disabled {
+		if s.bucketInfo.IsEphemeral() {
+			logger.Log.Info("rollback mitigation is disabled for ephemeral bucket")
+			s.config.RollbackMitigation.Disabled = true
+		} else {
+			s.rollbackMitigation = couchbase.NewRollbackMitigation(s.client, s.config, vbIDs, s.dispatchPersistSeqNo)
+			s.rollbackMitigation.Start()
+		}
+	}
 
 	s.openAllStreams(vbIDs)
 
@@ -412,6 +413,8 @@ func (s *stream) wait() {
 }
 
 func (s *stream) Close(closeWithCancel bool) {
+	vBuckets := s.client.GetNumVBuckets()
+
 	s.closeWithCancel = closeWithCancel
 
 	s.eventHandler.BeforeStreamStop()
@@ -437,8 +440,8 @@ func (s *stream) Close(closeWithCancel bool) {
 	})
 	s.observers = nil
 
-	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](1024)
-	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
+	s.offsets = wrapper.CreateConcurrentSwissMap[uint16, *models.Offset](uint64(vBuckets))
+	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](uint64(vBuckets))
 
 	logger.Log.Info("stream stopped")
 	s.eventHandler.AfterStreamStop()
@@ -466,8 +469,9 @@ func (s *stream) GetCheckpointMetric() *CheckpointMetric {
 }
 
 func (s *stream) UnmarkDirtyOffsets() {
+	vBuckets := s.client.GetNumVBuckets()
 	s.anyDirtyOffset = false
-	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](1024)
+	s.dirtyOffsets = wrapper.CreateConcurrentSwissMap[uint16, bool](uint64(vBuckets))
 }
 
 func NewStream(client couchbase.Client,

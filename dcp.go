@@ -92,14 +92,16 @@ func (s *dcp) membershipChangedListener(_ *membership.Model) {
 
 //nolint:funlen
 func (s *dcp) Start() {
+	vBuckets := s.client.GetNumVBuckets()
+
 	if s.metadata == nil {
 		switch {
 		case s.config.IsCouchbaseMetadata():
 			s.metadata = couchbase.NewCBMetadata(s.client, s.config)
 		case s.config.IsFileMetadata():
-			s.metadata = metadata.NewFSMetadata(s.config)
+			s.metadata = metadata.NewFSMetadata(s.config, vBuckets)
 		case s.config.IsNoopMetadata():
-			s.metadata = metadata.NewNoopMetadata(s.config)
+			s.metadata = metadata.NewNoopMetadata(s.config, vBuckets)
 		default:
 			err := errors.New("invalid metadata type")
 			logger.Log.Error("error while dcp start, err: %v", err)
@@ -112,8 +114,6 @@ func (s *dcp) Start() {
 	}
 
 	logger.Log.Info("using %v metadata", reflect.TypeOf(s.metadata))
-
-	vBuckets := s.client.GetNumVBuckets()
 
 	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, s.bus)
 

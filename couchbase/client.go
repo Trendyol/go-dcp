@@ -481,9 +481,11 @@ func (s *client) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwis
 		return nil, err
 	}
 
+	vBuckets := s.GetNumVBuckets()
+
 	eg := errgroup.Group{}
 
-	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](1024)
+	seqNos := wrapper.CreateConcurrentSwissMap[uint16, uint64](uint64(vBuckets))
 
 	hasCollectionSupport := awareCollection && s.dcpAgent.HasCollectionsSupport()
 

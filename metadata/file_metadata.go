@@ -17,6 +17,7 @@ import (
 
 type fileMetadata struct { //nolint:unused
 	fileName string
+	vBuckets int
 }
 
 func (s *fileMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[uint16]bool, _ string) error { //nolint:unused
@@ -28,7 +29,7 @@ func (s *fileMetadata) Save(state map[uint16]*models.CheckpointDocument, _ map[u
 func (s *fileMetadata) Load(vbIds []uint16, bucketUUID string) (*wrapper.ConcurrentSwissMap[uint16, *models.CheckpointDocument], bool, error) { //nolint:lll,unused
 	file, err := os.ReadFile(s.fileName)
 
-	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument](1024)
+	state := wrapper.CreateConcurrentSwissMap[uint16, *models.CheckpointDocument](uint64(s.vBuckets))
 	exist := true
 
 	if err != nil {
@@ -53,7 +54,7 @@ func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 	return nil
 }
 
-func NewFSMetadata(config *config.Dcp) Metadata { //nolint:unused
+func NewFSMetadata(config *config.Dcp, vBuckets int) Metadata { //nolint:unused
 	if !config.IsFileMetadata() {
 		err := errors.New("unsupported metadata type")
 		logger.Log.Error("error while initialize file metadata, err: %s", err)
@@ -62,5 +63,6 @@ func NewFSMetadata(config *config.Dcp) Metadata { //nolint:unused
 
 	return &fileMetadata{
 		fileName: config.GetFileMetadata(),
+		vBuckets: vBuckets,
 	}
 }

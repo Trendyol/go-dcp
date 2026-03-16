@@ -11,7 +11,7 @@ type ConcurrentSwissMap[K comparable, V any] struct {
 
 func CreateConcurrentSwissMap[K comparable, V any](size uint64) *ConcurrentSwissMap[K, V] {
 	return &ConcurrentSwissMap[K, V]{
-		m: csmap.Create[K, V](
+		m: csmap.New[K, V](
 			csmap.WithSize[K, V](size),
 		),
 	}

@@ -10,6 +10,8 @@ import (
 	"github.com/Trendyol/go-dcp/helpers"
 
 	"github.com/Trendyol/go-dcp/logger"
+
+	"github.com/couchbase/gocbcore/v10"
 )
 
 const (
@@ -42,6 +44,9 @@ const (
 	KubernetesLeaderElectorLeaseDurationConfig      = "leaseDuration"
 	KubernetesLeaderElectorRenewDeadlineConfig      = "renewDeadline"
 	KubernetesLeaderElectorRetryPeriodConfig        = "retryPeriod"
+	DcpPriorityLow                                  = "low"
+	DcpPriorityMedium                               = "medium"
+	DcpPriorityHigh                                 = "high"
 )
 
 type DcpMode string
@@ -69,7 +74,8 @@ type DCPListener struct {
 }
 
 type ExternalDcpConfig struct {
-	DisableChangeStreams bool `yaml:"disableChangeStreams"`
+	DisableChangeStreams bool   `yaml:"disableChangeStreams"`
+	Priority             string `yaml:"priority"`
 }
 
 type ExternalDcp struct {
@@ -170,6 +176,20 @@ func (c *Dcp) IsFileMetadata() bool {
 
 func (c *Dcp) IsNoopMetadata() bool {
 	return c.Metadata.Type == MetadataTypeNoop
+}
+
+func (c *Dcp) GetDcpAgentPriority() gocbcore.DcpAgentPriority {
+	switch strings.ToLower(strings.TrimSpace(c.Dcp.Config.Priority)) {
+	case "", DcpPriorityLow:
+		return gocbcore.DcpAgentPriorityLow
+	case DcpPriorityMedium:
+		return gocbcore.DcpAgentPriorityMed
+	case DcpPriorityHigh:
+		return gocbcore.DcpAgentPriorityHigh
+	default:
+		logger.Log.Warn("invalid dcp.config.priority %q, falling back to %q", c.Dcp.Config.Priority, DcpPriorityLow)
+		return gocbcore.DcpAgentPriorityLow
+	}
 }
 
 func (c *Dcp) GetFileMetadata() string {

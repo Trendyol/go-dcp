@@ -368,6 +368,7 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 			BufferSize:       helpers.ResolveUnionIntOrStringValue(s.config.Dcp.BufferSize),
 			UseExpiryOpcode:  useExpiryOpcode,
 			UseChangeStreams: useChangeStreams,
+			AgentPriority:    s.config.GetDcpAgentPriority(),
 		},
 		IoConfig: gocbcore.IoConfig{
 			UseCollections: true,

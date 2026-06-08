@@ -204,12 +204,8 @@ func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
 		logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
 	}
 
-	if !s.closeWithCancel && endContext.Err != nil &&
-		(errors.Is(endContext.Err, gocbcore.ErrSocketClosed) ||
-			errors.Is(endContext.Err, gocbcore.ErrDCPBackfillFailed) ||
-			errors.Is(endContext.Err, gocbcore.ErrDCPStreamStateChanged) ||
-			errors.Is(endContext.Err, gocbcore.ErrDCPStreamTooSlow) ||
-			errors.Is(endContext.Err, gocbcore.ErrDCPStreamDisconnected)) {
+	if !s.closeWithCancel && !s.balancing && endContext.Err != nil &&
+		!errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
 		go s.reopenStream(endContext.Event.VbID)
 	} else {
 		activeStreams := s.activeStreams.Add(-1)

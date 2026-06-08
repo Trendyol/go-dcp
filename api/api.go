@@ -71,6 +71,17 @@ func (s *api) status(c *fiber.Ctx) error {
 		return err
 	}
 
+	if s.stream.IsOpen() {
+		offsets, _, _ := s.stream.GetOffsets()
+		expected := int32(offsets.Count())
+		if _, activeStreams := s.stream.GetMetric(); activeStreams < expected {
+			return fiber.NewError(
+				fiber.StatusServiceUnavailable,
+				fmt.Sprintf("only %d/%d dcp streams are active", activeStreams, expected),
+			)
+		}
+	}
+
 	return c.SendString("OK")
 }
 

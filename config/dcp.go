@@ -74,19 +74,19 @@ type DCPListener struct {
 }
 
 type ExternalDcpConfig struct {
-	DisableChangeStreams bool   `yaml:"disableChangeStreams"`
 	Priority             string `yaml:"priority"`
+	DisableChangeStreams bool   `yaml:"disableChangeStreams"`
 }
 
 type ExternalDcp struct {
 	BufferSize           any               `yaml:"bufferSize"`
-	Mode                 DcpMode           `yaml:"mode"`
 	ConnectionBufferSize any               `yaml:"connectionBufferSize"`
 	Listener             DCPListener       `yaml:"listener"`
+	Config               ExternalDcpConfig `yaml:"config"`
+	Mode                 DcpMode           `yaml:"mode"`
 	Group                DCPGroup          `yaml:"group"`
 	MaxQueueSize         int               `yaml:"maxQueueSize"`
 	ConnectionTimeout    time.Duration     `yaml:"connectionTimeout"`
-	Config               ExternalDcpConfig `yaml:"config"`
 }
 
 type API struct {
@@ -140,6 +140,7 @@ type Logging struct {
 
 type Dcp struct {
 	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
+	Dcp                  ExternalDcp        `yaml:"dcp"`
 	Metric               Metric             `yaml:"metric"`
 	BucketName           string             `yaml:"bucketName"`
 	RootCAPath           string             `yaml:"rootCAPath"`
@@ -148,11 +149,10 @@ type Dcp struct {
 	ScopeName            string             `yaml:"scopeName"`
 	Password             string             `yaml:"password"`
 	Metadata             Metadata           `yaml:"metadata"`
-	CollectionNames      []string           `yaml:"collectionNames"`
 	Hosts                []string           `yaml:"hosts"`
+	CollectionNames      []string           `yaml:"collectionNames"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
 	LeaderElection       LeaderElection     `yaml:"leaderElection"`
-	Dcp                  ExternalDcp        `yaml:"dcp"`
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`
@@ -176,6 +176,10 @@ func (c *Dcp) IsFileMetadata() bool {
 
 func (c *Dcp) IsNoopMetadata() bool {
 	return c.Metadata.Type == MetadataTypeNoop
+}
+
+func (c *Dcp) IsCouchbaseMembership() bool {
+	return c.Dcp.Group.Membership.Type == MembershipTypeCouchbase
 }
 
 func (c *Dcp) GetDcpAgentPriority() gocbcore.DcpAgentPriority {

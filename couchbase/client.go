@@ -292,7 +292,7 @@ func (s *client) Connect() error {
 
 	s.agent = agent
 
-	if s.config.IsCouchbaseMetadata() {
+	if s.config.IsCouchbaseMembership() || s.config.IsCouchbaseMetadata() {
 		couchbaseMetadataConfig := s.config.GetCouchbaseMetadata()
 		metaAgent, metaErr := s.createMetadataAgent(couchbaseMetadataConfig)
 

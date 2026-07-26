@@ -274,12 +274,6 @@ func (h *lilCbMembership) isAlive(heartbeatTime int64) bool {
 }
 
 func NewLilCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) membership.Membership {
-	if !config.IsCouchbaseMetadata() {
-		err := errors.New("unsupported metadata type")
-		logger.Log.Error("error while initialize lil couchbase membership, err: %v", err)
-		panic(err)
-	}
-
 	couchbaseMetadataConfig := config.GetCouchbaseMetadata()
 
 	lcbm := &lilCbMembership{

@@ -334,12 +334,6 @@ func (h *cbMembership) membershipChangedListener(model *membership.Model) {
 }
 
 func NewCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) membership.Membership {
-	if !config.IsCouchbaseMetadata() {
-		err := errors.New("unsupported metadata type")
-		logger.Log.Error("error while initialize couchbase membership, err: %v", err)
-		panic(err)
-	}
-
 	couchbaseMetadataConfig := config.GetCouchbaseMetadata()
 
 	cbm := &cbMembership{

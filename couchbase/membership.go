@@ -1,6 +1,7 @@
 package couchbase
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sort"
@@ -110,7 +111,12 @@ func (h *cbMembership) register() {
 func (h *cbMembership) createIndex(ctx context.Context, clusterJoinTime int64) error {
 	payload, _ := sonic.Marshal(clusterJoinTime)
 
-	return CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, h.id, payload, memd.SubdocDocFlagMkDoc)
+	var path bytes.Buffer
+	path.WriteByte('`')
+	path.Write(h.id)
+	path.WriteByte('`')
+
+	return CreatePath(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll, path.Bytes(), payload, memd.SubdocDocFlagMkDoc) //nolint:lll
 }
 
 func (h *cbMembership) isClusterChanged(currentActiveInstances []Instance) bool {

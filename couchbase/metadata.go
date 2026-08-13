@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -154,10 +153,5 @@ func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 
 func getCheckpointID(vbID uint16, groupName string) []byte {
 	// _connector:cbgo:groupName:stdout-listener:checkpoint:vbId
-	if strings.Contains(groupName, ".") {
-		err := errors.New("unsupported group name includes dot")
-		logger.Log.Error("error while get checkpoint id, err: %v", err)
-		panic(err)
-	}
 	return []byte(helpers.Prefix + groupName + ":checkpoint:" + strconv.Itoa(int(vbID)))
 }

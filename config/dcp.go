@@ -140,7 +140,6 @@ type Logging struct {
 
 type Dcp struct {
 	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
-	Dcp                  ExternalDcp        `yaml:"dcp"`
 	Metric               Metric             `yaml:"metric"`
 	BucketName           string             `yaml:"bucketName"`
 	RootCAPath           string             `yaml:"rootCAPath"`
@@ -153,6 +152,7 @@ type Dcp struct {
 	CollectionNames      []string           `yaml:"collectionNames"`
 	Checkpoint           Checkpoint         `yaml:"checkpoint"`
 	LeaderElection       LeaderElection     `yaml:"leaderElection"`
+	Dcp                  ExternalDcp        `yaml:"dcp"`
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`

@@ -13,7 +13,7 @@ require (
 	github.com/ansrivas/fiberprometheus/v2 v2.17.0
 	github.com/asaskevich/EventBus v0.0.0-20200907212545-49d423059eef
 	github.com/bytedance/sonic v1.15.0
-	github.com/couchbase/gocbcore/v10 v10.9.0
+	github.com/couchbase/gocbcore/v10 v10.9.3
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/google/uuid v1.6.0
 	github.com/mhmtszr/concurrent-swiss-map v1.0.9

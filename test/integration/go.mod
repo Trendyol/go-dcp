@@ -8,7 +8,7 @@ replace github.com/Trendyol/go-dcp => ../../.
 
 require (
 	github.com/Trendyol/go-dcp v0.0.0
-	github.com/couchbase/gocbcore/v10 v10.9.0
+	github.com/couchbase/gocbcore/v10 v10.9.3
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/testcontainers/testcontainers-go v0.33.0

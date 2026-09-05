@@ -141,6 +141,8 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		logger.Log.Debug("no checkpoint found, auto reset checkpoint to %s", s.config.Checkpoint.AutoReset)
 	}
 
+	var anyCorrupted bool
+
 	dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
 		currentSeqNo, _ := seqNoMap.Load(vbID)
 		isEmptyCheckpoint := doc.Checkpoint.VbUUID == 0 && doc.Checkpoint.SeqNo == 0
@@ -164,8 +166,6 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 				panic(err)
 			}
 
-			latestOffsetSeqNo := s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo)
-
 			offsets.Store(vbID, &models.Offset{
 				SnapshotMarker: &models.SnapshotMarker{
 					StartSeqNo: currentSeqNo,
@@ -173,22 +173,26 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 				},
 				VbUUID:      failOverLogs[0].VbUUID,
 				SeqNo:       currentSeqNo,
-				LatestSeqNo: latestOffsetSeqNo,
+				LatestSeqNo: s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo),
 			})
 
 			return true
 		}
 
 		if doc.Checkpoint.SeqNo > currentSeqNo {
+			if s.config.Checkpoint.RollbackToZeroWhenCorrupted {
+				anyCorrupted = true
+				return true
+			}
+
 			err := errors.New("checkpoint seqNo bigger then vBucket latest seqNo")
 			logger.Log.Error(
 				"error while loading checkpoint, vbID: %v, checkpoint seqNo: %v, latest seqNo: %v, err: %v",
 				vbID, doc.Checkpoint.SeqNo, currentSeqNo, err,
 			)
+
 			panic(err)
 		}
-
-		latestOffsetSeqNo := s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo)
 
 		offsets.Store(vbID, &models.Offset{
 			SnapshotMarker: &models.SnapshotMarker{
@@ -197,11 +201,35 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 			},
 			VbUUID:      gocbcore.VbUUID(doc.Checkpoint.VbUUID),
 			SeqNo:       doc.Checkpoint.SeqNo,
-			LatestSeqNo: latestOffsetSeqNo,
+			LatestSeqNo: s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo),
 		})
 
 		return true
 	})
+
+	if anyCorrupted {
+		logger.Log.Warn(
+			"rolling back to zero checkpoint seqNo because checkpoint seqNo bigger then vBucket latest seqNo",
+		)
+
+		dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
+			currentSeqNo, _ := seqNoMap.Load(vbID)
+
+			targetDoc := models.NewEmptyCheckpointDocument(s.bucketUUID)
+
+			offsets.Store(vbID, &models.Offset{
+				SnapshotMarker: &models.SnapshotMarker{
+					StartSeqNo: targetDoc.Checkpoint.Snapshot.StartSeqNo,
+					EndSeqNo:   targetDoc.Checkpoint.Snapshot.EndSeqNo,
+				},
+				VbUUID:      gocbcore.VbUUID(targetDoc.Checkpoint.VbUUID),
+				SeqNo:       targetDoc.Checkpoint.SeqNo,
+				LatestSeqNo: s.offsetLatestSeqNoInit.InitializeLatestSeqNo(currentSeqNo),
+			})
+
+			return true
+		})
+	}
 
 	return offsets, dirtyOffsets, anyDirtyOffset
 }

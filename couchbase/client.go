@@ -234,7 +234,7 @@ func (s *client) connect(bucketName string,
 }
 
 func resolveHostsAsHTTP(hosts []string) []string {
-	var httpHosts []string
+	var httpHosts []string //nolint:prealloc
 	for _, host := range hosts {
 		parsedConnStr, err := connstr.Parse(host)
 		if err != nil {

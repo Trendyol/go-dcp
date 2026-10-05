@@ -139,23 +139,23 @@ type Logging struct {
 }
 
 type Dcp struct {
-	ConnectionBufferSize any                `yaml:"connectionBufferSize"`
-	Metric               Metric             `yaml:"metric"`
-	BucketName           string             `yaml:"bucketName"`
-	RootCAPath           string             `yaml:"rootCAPath"`
-	Username             string             `yaml:"username"`
-	Logging              Logging            `yaml:"logging"`
-	ScopeName            string             `yaml:"scopeName"`
-	Password             string             `yaml:"password"`
-	Metadata             Metadata           `yaml:"metadata"`
-	Hosts                []string           `yaml:"hosts"`
-	CollectionNames      []string           `yaml:"collectionNames"`
-	Checkpoint           Checkpoint         `yaml:"checkpoint"`
-	LeaderElection       LeaderElection     `yaml:"leaderElection"`
-	Dcp                  ExternalDcp        `yaml:"dcp"`
-	HealthCheck          HealthCheck        `yaml:"healthCheck"`
-	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
-	API                  API                `yaml:"api"`
+	ConnectionBufferSize      any                `yaml:"connectionBufferSize"`
+	Metric                    Metric             `yaml:"metric"`
+	BucketName                string             `yaml:"bucketName"`
+	RootCAPath                string             `yaml:"rootCAPath"`
+	Username                  string             `yaml:"username"`
+	Logging                   Logging            `yaml:"logging"`
+	ScopeName                 string             `yaml:"scopeName"`
+	Password                  string             `yaml:"password"`
+	Metadata                  Metadata           `yaml:"metadata"`
+	Hosts                     []string           `yaml:"hosts"`
+	CollectionNames           []string           `yaml:"collectionNames"`
+	Checkpoint                Checkpoint         `yaml:"checkpoint"`
+	LeaderElection            LeaderElection     `yaml:"leaderElection"`
+	Dcp                       ExternalDcp        `yaml:"dcp"`
+	HealthCheck               HealthCheck        `yaml:"healthCheck"`
+	RollbackMitigation        RollbackMitigation `yaml:"rollbackMitigation"`
+	API                       API                `yaml:"api"`
 	MaxQueueSize              int                `yaml:"maxQueueSize"`
 	ConnectionTimeout         time.Duration      `yaml:"connectionTimeout"`
 	MaxIdemponentCallAttempts int                `yaml:"maxIdemponentCallAttempts"`

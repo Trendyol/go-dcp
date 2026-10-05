@@ -1,5 +1,6 @@
 hosts:
   - 13.37.11.2:8091
+maxIdemponentCallAttempts: 1
 username: user
 password: 123456
 bucketName: travel-sample

@@ -114,9 +114,16 @@ func (h *httpClient) GetBucketInfo() (*BucketInfo, error) {
 }
 
 func NewHTTPClient(config *config.Dcp, client Client) HTTPClient {
+	maxAttempts := config.MaxIdemponentCallAttempts
+	if maxAttempts == 0 {
+		maxAttempts = 1
+	}
+
 	return &httpClient{
-		config:     config,
-		httpClient: &fasthttp.Client{},
-		client:     client,
+		config: config,
+		httpClient: &fasthttp.Client{
+			MaxIdemponentCallAttempts: maxAttempts,
+		},
+		client: client,
 	}
 }

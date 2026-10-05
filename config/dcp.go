@@ -156,10 +156,11 @@ type Dcp struct {
 	HealthCheck          HealthCheck        `yaml:"healthCheck"`
 	RollbackMitigation   RollbackMitigation `yaml:"rollbackMitigation"`
 	API                  API                `yaml:"api"`
-	MaxQueueSize         int                `yaml:"maxQueueSize"`
-	ConnectionTimeout    time.Duration      `yaml:"connectionTimeout"`
-	SecureConnection     bool               `yaml:"secureConnection"`
-	Debug                bool               `yaml:"debug"`
+	MaxQueueSize              int                `yaml:"maxQueueSize"`
+	ConnectionTimeout         time.Duration      `yaml:"connectionTimeout"`
+	MaxIdemponentCallAttempts int                `yaml:"maxIdemponentCallAttempts"`
+	SecureConnection          bool               `yaml:"secureConnection"`
+	Debug                     bool               `yaml:"debug"`
 }
 
 func (c *Dcp) IsCouchbaseMetadata() bool {

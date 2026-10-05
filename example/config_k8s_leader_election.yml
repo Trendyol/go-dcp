@@ -1,5 +1,6 @@
 hosts:
   - couchbase.couchbase.svc.cluster.local:8091
+maxIdemponentCallAttempts: 1
 username: user
 password: 123456
 bucketName: dcp-test

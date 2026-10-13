@@ -411,6 +411,7 @@ func (s *stream) wait() {
 func (s *stream) Close(closeWithCancel bool) {
 	vBuckets := s.client.GetNumVBuckets()
 
+	s.open = false
 	s.closeWithCancel = closeWithCancel
 
 	s.eventHandler.BeforeStreamStop()
@@ -441,7 +442,6 @@ func (s *stream) Close(closeWithCancel bool) {
 
 	logger.Log.Info("stream stopped")
 	s.eventHandler.AfterStreamStop()
-	s.open = false
 
 	if !s.streamFinishedWithEndEventCh {
 		s.finishStreamWithCloseCh <- struct{}{}

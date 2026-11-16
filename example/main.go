@@ -10,18 +10,26 @@ func listener(ctx *models.ListenerContext) {
 	switch event := ctx.Event.(type) {
 	case models.DcpMutation:
 		logger.Log.Info(
-			"mutated(vb=%v,eventTime=%v) | id: %v, value len: %v | isCreated: %v",
-			event.VbID, event.EventTime.UnixMilli(), string(event.Key), len(event.Value), event.IsCreated(),
+			"document mutated",
+			"vbID", event.VbID,
+			"eventTime", event.EventTime.UnixMilli(),
+			"id", string(event.Key),
+			"valueLength", len(event.Value),
+			"created", event.IsCreated(),
 		)
 	case models.DcpDeletion:
 		logger.Log.Info(
-			"deleted(vb=%v,eventTime=%v) | id: %v",
-			event.VbID, event.EventTime.UnixMilli(), string(event.Key),
+			"document deleted",
+			"vbID", event.VbID,
+			"eventTime", event.EventTime.UnixMilli(),
+			"id", string(event.Key),
 		)
 	case models.DcpExpiration:
 		logger.Log.Info(
-			"expired(vb=%v,eventTime=%v) | id: %v",
-			event.VbID, event.EventTime.UnixMilli(), string(event.Key),
+			"document expired",
+			"vbID", event.VbID,
+			"eventTime", event.EventTime.UnixMilli(),
+			"id", string(event.Key),
 		)
 	}
 

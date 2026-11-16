@@ -53,7 +53,7 @@ func listener(ctx *models.ListenerContext) {
 	case models.DcpMutation:
 		// Handle a document mutation (create or update)
 		// `event` is now of type models.DcpMutation
-		logger.Log.Info("Mutation received for document ID: %v", string(event.Key))
+		logger.Log.Info("mutation received", "id", string(event.Key))
 		// You can access event details like:
 		// event.Key   ([]byte) - The document ID
 		// event.Value ([]byte) - The document content (for mutations)
@@ -64,18 +64,18 @@ func listener(ctx *models.ListenerContext) {
 	case models.DcpDeletion:
 		// Handle a document deletion
 		// `event` is now of type models.DcpDeletion
-		logger.Log.Info("Deletion received for document ID: %v", string(event.Key))
+		logger.Log.Info("deletion received", "id", string(event.Key))
 		// Access details like event.Key, event.VbID, event.SeqNo etc.
 
 	case models.DcpExpiration:
 		// Handle a document expiration
 		// `event` is now of type models.DcpExpiration
-		logger.Log.Info("Expiration received for document ID: %v", string(event.Key))
+		logger.Log.Info("expiration received", "id", string(event.Key))
 		// Access details like event.Key, event.VbID, event.SeqNo etc.
 
 	default:
 		// Handle other potential event types (less common for basic use)
-		logger.Log.Warn("Received unknown event type: %T", event)
+		logger.Log.Warn("received unknown event type")
 	}
 
 	// ALWAYS call Ack() after processing the event!

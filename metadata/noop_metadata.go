@@ -36,7 +36,7 @@ func (s *noopMetadata) Clear(_ []uint16) error { //nolint:unused
 func NewNoopMetadata(config *config.Dcp, vBuckets int) Metadata { //nolint:unused
 	if !config.IsNoopMetadata() {
 		err := errors.New("unsupported metadata type")
-		logger.Log.Error("error while initialize noop metadata, err: %s", err)
+		logger.Log.Error("error while initialize noop metadata", "error", err)
 		panic(err)
 	}
 

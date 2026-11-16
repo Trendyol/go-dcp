@@ -92,7 +92,7 @@ func (s *cbMetadata) Load(
 
 				if err != nil {
 					doc = models.NewEmptyCheckpointDocument(bucketUUID)
-					logger.Log.Warn("corrupted checkpoint, vbID: %d, key: %v, err: %v", vbID, id, err)
+					logger.Log.Warn("corrupted checkpoint", "vbID", vbID, "key", id, "error", err)
 					err = nil
 				} else {
 					exist.Store(true)
@@ -105,7 +105,7 @@ func (s *cbMetadata) Load(
 			if err == nil || errors.As(err, &kvErr) && kvErr.StatusCode == memd.StatusKeyNotFound {
 				state.Store(vbID, doc)
 			} else {
-				logger.Log.Error("error while load checkpoint, vbID: %d, err: %v", vbID, err)
+				logger.Log.Error("error while load checkpoint", "vbID", vbID, "error", err)
 				panic(err)
 			}
 
@@ -137,7 +137,7 @@ func (s *cbMetadata) Clear(vbIds []uint16) error {
 func NewCBMetadata(client Client, config *config.Dcp) metadata.Metadata {
 	if !config.IsCouchbaseMetadata() {
 		err := errors.New("unsupported metadata type")
-		logger.Log.Error("error while initialize couchbase metadata, err: %v", err)
+		logger.Log.Error("error while initialize couchbase metadata", "error", err)
 		panic(err)
 	}
 

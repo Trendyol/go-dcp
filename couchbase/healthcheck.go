@@ -76,7 +76,7 @@ func (h *healthCheck) performHealthCheck(ctx context.Context) {
 			return
 		}
 
-		logger.Log.Warn("Health check attempt %d/%d failed: %v", attempt, maxRetries, err)
+		logger.Log.Warn("health check attempt failed", "attempt", attempt, "maxRetries", maxRetries, "error", err)
 
 		if attempt < maxRetries {
 			select {
@@ -87,7 +87,7 @@ func (h *healthCheck) performHealthCheck(ctx context.Context) {
 				// Retry after waiting.
 			}
 		} else {
-			logger.Log.Error("Health check failed after %d attempts: %v", maxRetries, err)
+			logger.Log.Error("health check failed", "attempts", maxRetries, "error", err)
 			panic(err)
 		}
 	}

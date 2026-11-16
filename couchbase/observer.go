@@ -2,7 +2,7 @@ package couchbase
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"reflect"
 	"time"
 
@@ -94,7 +94,7 @@ func (so *observer) needCatchup(seqNo uint64) bool {
 
 	if seqNo >= so.catchupSeqNo {
 		so.isCatchupNeed = false
-		logger.Log.Info("catchup completed for vbID: %d", so.vbID)
+		logger.Log.Info("catchup completed", "vbID", so.vbID)
 		return seqNo == so.catchupSeqNo
 	}
 
@@ -170,8 +170,8 @@ func (so *observer) IsInSnapshotMarker(seqNo uint64) bool {
 		seqNo >= so.currentSnapshot.StartSeqNo && seqNo <= so.currentSnapshot.EndSeqNo
 
 	if !isIn {
-		err := fmt.Errorf("seqNo not in snapshot: %v, vbID: %v", seqNo, so.vbID)
-		logger.Log.Error("error while snapshot marker check, err: %v", err)
+		err := errors.New("seqNo not in snapshot")
+		logger.Log.Error("seqNo not in snapshot", "seqNo", seqNo, "vbID", so.vbID)
 		panic(err)
 	}
 
@@ -446,7 +446,7 @@ func (so *observer) SetPersistSeqNo(persistSeqNo gocbcore.SeqNo) {
 			so.persistSeqNo = persistSeqNo
 		}
 	} else {
-		logger.Log.Trace("persistSeqNo: %v on vbID: %v", persistSeqNo, so.vbID)
+		logger.Log.Trace("persist seqNo", "persistSeqNo", persistSeqNo, "vbID", so.vbID)
 	}
 }
 

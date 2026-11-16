@@ -25,7 +25,7 @@ func (h *haMembership) GetInfo() *membership.Model {
 func (h *haMembership) Close() {
 	err := h.bus.Unsubscribe(helpers.MembershipChangedBusEventName, h.membershipChangedListener)
 	if err != nil {
-		logger.Log.Error("error while unsubscribe: %v", err)
+		logger.Log.Error("error while unsubscribe", "error", err)
 	}
 }
 
@@ -47,7 +47,7 @@ func NewHaMembership(_ *config.Dcp, bus EventBus.Bus) membership.Membership {
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, ham.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe membership changed event, err: %v", err)
+		logger.Log.Error("error while subscribe membership changed event", "error", err)
 		panic(err)
 	}
 

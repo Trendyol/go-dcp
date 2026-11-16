@@ -110,11 +110,11 @@ import (
 func listener(ctx *models.ListenerContext) {
 	switch event := ctx.Event.(type) {
 	case models.DcpMutation:
-		logger.Log.Info("Mutation: %v", string(event.Key))
+		logger.Log.Info("mutation", "id", string(event.Key))
 	case models.DcpDeletion:
-		logger.Log.Info("Deletion: %v", string(event.Key))
+		logger.Log.Info("deletion", "id", string(event.Key))
 	case models.DcpExpiration:
-		logger.Log.Info("Expiration: %v", string(event.Key))
+		logger.Log.Info("expiration", "id", string(event.Key))
 	}
 	ctx.Ack()
 }

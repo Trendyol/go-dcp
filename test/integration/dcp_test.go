@@ -136,7 +136,7 @@ func setupContainer(c *config.Dcp, ctx context.Context, version string) (testcon
 }
 
 func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize int, bulkSize int) {
-	logger.Log.Info("mock data stream started with iteration=%v", iteration)
+	logger.Log.Info("mock data stream started", "iteration", iteration)
 
 	client := couchbase.NewClient(c)
 
@@ -191,7 +191,7 @@ func insertDataToContainer(c *config.Dcp, t *testing.T, iteration int, chunkSize
 
 	client.Close()
 
-	logger.Log.Info("mock data stream finished with totalSize=%v", iteration)
+	logger.Log.Info("mock data stream finished", "totalSize", iteration)
 }
 
 //nolint:funlen
@@ -223,7 +223,7 @@ func test(t *testing.T, version string) {
 			val := int(counter.Add(1))
 
 			if val%notifySize == 0 {
-				logger.Log.Info("%v/%v processed", val/notifySize, totalNotify)
+				logger.Log.Info("processed", "current", val/notifySize, "total", totalNotify)
 			}
 
 			if val == mockDataSize {
@@ -252,7 +252,7 @@ func test(t *testing.T, version string) {
 		t.Fatal(err)
 	}
 
-	logger.Log.Info("mock data stream finished with totalSize=%v", counter.Load())
+	logger.Log.Info("mock data stream finished", "totalSize", counter.Load())
 }
 
 func testTraces(ctx *models.ListenerContext) {
@@ -298,7 +298,7 @@ func testWithTraces(t *testing.T, version string) {
 			val := int(counter.Add(1))
 
 			if val%notifySize == 0 {
-				logger.Log.Info("%v/%v processed", val/notifySize, totalNotify)
+				logger.Log.Info("processed", "current", val/notifySize, "total", totalNotify)
 			}
 
 			if val == mockDataSize {
@@ -327,7 +327,7 @@ func testWithTraces(t *testing.T, version string) {
 		t.Fatal(err)
 	}
 
-	logger.Log.Info("mock data stream finished with totalSize=%v", counter.Load())
+	logger.Log.Info("mock data stream finished", "totalSize", counter.Load())
 }
 
 func TestDcp(t *testing.T) {

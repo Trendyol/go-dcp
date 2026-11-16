@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/Trendyol/go-dcp"
 	"github.com/Trendyol/go-dcp/logger"
 	"github.com/Trendyol/go-dcp/models"
 	"github.com/couchbase/gocb/v2"
-	"log"
 	"time"
 )
 
@@ -14,18 +14,26 @@ func listener(ctx *models.ListenerContext) {
 	switch event := ctx.Event.(type) {
 	case models.DcpMutation:
 		logger.Log.Info(
-			"mutated(vb=%v,eventTime=%v) | id: %v, value: %v | isCreated: %v",
-			event.VbID, event.EventTime, string(event.Key), string(event.Value), event.IsCreated(),
+			"document mutated",
+			"vbID", event.VbID,
+			"eventTime", event.EventTime,
+			"id", string(event.Key),
+			"value", string(event.Value),
+			"created", event.IsCreated(),
 		)
 	case models.DcpDeletion:
 		logger.Log.Info(
-			"deleted(vb=%v,eventTime=%v) | id: %v",
-			event.VbID, event.EventTime, string(event.Key),
+			"document deleted",
+			"vbID", event.VbID,
+			"eventTime", event.EventTime,
+			"id", string(event.Key),
 		)
 	case models.DcpExpiration:
 		logger.Log.Info(
-			"expired(vb=%v,eventTime=%v) | id: %v",
-			event.VbID, event.EventTime, string(event.Key),
+			"document expired",
+			"vbID", event.VbID,
+			"eventTime", event.EventTime,
+			"id", string(event.Key),
 		)
 	}
 
@@ -52,13 +60,15 @@ func seedCouchbaseBucket() {
 		Password: "password",
 	})
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Error("couchbase connect failed", "error", err)
+		panic(err)
 	}
 
 	bucket := cluster.Bucket("dcp-test")
 	err = bucket.WaitUntilReady(5*time.Second, nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Error("bucket not ready", "error", err)
+		panic(err)
 	}
 
 	collection := bucket.DefaultCollection()
@@ -74,9 +84,9 @@ func seedCouchbaseBucket() {
 		}
 		_, err := collection.Upsert(documentID, document, nil)
 		if err != nil {
-			log.Println("Error inserting document:", err)
+			logger.Log.Error("error inserting document", "id", documentID, "error", err)
 		} else {
-			log.Println("Inserted document:", documentID)
+			logger.Log.Info("inserted document", "id", documentID)
 		}
 		time.Sleep(1 * time.Second)
 	}

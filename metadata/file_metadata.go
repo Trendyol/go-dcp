@@ -57,7 +57,7 @@ func (s *fileMetadata) Clear(_ []uint16) error { //nolint:unused
 func NewFSMetadata(config *config.Dcp, vBuckets int) Metadata { //nolint:unused
 	if !config.IsFileMetadata() {
 		err := errors.New("unsupported metadata type")
-		logger.Log.Error("error while initialize file metadata, err: %s", err)
+		logger.Log.Error("error while initialize file metadata", "error", err)
 		panic(err)
 	}
 

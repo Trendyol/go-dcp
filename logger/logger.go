@@ -167,6 +167,10 @@ func zeroToCore(level zerolog.Level) gocbcore.LogLevel {
 		return gocbcore.LogInfo
 	case zerolog.WarnLevel:
 		return gocbcore.LogWarn
+	case zerolog.ErrorLevel, zerolog.FatalLevel, zerolog.PanicLevel:
+		return gocbcore.LogError
+	case zerolog.NoLevel, zerolog.Disabled:
+		return gocbcore.LogLevel(-1)
 	default:
 		return gocbcore.LogError
 	}

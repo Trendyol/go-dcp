@@ -40,7 +40,7 @@ func (c *client) connect() error {
 
 			c.client = client
 			c.connected = true
-			logger.Log.Debug("connected as rpc", "client", c.targetIdentity.Name)
+			logger.Log.Debug("connected to %s as rpc", c.targetIdentity.Name)
 
 			return nil
 		},
@@ -54,7 +54,7 @@ func (c *client) Close() error {
 		return nil
 	}
 
-	logger.Log.Debug("closing rpc client", "client", c.targetIdentity.Name)
+	logger.Log.Debug("closing rpc client %s", c.targetIdentity.Name)
 
 	c.connected = false
 	err := c.client.Close()
@@ -68,7 +68,7 @@ func (c *client) IsConnected() bool {
 }
 
 func (c *client) Reconnect() error {
-	logger.Log.Debug("reconnecting rpc client", "client", c.targetIdentity.Name)
+	logger.Log.Debug("reconnecting rpc client %s", c.targetIdentity.Name)
 	return c.connect()
 }
 

@@ -45,7 +45,7 @@ type httpClient struct {
 func (h *httpClient) Connect() error {
 	pingResult, err := h.client.Ping()
 	if err != nil {
-		logger.Log.Error("error while connecting as http to couchbase", "error", err)
+		logger.Log.Error("error while connecting as http to couchbase: %v", err)
 		return err
 	}
 

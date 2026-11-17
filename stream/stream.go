@@ -104,7 +104,7 @@ func (s *stream) setOffset(vbID uint16, offset *models.Offset, dirty bool) {
 			return p, false
 		})
 	} else {
-		logger.Log.Warn("vbID does not belong to our range", "vbID", vbID)
+		logger.Log.Warn("vbID: %v not belong our vbID range", vbID)
 	}
 }
 
@@ -171,15 +171,15 @@ func (s *stream) reopenStream(vbID uint16) {
 	for {
 		err := s.openStream(vbID)
 		if err == nil {
-			logger.Log.Info("re-open stream", "vbID", vbID)
+			logger.Log.Info("re-open stream, vbID: %d", vbID)
 			break
 		} else {
-			logger.Log.Warn("cannot re-open stream", "vbID", vbID, "error", err)
+			logger.Log.Warn("cannot re-open stream, vbID: %d, err: %v", vbID, err)
 		}
 
 		retry--
 		if retry == 0 {
-			logger.Log.Error("error while re-open stream", "vbID", vbID, "error", err)
+			logger.Log.Error("error while re-open stream, vbID: %d, err: give up after few retry", vbID)
 			panic(err)
 		}
 
@@ -194,14 +194,14 @@ func (s *stream) listenEnd(endContext models.DcpStreamEndContext) {
 
 	if !s.closeWithCancel && endContext.Err != nil {
 		if !errors.Is(endContext.Err, gocbcore.ErrDCPStreamClosed) {
-			logger.Log.Warn("end stream got error", "vbID", endContext.Event.VbID, "error", endContext.Err)
+			logger.Log.Warn("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 		} else {
-			logger.Log.Debug("end stream got error", "vbID", endContext.Event.VbID, "error", endContext.Err)
+			logger.Log.Debug("end stream vbID: %v got error: %v", endContext.Event.VbID, endContext.Err)
 		}
 	}
 
 	if endContext.Err == nil {
-		logger.Log.Debug("end stream", "vbID", endContext.Event.VbID)
+		logger.Log.Debug("end stream vbID: %v", endContext.Event.VbID)
 	}
 
 	if !s.closeWithCancel && !s.balancing && endContext.Err != nil &&
@@ -301,7 +301,7 @@ func (s *stream) Rebalance() {
 		logger.Log.Info("rebalance delay is disabled on dynamic membership")
 	} else {
 		s.rebalanceTimer = time.AfterFunc(s.config.Dcp.Group.Membership.RebalanceDelay, s.rebalance)
-		logger.Log.Info("rebalance will start", "delay", s.config.Dcp.Group.Membership.RebalanceDelay)
+		logger.Log.Info("rebalance will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
 	}
 }
 
@@ -334,8 +334,8 @@ func (s *stream) dispatchPersistSeqNo(persistSeqNo *models.PersistSeqNo) {
 func (s *stream) openStream(vbID uint16) error {
 	offset, exist := s.offsets.Load(vbID)
 	if !exist {
-		err := fmt.Errorf("vbID %d not found on offset map", vbID)
-		logger.Log.Error("error while opening stream", "vbID", vbID, "error", err)
+		err := fmt.Errorf("vbID: %d not found on offset map", vbID)
+		logger.Log.Error("error while opening stream, err: %v", err)
 		return err
 	}
 	observer, _ := s.observers.Load(vbID)
@@ -350,7 +350,7 @@ func (s *stream) openAllStreams(vbIDs []uint16) {
 		go func(innerVbId uint16) {
 			err := s.openStream(innerVbId)
 			if err != nil {
-				logger.Log.Error("error while open stream", "vbID", innerVbId, "error", err)
+				logger.Log.Error("error while open stream, vbID: %d, err: %v", innerVbId, err)
 				panic(err)
 			}
 			openWg.Done()
@@ -370,9 +370,8 @@ func (s *stream) closeAllStreams() {
 			s.streamEndNotSupportedData.queue <- struct{}{}
 			if err := s.client.CloseStream(vbID); err != nil {
 				logger.Log.Error(
-					"cannot close stream on stream end not supporting mode",
-					"vbID", vbID,
-					"error", err,
+					"cannot close stream on (stream end not supporting) mode, vbID: %d, err: %v",
+					vbID, err,
 				)
 			}
 		}
@@ -383,7 +382,7 @@ func (s *stream) closeAllStreams() {
 		s.offsets.Range(func(vbID uint16, _ *models.Offset) bool {
 			go func(vbID uint16) {
 				if err := s.client.CloseStream(vbID); err != nil {
-					logger.Log.Error("cannot close stream", "vbID", vbID, "error", err)
+					logger.Log.Error("cannot close stream, vbID: %d, err: %v", vbID, err)
 				}
 
 				wg.Done()

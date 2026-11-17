@@ -21,10 +21,11 @@ import (
 
 	"github.com/Trendyol/go-dcp/membership"
 
+	"github.com/sirupsen/logrus"
+
 	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rs/zerolog"
 
 	"github.com/Trendyol/go-dcp/api"
 	"github.com/Trendyol/go-dcp/config"
@@ -103,7 +104,7 @@ func (s *dcp) Start() {
 			s.metadata = metadata.NewNoopMetadata(s.config, vBuckets)
 		default:
 			err := errors.New("invalid metadata type")
-			logger.Log.Error("error while dcp start", "error", err)
+			logger.Log.Error("error while dcp start, err: %v", err)
 			panic(err)
 		}
 	}
@@ -112,7 +113,7 @@ func (s *dcp) Start() {
 		s.metadata = metadata.NewReadMetadata(s.metadata)
 	}
 
-	logger.Log.Info("using metadata", "metadata", reflect.TypeOf(s.metadata))
+	logger.Log.Info("using %v metadata", reflect.TypeOf(s.metadata))
 
 	s.vBucketDiscovery = stream.NewVBucketDiscovery(s.client, s.config, vBuckets, s.bus)
 
@@ -120,7 +121,7 @@ func (s *dcp) Start() {
 
 	collectionIDs, err := s.client.GetCollectionIDs(s.config.ScopeName, s.config.CollectionNames)
 	if err != nil {
-		logger.Log.Error("error while getting vBucket seqNos", "error", err)
+		logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
 		panic(err)
 	}
 
@@ -155,7 +156,7 @@ func (s *dcp) Start() {
 
 	err = s.bus.SubscribeAsync(helpers.MembershipChangedBusEventName, s.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe to membership changed event", "error", err)
+		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
 		panic(err)
 	}
 
@@ -205,7 +206,7 @@ func (s *dcp) close() {
 
 	err := s.bus.Unsubscribe(helpers.MembershipChangedBusEventName, s.membershipChangedListener)
 	if err != nil {
-		logger.Log.Error("cannot while unsubscribe", "error", err)
+		logger.Log.Error("cannot while unsubscribe: %v", err)
 	}
 
 	s.stream.Close(s.closeWithCancel)
@@ -391,8 +392,10 @@ func newDcpConfig(path string) (config.Dcp, error) {
 	return c, nil
 }
 
-func NewDcpWithLogger(cfg any, listener models.Listener, log zerolog.Logger) (Dcp, error) {
-	logger.Set(log)
+func NewDcpWithLogger(cfg any, listener models.Listener, logrus *logrus.Logger) (Dcp, error) {
+	logger.Log = &logger.Loggers{
+		Logrus: logrus,
+	}
 	return NewDcp(cfg, listener)
 }
 
@@ -402,9 +405,9 @@ func printConfiguration(config config.Dcp) {
 
 	dst := &bytes.Buffer{}
 	if err := json.Compact(dst, configJSON); err != nil {
-		logger.Log.Error("error while print configuration", "error", err)
+		logger.Log.Error("error while print configuration, err: %v", err)
 		panic(err)
 	}
 
-	logger.Log.Info("using config", "config", dst.String())
+	logger.Log.Info("using config: %v", dst.String())
 }

@@ -77,20 +77,13 @@ func printLatenciesOfServiceEndpoints(result *gocbcore.PingResult) {
 		for _, serviceResult := range service {
 			if serviceResult.Error == nil {
 				logger.Log.Debug(
-					"ping result",
-					"serviceType", serviceType,
-					"endpoint", serviceResult.Endpoint,
-					"latencyMs", serviceResult.Latency.Milliseconds(),
-					"state", serviceResult.State,
+					"ping result for serviceType(memd,mgmt): %v, endpoint: %v, latency: %vms, state(ok,timeout,err): %v",
+					serviceType, serviceResult.Endpoint, serviceResult.Latency.Milliseconds(), serviceResult.State,
 				)
 			} else {
 				logger.Log.Warn(
-					"ping result failed",
-					"serviceType", serviceType,
-					"endpoint", serviceResult.Endpoint,
-					"latencyMs", serviceResult.Latency.Milliseconds(),
-					"state", serviceResult.State,
-					"error", serviceResult.Error,
+					"ping result get err for serviceType(memd,mgmt): %v, endpoint: %v, latency: %vms, state(ok,timeout,err): %v, err: %v",
+					serviceType, serviceResult.Endpoint, serviceResult.Latency.Milliseconds(), serviceResult.State, serviceResult.Error.Error(),
 				)
 			}
 		}
@@ -151,7 +144,7 @@ func (s *client) GetMetaAgent() *gocbcore.Agent {
 func CreateTLSRootCaProvider(rootCAPath string) func() *x509.CertPool {
 	cert, err := os.ReadFile(os.ExpandEnv(rootCAPath))
 	if err != nil {
-		logger.Log.Error("error while reading cert file", "error", err)
+		logger.Log.Error("error while reading cert file, err: %v", err)
 		panic(err)
 	}
 
@@ -246,14 +239,14 @@ func resolveHostsAsHTTP(hosts []string) []string {
 		parsedConnStr, err := connstr.Parse(host)
 		if err != nil {
 			err := errors.New(host + " " + err.Error())
-			logger.Log.Error("error while parsing connection string", "error", err)
+			logger.Log.Error("error while parsing connection string, err: %v", err)
 			panic(err)
 		}
 
 		out, err := connstr.Resolve(parsedConnStr)
 		if err != nil {
 			err := errors.New(parsedConnStr.String() + " " + err.Error())
-			logger.Log.Error("error while resolving connection string", "error", err)
+			logger.Log.Error("error while resolving connection string, err: %v", err)
 			panic(err)
 		}
 
@@ -293,7 +286,7 @@ func (s *client) Connect() error {
 
 	agent, err := s.connect(s.config.BucketName, s.config.MaxQueueSize, 0, connectionBufferSize, connectionTimeout)
 	if err != nil {
-		logger.Log.Error("error while connect to source bucket", "error", err)
+		logger.Log.Error("error while connect to source bucket, err: %v", err)
 		return err
 	}
 
@@ -304,22 +297,19 @@ func (s *client) Connect() error {
 		metaAgent, metaErr := s.createMetadataAgent(couchbaseMetadataConfig)
 
 		if metaErr != nil {
-			logger.Log.Error("error while connect to metadata bucket", "error", metaErr)
+			logger.Log.Error("error while connect to metadata bucket, err: %v", metaErr)
 			return metaErr
 		}
 
 		s.metaAgent = metaAgent
 
-		logger.Log.Info("connected",
-			"hosts", s.config.Hosts,
-			"bucket", s.config.BucketName,
-			"metadataBucket", couchbaseMetadataConfig.Bucket,
-		)
+		logger.Log.Info("connected to %s, bucket: %s, meta bucket: %s", s.config.Hosts,
+			s.config.BucketName, couchbaseMetadataConfig.Bucket)
 
 		return nil
 	}
 
-	logger.Log.Info("connected", "hosts", s.config.Hosts, "bucket", s.config.BucketName)
+	logger.Log.Info("connected to %s, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
@@ -361,7 +351,7 @@ func (s *client) Close() {
 		_ = s.agent.Close()
 	}
 
-	logger.Log.Info("connections closed", "hosts", s.config.Hosts)
+	logger.Log.Info("connections closed %s", s.config.Hosts)
 }
 
 func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
@@ -395,7 +385,7 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		memd.DcpOpenFlagProducer,
 	)
 	if err != nil {
-		logger.Log.Error("error while connect to dcp", "error", err)
+		logger.Log.Error("error while connect to dcp, err: %v", err)
 		return err
 	}
 
@@ -411,17 +401,17 @@ func (s *client) DcpConnect(useExpiryOpcode bool, useChangeStreams bool) error {
 		},
 	)
 	if err != nil {
-		logger.Log.Error("error while wait until ready to dcp", "error", err)
+		logger.Log.Error("error while wait until ready to dcp, err: %v", err)
 		return err
 	}
 
 	if err = <-ch; err != nil {
-		logger.Log.Error("error while wait until ready to dcp on callback", "error", err)
+		logger.Log.Error("error while wait until ready to dcp on callback, err: %v", err)
 		return err
 	}
 
 	s.dcpAgent = client
-	logger.Log.Info("connected as dcp", "hosts", s.config.Hosts, "bucket", s.config.BucketName)
+	logger.Log.Info("connected to %s as dcp, bucket: %s", s.config.Hosts, s.config.BucketName)
 
 	return nil
 }
@@ -477,7 +467,7 @@ func (s *client) GetAgentQueues() []*models.AgentQueue {
 
 func (s *client) DcpClose() {
 	_ = s.dcpAgent.Close()
-	logger.Log.Info("dcp connection closed", "hosts", s.config.Hosts)
+	logger.Log.Info("dcp connection closed %s", s.config.Hosts)
 }
 
 //nolint:funlen
@@ -561,13 +551,13 @@ func (s *client) GetVBucketSeqNos(awareCollection bool) (*wrapper.ConcurrentSwis
 func (s *client) GetNumVBuckets() int {
 	snapshot, err := s.GetDcpAgentConfigSnapshot()
 	if err != nil {
-		logger.Log.Error("error while get config snapshot", "error", err)
+		logger.Log.Error("error while get config snapshot, err: %v", err)
 		panic(err)
 	}
 
 	vBuckets, err := snapshot.NumVbuckets()
 	if err != nil {
-		logger.Log.Error("error while get number of vBucket", "error", err)
+		logger.Log.Error("error while get number of vBucket, err: %v", err)
 		panic(err)
 	}
 
@@ -618,15 +608,13 @@ func (s *client) openStreamWithRollback(vbID uint16,
 	openStreamOptions gocbcore.OpenStreamOptions,
 ) error {
 	logger.Log.Info(
-		"open stream with rollback",
-		"vbID", vbID,
-		"failedSeqNo", failedSeqNo,
-		"rollbackSeqNo", rollbackSeqNo,
+		"open stream with rollback, vbID: %d, failedSeqNo: %d, rollbackSeqNo: %d",
+		vbID, failedSeqNo, rollbackSeqNo,
 	)
 
 	failOverLogs, err := s.GetFailOverLogs(vbID)
 	if err != nil {
-		logger.Log.Error("error while get failOver logs when rollback", "error", err)
+		logger.Log.Error("error while get failOver logs when rollback, err: %v", err)
 		return err
 	}
 
@@ -736,7 +724,7 @@ func (s *client) OpenStream(
 	err = <-ch
 	if err != nil {
 		if rollbackErr, ok := err.(gocbcore.DCPRollbackError); ok {
-			logger.Log.Info("need to rollback", "vbID", vbID, "vbUUID", offset.VbUUID)
+			logger.Log.Info("need to rollback for vbID: %d, vbUUID: %d", vbID, offset.VbUUID)
 			return s.openStreamWithRollback(vbID, gocbcore.SeqNo(offset.SeqNo), rollbackErr.SeqNo,
 				gocbcore.SeqNo(offset.LatestSeqNo), observer, openStreamOptions)
 		}
@@ -810,7 +798,7 @@ func (s *client) GetCollectionIDs(scopeName string, collectionNames []string) (m
 		for _, collectionName := range collectionNames {
 			collectionID, err := s.getCollectionID(ctx, scopeName, collectionName)
 			if err != nil {
-				logger.Log.Error("error while get collection ids", "error", err)
+				logger.Log.Error("error while get collection ids, err: %v", err)
 				return nil, err
 			}
 

@@ -22,7 +22,7 @@ func ResolveUnionIntOrStringValue(input any) int {
 
 		result, err := convertSizeUnitToByte(value)
 		if err != nil {
-			logger.Log.Error("error while convert size unit to byte", "error", err)
+			logger.Log.Error("error while convert size unit to byte, err: %v", err)
 			panic(err)
 		}
 

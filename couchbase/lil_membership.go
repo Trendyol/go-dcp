@@ -53,7 +53,7 @@ func (h *lilCbMembership) register() {
 
 	err := h.createIndex(ctx, now)
 	if err != nil {
-		logger.Log.Error("error register while create index", "error", err)
+		logger.Log.Error("error register while create index, err: %v", err)
 		panic(err)
 	}
 }
@@ -75,7 +75,7 @@ func (h *lilCbMembership) createIndex(ctx context.Context, clusterJoinTime int64
 func (h *lilCbMembership) Close() {
 	err := h.bus.Unsubscribe(helpers.MembershipChangedBusEventName, h.membershipChangedListener)
 	if err != nil {
-		logger.Log.Error("error while unsubscribe", "error", err)
+		logger.Log.Error("error while unsubscribe: %v", err)
 	}
 
 	h.monitorRunning = false
@@ -118,7 +118,7 @@ func (h *lilCbMembership) heartbeat() {
 		h.scopeName, h.collectionName, h.instanceAll, heartbeatPath, payload, memd.SubdocDocFlagMkDoc,
 	)
 	if err != nil {
-		logger.Log.Error("error while heartbeat", "error", err)
+		logger.Log.Error("error while heartbeat: %v", err)
 		return
 	}
 }
@@ -127,7 +127,7 @@ func (h *lilCbMembership) startMonitor() {
 	h.monitorRunning = true
 
 	go func() {
-		logger.Log.Info("lil couchbase membership will start", "delay", h.config.Dcp.Group.Membership.RebalanceDelay)
+		logger.Log.Info("lil couchbase membership will start after %v", h.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(h.config.Dcp.Group.Membership.RebalanceDelay)
 
 		for h.monitorRunning {
@@ -144,7 +144,7 @@ func (h *lilCbMembership) monitor() {
 
 	data, err := Get(ctx, h.client.GetMetaAgent(), h.scopeName, h.collectionName, h.instanceAll)
 	if err != nil {
-		logger.Log.Error("error while monitor try to get index", "error", err)
+		logger.Log.Error("error while monitor try to get index: %v", err)
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *lilCbMembership) monitor() {
 
 	err = sonic.Unmarshal(data.Value, &all)
 	if err != nil {
-		logger.Log.Error("error while monitor try to unmarshal index", "error", err)
+		logger.Log.Error("error while monitor try to unmarshal index: %v", err)
 		return
 	}
 
@@ -170,14 +170,14 @@ func (h *lilCbMembership) monitor() {
 	for i, id := range ids {
 		instance, ok := all[id]
 		if !ok {
-			logger.Log.Error("error while monitor instance", "id", id, "error", err)
+			logger.Log.Error("error while monitor instance: %v, err: %v", id, err)
 			panic(err)
 		}
 
 		if h.isAlive(instance.HeartbeatTime) {
 			instances[i] = &instance
 		} else {
-			logger.Log.Info("instance is not alive", "id", instance.ID)
+			logger.Log.Info("instance %v is not alive", instance.ID)
 		}
 	}
 
@@ -197,7 +197,7 @@ func (h *lilCbMembership) monitor() {
 				logger.Log.Debug("cannot update instances: cas mismatch")
 				h.monitor()
 			} else {
-				logger.Log.Error("error while update instances", "error", err)
+				logger.Log.Error("error while update instances: %v", err)
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func (h *lilCbMembership) rebalance(instances []Instance) {
 
 	if selfOrder == 0 {
 		err := errors.New("cant find self in cluster")
-		logger.Log.Error("error while rebalance", "self", string(h.id), "error", err)
+		logger.Log.Error("error while rebalance, self = %v, err: %v", string(h.id), err)
 		panic(err)
 	} else {
 		newInfo := &membership.Model{
@@ -240,7 +240,7 @@ func (h *lilCbMembership) rebalance(instances []Instance) {
 		}
 
 		if newInfo.IsChanged(h.info) {
-			logger.Log.Debug("new info arrived for member", "memberNumber", newInfo.MemberNumber, "totalMembers", newInfo.TotalMembers)
+			logger.Log.Debug("new info arrived for member: %v/%v", newInfo.MemberNumber, newInfo.TotalMembers)
 
 			h.bus.Publish(helpers.MembershipChangedBusEventName, newInfo)
 		}
@@ -267,9 +267,8 @@ func (h *lilCbMembership) isAlive(heartbeatTime int64) bool {
 	upperWaitLimit := h.membershipConfig.HeartbeatInterval.Nanoseconds() + h.membershipConfig.HeartbeatToleranceDuration.Nanoseconds()
 	passedTimeSinceLastHeartbeat := time.Now().UnixNano() - heartbeatTime
 	logger.Log.Debug(
-		"heartbeat age",
-		"passedSeconds", passedTimeSinceLastHeartbeat/1000000000,
-		"upperWaitLimitSeconds", upperWaitLimit/1000000000,
+		"passed seconds since last heartbeat: %v, upper wait limit second: %v",
+		passedTimeSinceLastHeartbeat/1000000000, upperWaitLimit/1000000000,
 	)
 	return passedTimeSinceLastHeartbeat < upperWaitLimit
 }
@@ -296,7 +295,7 @@ func NewLilCBMembership(config *config.Dcp, client Client, bus EventBus.Bus) mem
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, lcbm.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe membership changed event", "error", err)
+		logger.Log.Error("error while subscribe membership changed event, err: %v", err)
 		panic(err)
 	}
 

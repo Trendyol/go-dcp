@@ -23,7 +23,7 @@ func (d *dynamicMembership) GetInfo() *Model {
 func (d *dynamicMembership) Close() {
 	err := d.bus.Unsubscribe(helpers.MembershipChangedBusEventName, d.membershipChangedListener)
 	if err != nil {
-		logger.Log.Error("error while unsubscribe", "error", err)
+		logger.Log.Error("error while unsubscribe: %v", err)
 	}
 }
 
@@ -45,7 +45,7 @@ func NewDynamicMembership(bus EventBus.Bus) Membership {
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, dm.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe membership changed event", "error", err)
+		logger.Log.Error("error while subscribe membership changed event, err: %v", err)
 		panic(err)
 	}
 

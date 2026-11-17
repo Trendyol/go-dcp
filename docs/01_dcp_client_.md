@@ -36,13 +36,13 @@ import (
 func listener(ctx *models.ListenerContext) {
 	switch event := ctx.Event.(type) {
 	case models.DcpMutation:
-		logger.Log.Info("mutation received", "id", string(event.Key))
+		logger.Log.Info("Mutation received for document ID: %v", string(event.Key))
 		// You would process the mutation event here
 	case models.DcpDeletion:
-		logger.Log.Info("deletion received", "id", string(event.Key))
+		logger.Log.Info("Deletion received for document ID: %v", string(event.Key))
 		// You would process the deletion event here
 	case models.DcpExpiration:
-		logger.Log.Info("expiration received", "id", string(event.Key))
+		logger.Log.Info("Expiration received for document ID: %v", string(event.Key))
 		// You would process the expiration event here
 	}
 

@@ -65,7 +65,7 @@ func IsCustom() bool {
 func Set(l zerolog.Logger) {
 	Log.z = l
 	Log.custom = true
-	gocbcore.SetLogger(&goCbCoreLogger{maxLevel: gocbcore.LogMaxVerbosity})
+	gocbcore.SetLogger(&goCbCoreLogger{maxLevel: zeroToCore(l.GetLevel())})
 }
 
 func InitDefaultLogger(logLevel string) {

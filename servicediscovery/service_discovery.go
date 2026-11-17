@@ -144,7 +144,7 @@ func (s *serviceDiscovery) StartHeartbeat() {
 
 			for _, name := range needToBeRemove {
 				s.Remove(name)
-				logger.Log.Debug("client %s disconnected", name)
+				logger.Log.Debug("client disconnected", "client", name)
 			}
 		}
 	}()
@@ -158,7 +158,7 @@ func (s *serviceDiscovery) StartMonitor() {
 	s.monitorRunning = true
 
 	go func() {
-		logger.Log.Info("service discovery will start after %v", s.config.Dcp.Group.Membership.RebalanceDelay)
+		logger.Log.Info("service discovery will start", "delay", s.config.Dcp.Group.Membership.RebalanceDelay)
 		time.Sleep(s.config.Dcp.Group.Membership.RebalanceDelay)
 
 		for s.monitorRunning {
@@ -176,7 +176,7 @@ func (s *serviceDiscovery) StartMonitor() {
 			for index, name := range names {
 				if service, ok := s.services.Load(name); ok {
 					if err := service.Client.Rebalance(index+2, totalMembers); err != nil {
-						logger.Log.Error("rebalance failed for %s", name)
+						logger.Log.Error("rebalance failed", "client", name, "error", err)
 					}
 				}
 			}
@@ -219,7 +219,7 @@ func (s *serviceDiscovery) SetInfo(memberNumber int, totalMembers int) {
 	if newInfo.IsChanged(s.info) {
 		s.info = newInfo
 
-		logger.Log.Debug("new info arrived for member: %v/%v", memberNumber, totalMembers)
+		logger.Log.Debug("new info arrived for member", "memberNumber", memberNumber, "totalMembers", totalMembers)
 
 		s.bus.Publish(helpers.MembershipChangedBusEventName, newInfo)
 	}

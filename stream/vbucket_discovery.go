@@ -52,9 +52,11 @@ func (s *vBucketDiscovery) Get() []uint16 {
 	end := readyToStreamVBuckets[len(readyToStreamVBuckets)-1]
 
 	logger.Log.Info(
-		"member: %v/%v, vbucket range: %v-%v",
-		receivedInfo.MemberNumber, receivedInfo.TotalMembers,
-		start, end,
+		"vbucket range assigned",
+		"memberNumber", receivedInfo.MemberNumber,
+		"totalMembers", receivedInfo.TotalMembers,
+		"start", start,
+		"end", end,
 	)
 
 	s.vBucketDiscoveryMetric.TotalMembers = receivedInfo.TotalMembers
@@ -96,11 +98,11 @@ func NewVBucketDiscovery(client couchbase.Client,
 		ms = couchbase.NewLilCBMembership(config, client, bus)
 	default:
 		err := errors.New("unknown membership")
-		logger.Log.Error("error while try to use membership: %s, err: %v", config.Dcp.Group.Membership.Type, err)
+		logger.Log.Error("error while try to use membership", "type", config.Dcp.Group.Membership.Type, "error", err)
 		panic(err)
 	}
 
-	logger.Log.Debug("vbucket discovery opened with membership type: %s", config.Dcp.Group.Membership.Type)
+	logger.Log.Debug("vbucket discovery opened", "membershipType", config.Dcp.Group.Membership.Type)
 
 	return &vBucketDiscovery{
 		vBucketNumber: vBucketNumber,

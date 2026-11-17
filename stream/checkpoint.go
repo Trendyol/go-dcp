@@ -108,7 +108,7 @@ func (s *checkpoint) Save() {
 		logger.Log.Trace("saved checkpoint")
 		s.stream.UnmarkDirtyOffsets()
 	} else {
-		logger.Log.Error("error while saving checkpoint document: %v", err)
+		logger.Log.Error("error while saving checkpoint document", "error", err)
 	}
 }
 
@@ -121,13 +121,13 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	if err == nil {
 		logger.Log.Debug("loaded checkpoint")
 	} else {
-		logger.Log.Error("error while loading checkpoint document, err: %v", err)
+		logger.Log.Error("error while loading checkpoint document", "error", err)
 		panic(err)
 	}
 
 	seqNoMap, err := s.client.GetVBucketSeqNos(false)
 	if err != nil {
-		logger.Log.Error("error while getting vBucket seqNos, err: %v", err)
+		logger.Log.Error("error while getting vBucket seqNos", "error", err)
 		panic(err)
 	}
 
@@ -138,7 +138,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 	anyDirtyOffset := false
 
 	if !exist {
-		logger.Log.Debug("no checkpoint found, auto reset checkpoint to %s", s.config.Checkpoint.AutoReset)
+		logger.Log.Debug("no checkpoint found, auto reset checkpoint", "autoReset", s.config.Checkpoint.AutoReset)
 	}
 
 	dump.Range(func(vbID uint16, doc *models.CheckpointDocument) bool {
@@ -148,8 +148,9 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		if isEmptyCheckpoint && s.config.Checkpoint.AutoReset == CheckpointAutoResetTypeLatest {
 			if exist {
 				logger.Log.Warn(
-					"partial checkpoint detected, resetting vbID: %d to latest, seqNo: %d",
-					vbID, currentSeqNo,
+					"partial checkpoint detected, resetting to latest",
+					"vbID", vbID,
+					"seqNo", currentSeqNo,
 				)
 			}
 
@@ -160,7 +161,7 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 
 			failOverLogs, err := s.client.GetFailOverLogs(vbID)
 			if err != nil {
-				logger.Log.Error("error while get failOver logs when initialize latest, err: %v", err)
+				logger.Log.Error("error while get failOver logs when initialize latest", "error", err)
 				panic(err)
 			}
 
@@ -182,8 +183,11 @@ func (s *checkpoint) Load() (*wrapper.ConcurrentSwissMap[uint16, *models.Offset]
 		if doc.Checkpoint.SeqNo > currentSeqNo {
 			err := errors.New("checkpoint seqNo bigger then vBucket latest seqNo")
 			logger.Log.Error(
-				"error while loading checkpoint, vbID: %v, checkpoint seqNo: %v, latest seqNo: %v, err: %v",
-				vbID, doc.Checkpoint.SeqNo, currentSeqNo, err,
+				"error while loading checkpoint",
+				"vbID", vbID,
+				"checkpointSeqNo", doc.Checkpoint.SeqNo,
+				"latestSeqNo", currentSeqNo,
+				"error", err,
 			)
 			panic(err)
 		}
@@ -244,7 +248,7 @@ func (s *checkpoint) GetMetric() *CheckpointMetric {
 func getBucketUUID(client couchbase.Client) string {
 	snapshot, err := client.GetDcpAgentConfigSnapshot()
 	if err != nil {
-		logger.Log.Error("error while get config snapshot, err: %v", err)
+		logger.Log.Error("error while get config snapshot", "error", err)
 		panic(err)
 	}
 

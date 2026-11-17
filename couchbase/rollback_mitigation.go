@@ -3,9 +3,7 @@ package couchbase
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -125,7 +123,7 @@ func (r *rollbackMitigation) observeVbID(
 		RetryStrategy: gocbcore.NewBestEffortRetryStrategy(nil),
 	}, callback)
 	if err != nil {
-		logger.Log.Error("observeVBID error for vbID: %v, replica:%v, vbUUID: %v, err: %v", vbID, replica, vbUUID, err)
+		logger.Log.Error("observe vbID failed", "vbID", vbID, "replica", replica, "vbUUID", vbUUID, "error", err)
 		callback(nil, err)
 	}
 }
@@ -156,7 +154,13 @@ func (r *rollbackMitigation) getMinSeqNo(vbID uint16) gocbcore.SeqNo { //nolint:
 		}
 
 		if vbUUID != replica.vbUUID {
-			logger.Log.Trace("vbUUID mismatch %v != %v for %v index of %v", vbUUID, replica.vbUUID, idx, len(replicas))
+			logger.Log.Trace(
+				"vbUUID mismatch",
+				"vbUUID", vbUUID,
+				"replicaVbUUID", replica.vbUUID,
+				"index", idx,
+				"replicas", len(replicas),
+			)
 			return 0
 		}
 
@@ -176,7 +180,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 			serverIndex, err := r.configSnapshot.VbucketToServer(vbID, uint32(idx))
 			if err != nil {
 				if errors.Is(err, gocbcore.ErrInvalidReplica) {
-					logger.Log.Debug("invalid replica of vbID: %v, replica: %v, err: %v", vbID, idx, err)
+					logger.Log.Debug("invalid replica", "vbID", vbID, "replica", idx, "error", err)
 					replica.SetAbsent()
 				} else {
 					outerError = err
@@ -184,7 +188,7 @@ func (r *rollbackMitigation) markAbsentInstances() error { //nolint:unused
 				}
 			} else {
 				if serverIndex < 0 {
-					logger.Log.Debug("invalid server index of vbID: %v, replica: %v, serverIndex: %v", vbID, idx, serverIndex)
+					logger.Log.Debug("invalid server index", "vbID", vbID, "replica", idx, "serverIndex", serverIndex)
 					replica.SetAbsent()
 				}
 			}
@@ -217,7 +221,12 @@ func (r *rollbackMitigation) startObserve(groupID int) {
 					}
 
 					if r.closed || r.activeGroupID != groupID {
-						logger.Log.Debug("closed(%v) or groupID(%v!=%v) changed on startObserve", r.closed, r.activeGroupID, groupID)
+						logger.Log.Debug(
+							"closed or groupID changed on startObserve",
+							"closed", r.closed,
+							"activeGroupID", r.activeGroupID,
+							"groupID", groupID,
+						)
 						wg.Done()
 					} else {
 						vbUUID, _ := r.vbUUIDMap.Load(vbID)
@@ -245,17 +254,11 @@ func (r *rollbackMitigation) loadVbUUID(vbID uint16) error {
 
 	r.vbUUIDMap.Store(vbID, failOverLogs[0].VbUUID)
 
-	failOverInfos := make([]string, 0, len(failOverLogs))
-	for index, failOverLog := range failOverLogs {
-		failOverInfos = append(
-			failOverInfos,
-			fmt.Sprintf("index: %v, vbUUID: %v, seqNo: %v", index, failOverLog.VbUUID, failOverLog.SeqNo),
-		)
-	}
-
 	logger.Log.Trace(
-		"observing vbID: %v, vbUUID: %v, failOverInfo: %v",
-		vbID, failOverLogs[0].VbUUID, strings.Join(failOverInfos, ", "),
+		"observing vb",
+		"vbID", vbID,
+		"vbUUID", failOverLogs[0].VbUUID,
+		"failovers", failOverLogs,
 	)
 
 	return nil
@@ -274,7 +277,7 @@ func (r *rollbackMitigation) loadVbUUIDMap() {
 
 	err := eg.Wait()
 	if err != nil {
-		logger.Log.Error("error while get load vbuuid map, err: %v", err)
+		logger.Log.Error("error while get load vbuuid map", "error", err)
 		panic(err)
 	}
 }
@@ -291,12 +294,12 @@ func (r *rollbackMitigation) reconfigure() {
 	}
 
 	r.activeGroupID++
-	logger.Log.Info("new cluster config received, groupId = %v", r.activeGroupID)
+	logger.Log.Info("new cluster config received", "groupID", r.activeGroupID)
 
 	r.reset()
 	err := r.markAbsentInstances()
 	if err != nil {
-		logger.Log.Error("error while mark absent instances, err: %v", err)
+		logger.Log.Error("error while mark absent instances", "error", err)
 		panic(err)
 	}
 
@@ -308,17 +311,22 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 		wg.Done()
 
 		if r.closed || r.activeGroupID != groupID {
-			logger.Log.Debug("closed(%v) or groupID(%v!=%v) changed on observe", r.closed, r.activeGroupID, groupID)
+			logger.Log.Debug(
+				"closed or groupID changed on observe",
+				"closed", r.closed,
+				"activeGroupID", r.activeGroupID,
+				"groupID", groupID,
+			)
 			return
 		}
 
 		if err != nil {
 			if errors.Is(err, gocbcore.ErrUnambiguousTimeout) {
-				logger.Log.Debug("timeout while observe: %v", err)
+				logger.Log.Debug("timeout while observe", "error", err)
 				return
 			}
 
-			logger.Log.Error("error while observe, err: %v", err)
+			logger.Log.Error("error while observe", "error", err)
 
 			if errors.Is(err, gocbcore.ErrTemporaryFailure) ||
 				errors.Is(err, gocbcore.ErrBusy) {
@@ -330,7 +338,7 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 
 		replicas, ok := r.persistedSeqNos.Load(vbID)
 		if !ok {
-			logger.Log.Error("replicas of vbID: %v not found", vbID)
+			logger.Log.Error("replicas not found", "vbID", vbID)
 		}
 
 		if len(replicas) > replica {
@@ -349,7 +357,7 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 				r.vbUUIDMap.Store(vbID, result.VbUUID)
 			}
 		} else {
-			logger.Log.Error("replica: %v not found", replica)
+			logger.Log.Error("replica not found", "replica", replica)
 		}
 	})
 }
@@ -358,7 +366,7 @@ func (r *rollbackMitigation) reset() {
 	vBuckets := r.client.GetNumVBuckets()
 	replicas, err := r.configSnapshot.NumReplicas()
 	if err != nil {
-		logger.Log.Error("error while reset rollback mitigation, err: %v", err)
+		logger.Log.Error("error while reset rollback mitigation", "error", err)
 		panic(err)
 	}
 
@@ -405,11 +413,11 @@ func (r *rollbackMitigation) waitFirstConfig() error {
 }
 
 func (r *rollbackMitigation) Start() {
-	logger.Log.Info("rollback mitigation will start with %v interval", r.config.RollbackMitigation.Interval)
+	logger.Log.Info("rollback mitigation will start", "interval", r.config.RollbackMitigation.Interval)
 
 	err := r.waitFirstConfig()
 	if err != nil {
-		logger.Log.Error("error while get first config, err: %v", err)
+		logger.Log.Error("error while get first config", "error", err)
 		panic(err)
 	}
 

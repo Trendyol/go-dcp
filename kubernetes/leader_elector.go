@@ -49,7 +49,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 				return
 			}
 
-			logger.Log.Debug("granted to follower for leader: %s", leaderIdentity.Name)
+			logger.Log.Debug("granted to follower", "leader", leaderIdentity.Name)
 
 			le.client.AddLabel("role", "follower")
 			le.handler.OnBecomeFollower(leaderIdentity)
@@ -80,7 +80,7 @@ func (le *leaderElector) Run(ctx context.Context) {
 func (le *leaderElector) Close() {
 	err := le.bus.Unsubscribe(helpers.MembershipChangedBusEventName, le.membershipChangedListener)
 	if err != nil {
-		logger.Log.Error("error while unsubscribe: %v", err)
+		logger.Log.Error("error while unsubscribe", "error", err)
 	}
 }
 
@@ -108,7 +108,7 @@ func NewLeaderElector(
 
 	err := bus.SubscribeAsync(helpers.MembershipChangedBusEventName, le.membershipChangedListener, true)
 	if err != nil {
-		logger.Log.Error("error while subscribe to membership changed event, err: %v", err)
+		logger.Log.Error("error while subscribe to membership changed event", "error", err)
 		panic(err)
 	}
 

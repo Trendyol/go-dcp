@@ -130,7 +130,7 @@ func (r *rollbackMitigation) observe(vbID uint16, replica int, groupID int, vbUU
 
     if replicas[replica].IsOutdated(result) {
         // Detected a mismatch between our known state and the server state!
-        logger.Log.Info("Detected outdated state for vbID %v, replica %v", vbID, replica)
+        logger.Log.Info("detected outdated state", "vbID", vbID, "replica", replica)
 
         // Update internal state with the new values
         replicas[replica].SetSeqNo(result.PersistSeqNo)

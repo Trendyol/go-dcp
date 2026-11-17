@@ -46,7 +46,7 @@ func (le *client) AddLabel(key string, value string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		logger.Log.Error("failed to add label: %v", err)
+		logger.Log.Error("failed to add label", "error", err)
 	}
 }
 
@@ -58,7 +58,7 @@ func (le *client) RemoveLabel(key string) {
 		metaV1.PatchOptions{},
 	)
 	if err != nil {
-		logger.Log.Error("failed to remove label: %v", err)
+		logger.Log.Error("failed to remove label", "error", err)
 	}
 }
 
@@ -80,7 +80,7 @@ func getNamespace() string {
 func (le *client) setIdentity() {
 	hostname, err := os.Hostname()
 	if err != nil {
-		logger.Log.Error("error while getting hostname, err: %v", err)
+		logger.Log.Error("error while getting hostname", "error", err)
 		panic(err)
 	}
 
@@ -98,7 +98,7 @@ func (le *client) setIdentity() {
 				metaV1.GetOptions{},
 			)
 			if err != nil {
-				logger.Log.Error("error while getting pod, err: %v", err)
+				logger.Log.Error("error while getting pod", "error", err)
 				panic(err)
 			}
 
@@ -111,7 +111,7 @@ func (le *client) setIdentity() {
 
 			if tries > 10 {
 				err := errors.New("after 10 tries, pod ip is still empty")
-				logger.Log.Error("error while get pod ip, err: %v", err)
+				logger.Log.Error("error while get pod ip", "error", err)
 				panic(err)
 			} else {
 				logger.Log.Debug("pod ip is empty, waiting...")
@@ -135,13 +135,13 @@ func (le *client) GetIdentity() *models.Identity {
 func NewClient() Client {
 	kubernetesConfig, err := rest.InClusterConfig()
 	if err != nil {
-		logger.Log.Error("error while get kubernetes config, err: %v", err)
+		logger.Log.Error("error while get kubernetes config", "error", err)
 		panic(err)
 	}
 
 	namespace := getNamespace()
 
-	logger.Log.Debug("kubernetes namespace: %s", namespace)
+	logger.Log.Debug("kubernetes namespace", "namespace", namespace)
 
 	client := &client{
 		clientSet: clientSet.NewForConfigOrDie(kubernetesConfig),

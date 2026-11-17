@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"log"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -33,7 +32,7 @@ func listener(ctx *models.ListenerContext) {
 func TestCouchbase(t *testing.T) {
 	newDcp, err := dcp.NewDcp("config.yml", listener)
 	if err != nil {
-		log.Fatalf("couldn't create dcp err: %v", err)
+		t.Fatalf("couldn't create dcp: %v", err)
 	}
 
 	var wg sync.WaitGroup

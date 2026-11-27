@@ -112,6 +112,43 @@ func TestStream_EndCompletesConsumer(t *testing.T) {
 	}
 }
 
+func TestStream_FiniteModeStopsOnlyAfterLastVBucketEnds(t *testing.T) {
+	s := newTestStream()
+	s.config.Dcp.Mode = config.DcpModeFinite
+	s.lifecycle.activeStreams.Store(3)
+	s.activeStreams.Store(3)
+	for vbID := range uint16(3) {
+		s.listenEnd(models.DcpStreamEndContext{Event: models.DcpStreamEnd{VbID: vbID}}, s.lifecycle)
+		_, active := s.GetMetric()
+		if want := int32(2 - vbID); active != want {
+			t.Fatalf("after vbucket %d ended: active=%d, want %d", vbID, active, want)
+		}
+		if vbID < 2 {
+			select {
+			case <-s.lifecycle.done:
+				t.Fatal("finite consumer completed while vbucket streams remained")
+			default:
+			}
+		}
+	}
+	select {
+	case terminal := <-s.lifecycle.done:
+		if !terminal {
+			t.Fatal("last finite vbucket did not request terminal completion")
+		}
+		// Restore the real notification so the waiter performs the shutdown.
+		s.lifecycle.done <- terminal
+	case <-time.After(time.Second):
+		t.Fatal("finite consumer did not complete after the last vbucket ended")
+	}
+	s.wait(s.lifecycle)
+	select {
+	case <-s.stopCh:
+	default:
+		t.Fatal("finite consumer did not stop after the last vbucket ended")
+	}
+}
+
 func TestStream_CloseStopsConsumer(t *testing.T) {
 	s := newTestStream()
 	s.Close(true)

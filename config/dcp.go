@@ -110,10 +110,11 @@ type RPC struct {
 }
 
 type Checkpoint struct {
-	Type      string        `yaml:"type"`
-	AutoReset string        `yaml:"autoReset"`
-	Interval  time.Duration `yaml:"interval"`
-	Timeout   time.Duration `yaml:"timeout"`
+	Type                        string        `yaml:"type"`
+	AutoReset                   string        `yaml:"autoReset"`
+	Interval                    time.Duration `yaml:"interval"`
+	Timeout                     time.Duration `yaml:"timeout"`
+	RollbackToZeroWhenCorrupted bool          `yaml:"rollbackToZeroWhenCorrupted"`
 }
 
 type HealthCheck struct {
